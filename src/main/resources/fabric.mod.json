@@ -1,34 +1,31 @@
 {
 	"schemaVersion": 1,
-	"id": "testmod",
+	"id": "kibu-nbs",
 	"version": "${version}",
-	"name": "Test Mod",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "kibu-nbs",
+	"description": "A mod for playing .nbs files",
 	"authors": [
-		"Me!"
+		"LCLP"
 	],
 	"contact": {
-		"homepage": "https://github.com/LCLPYT/fabric-mod-boilerplate",
-		"sources": "https://github.com/LCLPYT/fabric-mod-boilerplate"
+		"homepage": "https://github.com/LCLPYT/kibu-nbs",
+		"sources": "https://github.com/LCLPYT/kibu-nbs"
 	},
-	"license": "CC0-1.0",
-	"icon": "assets/testmod/icon.png",
+	"license": "MIT",
+	"icon": "assets/kibu-nbs/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.example.ExampleMod"
+			"work.lclpnet.kibu.nbs.KibuNbsInit"
 		],
 		"client": [
-			"com.example.ExampleModClient"
-		],
-		"fabric-datagen": [
-			"com.example.ExampleModDataGenerator"
+			"work.lclpnet.kibu.nbs.KibuNbsClientInit"
 		]
 	},
 	"mixins": [
-		"testmod.mixins.json",
+		"kibu-nbs.mixins.json",
 		{
-			"config": "testmod.client.mixins.json",
+			"config": "kibu-nbs.client.mixins.json",
 			"environment": "client"
 		}
 	],

@@ -30,6 +30,20 @@ loom {
     }
 }
 
+sourceSets {
+    api {}
+
+    main {
+        compileClasspath += api.getOutput()
+        runtimeClasspath += api.getOutput()
+    }
+
+    test {
+        compileClasspath += client.getOutput() + api.getOutput()
+        runtimeClasspath += client.getOutput() + api.getOutput()
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
@@ -37,11 +51,21 @@ dependencies {
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
+    apiImplementation(implementation('org.jetbrains:annotations:24.0.0'))
+
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
 }
 
 test {
     useJUnitPlatform()
+}
+
+configurations {
+    testCompileClasspath.extendsFrom(minecraftCommonNamedCompile)
+    testRuntimeClasspath.extendsFrom(minecraftCommonNamedRuntime)
+    testCompileClasspath.extendsFrom(minecraftClientOnlyNamedCompile)
+    testRuntimeClasspath.extendsFrom(minecraftClientOnlyNamedRuntime)
+    testRuntimeClasspath.extendsFrom(modRuntimeClasspathClientMapped)
 }
 
 processResources {

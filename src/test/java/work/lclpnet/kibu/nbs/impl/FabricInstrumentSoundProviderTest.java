@@ -12,7 +12,7 @@ import work.lclpnet.kibu.nbs.data.CustomInstrument;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class FabricInstrumentProviderTest {
+class FabricInstrumentSoundProviderTest {
 
     @BeforeAll
     public static void bootstrap() {
@@ -22,7 +22,7 @@ class FabricInstrumentProviderTest {
 
     @Test
     void getVanillaInstrument() {
-        var provider = new FabricInstrumentProvider(Registries.SOUND_EVENT);
+        var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
         soundEquals(provider, 0,  SoundEvents.BLOCK_NOTE_BLOCK_HARP);
         soundEquals(provider, 1,  SoundEvents.BLOCK_NOTE_BLOCK_BASS);
@@ -42,33 +42,33 @@ class FabricInstrumentProviderTest {
         soundEquals(provider, 15, SoundEvents.BLOCK_NOTE_BLOCK_PLING);
     }
 
-    private void soundEquals(FabricInstrumentProvider provider, int id, RegistryEntry.Reference<SoundEvent> ref) {
-        assertEquals(ref.value(), provider.getVanillaInstrument((byte) id));
+    private void soundEquals(FabricInstrumentSoundProvider provider, int id, RegistryEntry.Reference<SoundEvent> ref) {
+        assertEquals(ref.value(), provider.getVanillaInstrumentSound((byte) id));
     }
 
     @Test
     void getCustomInstrument_soundFileValid_bySoundFile() {
-        var provider = new FabricInstrumentProvider(Registries.SOUND_EVENT);
+        var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
         CustomInstrument instrument = new CustomInstrument("", "entity.experience_orb.pickup.ogg", (byte) 45);
-        SoundEvent sound = provider.getCustomInstrument(instrument);
+        SoundEvent sound = provider.getCustomInstrumentSound(instrument);
         assertEquals(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, sound);
     }
 
     @Test
     void getCustomInstrument_soundFileInvalid_byName() {
-        var provider = new FabricInstrumentProvider(Registries.SOUND_EVENT);
+        var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
         CustomInstrument instrument = new CustomInstrument("entity.experience_orb.pickup", "bla bla", (byte) 45);
-        SoundEvent sound = provider.getCustomInstrument(instrument);
+        SoundEvent sound = provider.getCustomInstrumentSound(instrument);
         assertEquals(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, sound);
     }
 
     @Test
     void getCustomInstrument_soundFileAndNameInvalid_null() {
-        var provider = new FabricInstrumentProvider(Registries.SOUND_EVENT);
+        var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
         CustomInstrument instrument = new CustomInstrument("bla bla bla", "bla bla", (byte) 45);
-        assertNull(provider.getCustomInstrument(instrument));
+        assertNull(provider.getCustomInstrumentSound(instrument));
     }
 }

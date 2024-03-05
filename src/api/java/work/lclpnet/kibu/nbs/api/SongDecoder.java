@@ -8,12 +8,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static work.lclpnet.kibu.nbs.api.IoHelper.*;
 
 public class SongDecoder {
 
-    private static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
+    public static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
 
     private SongDecoder() {}
 
@@ -81,6 +82,7 @@ public class SongDecoder {
         // NOTE BLOCKS
         final byte customInstrumentOffset = (byte) (vanillaInstrumentCount - songVanillaInstrumentCount);
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
+        boolean stereo = false;
         short tick = -1;
 
         // iterate ticks
@@ -118,6 +120,10 @@ public class SongDecoder {
                     // panning: [0..200] 0=left, 100=center, 200=right
                     panning = (short) (200 - in.readUnsignedByte());
 
+                    if (panning != 100) {
+                        stereo = true;
+                    }
+
                     pitch = readShortLE(in);
                 } else {
                     velocity = 100;
@@ -138,17 +144,19 @@ public class SongDecoder {
         };
 
         // LAYERS
-        var layers = readLayers(layerCount, layerNotes, in, version);
+        var layerResult = readLayers(layerCount, layerNotes, in, version);
+        stereo |= layerResult.stereo();
 
         // CUSTOM INSTRUMENTS
         Instruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
 
-        return new Song(durationTicks, ticksPerSecond, meta, loopConfig, layers, instruments);
+        return new Song(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo);
     }
 
     @NotNull
-    private static Map<Integer, Layer> readLayers(short layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
+    private static LayerResult readLayers(short layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
         Map<Integer, Layer> layers = new HashMap<>(layerCount);
+        boolean stereo = false;
 
         for (int i = 0; i < layerCount; i++) {
             var notes = layerNotes.get(i);
@@ -165,6 +173,10 @@ public class SongDecoder {
             if (version >= 2) {
                 // panning: [0..200] 0=left, 100=center, 200=right
                 panning = (short) (200 - in.readUnsignedByte());
+
+                if (panning != 100) {
+                    stereo = true;
+                }
             } else {
                 panning = 100;
             }
@@ -174,7 +186,7 @@ public class SongDecoder {
             layers.put(i, new Layer(name, volume, panning, notes));
         }
 
-        return layers;
+        return new LayerResult(layers, stereo);
     }
 
     @NotNull
@@ -224,4 +236,6 @@ public class SongDecoder {
         String description = readString(in);
         return new SongMeta(name, author, originalAuthor, description);
     }
+
+    private record LayerResult(Map<Integer, Layer> layers, boolean stereo) {}
 }

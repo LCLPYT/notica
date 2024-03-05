@@ -52,7 +52,7 @@ public class SongPlayback implements Runnable {
 
                 if (note == null) continue;
 
-                notePlayer.playNote(note);
+                notePlayer.playNote(song, layer, note);
             }
 
             long elapsed = System.currentTimeMillis() - before;

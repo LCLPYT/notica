@@ -9,29 +9,31 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.kibu.nbs.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class FabricInstrumentProvider {
+public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
 
     private final Registry<SoundEvent> soundRegistry;
     private final Map<CustomInstrument, SoundEvent> cache = new HashMap<>();
 
-    public FabricInstrumentProvider(MinecraftServer server) {
+    public FabricInstrumentSoundProvider(MinecraftServer server) {
         this(server.getRegistryManager());
     }
 
-    public FabricInstrumentProvider(DynamicRegistryManager registryManager) {
+    public FabricInstrumentSoundProvider(DynamicRegistryManager registryManager) {
         this(registryManager.get(RegistryKeys.SOUND_EVENT));
     }
 
-    public FabricInstrumentProvider(Registry<SoundEvent> soundRegistry) {
+    public FabricInstrumentSoundProvider(Registry<SoundEvent> soundRegistry) {
         this.soundRegistry = soundRegistry;
     }
 
+    @Override
     @Nullable
-    public SoundEvent getVanillaInstrument(byte instrument) {
+    public SoundEvent getVanillaInstrumentSound(byte instrument) {
         return switch (instrument) {
             case 0  -> SoundEvents.BLOCK_NOTE_BLOCK_HARP.value();
             case 1  -> SoundEvents.BLOCK_NOTE_BLOCK_BASS.value();
@@ -53,8 +55,9 @@ public class FabricInstrumentProvider {
         };
     }
 
+    @Override
     @Nullable
-    public SoundEvent getCustomInstrument(CustomInstrument instrument) {
+    public SoundEvent getCustomInstrumentSound(CustomInstrument instrument) {
         SoundEvent sound = cache.get(instrument);
 
         if (sound != null) {

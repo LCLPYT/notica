@@ -17,10 +17,12 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
     private ServerPlayerEntity player;
     private final InstrumentSoundProvider soundProvider;
+    private final float volume;
 
-    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider) {
+    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume) {
         this.player = player;
         this.soundProvider = soundProvider;
+        this.volume = Math.max(0f, Math.min(1f, volume));
     }
 
     @Override
@@ -71,7 +73,7 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             pitch = NoteHelper.getVanillaPitch(note.key(), note.pitch());
         }
 
-        float volume = (layer.volume() * note.velocity()) / 10000f;
+        float volume = layer.volume() * note.velocity() * this.volume / 10000f;
 
         player.playSound(sound, SoundCategory.RECORDS, volume, pitch);
     }

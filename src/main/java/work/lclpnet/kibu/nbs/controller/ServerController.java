@@ -46,7 +46,7 @@ public class ServerController implements Controller, PlayerHolder {
 
     @Override
     public void playSong(SongDescriptor descriptor, float volume) {
-        startSong(descriptor, () -> new ServerBasicNotePlayer(player, soundProvider));
+        startSong(descriptor, () -> new ServerBasicNotePlayer(player, soundProvider, volume));
     }
 
     @Override

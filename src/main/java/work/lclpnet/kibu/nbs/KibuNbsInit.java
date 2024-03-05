@@ -2,11 +2,13 @@ package work.lclpnet.kibu.nbs;
 
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import work.lclpnet.kibu.nbs.cmd.MusicCommand;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
 
 import java.nio.file.Path;
@@ -23,7 +25,11 @@ public class KibuNbsInit implements ModInitializer {
 	public void onInitialize() {
 		Path songsDirectory = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("songs");
 
-		ServerLifecycleEvents.SERVER_STARTING.register(server -> KibuNbsApiImpl.init(server, songsDirectory, LOGGER));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+				new MusicCommand(songsDirectory, LOGGER).register(dispatcher));
+
+		ServerLifecycleEvents.SERVER_STARTING.register(server ->
+				KibuNbsApiImpl.init(server, songsDirectory, LOGGER));
 
 		LOGGER.info("Initialized.");
 	}

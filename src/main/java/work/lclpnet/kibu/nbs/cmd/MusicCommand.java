@@ -75,6 +75,7 @@ public class MusicCommand {
                 files.filter(path -> path.getFileName().toString().endsWith(".nbs") && Files.isRegularFile(path))
                         .map(songDirectory::relativize)
                         .map(Path::toString)
+                        .map(MusicCommand::addQuotes)
                         .forEach(builder::suggest);
             } catch (IOException e) {
                 logger.error("Failed to walk files in songs directory", e);
@@ -82,5 +83,11 @@ public class MusicCommand {
 
             return builder.build();
         });
+    }
+
+    private static String addQuotes(String s) {
+        if (s.indexOf(' ') == -1) return s;
+
+        return '"' + s + '"';
     }
 }

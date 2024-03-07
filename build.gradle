@@ -38,6 +38,11 @@ sourceSets {
         runtimeClasspath += api.getOutput()
     }
 
+    client {
+        compileClasspath += api.getOutput()
+        runtimeClasspath += api.getOutput()
+    }
+
     test {
         compileClasspath += client.getOutput() + api.getOutput()
         runtimeClasspath += client.getOutput() + api.getOutput()
@@ -62,12 +67,14 @@ test {
     useJUnitPlatform()
 }
 
-configurations {
-    testCompileClasspath.extendsFrom(minecraftCommonNamedCompile)
-    testRuntimeClasspath.extendsFrom(minecraftCommonNamedRuntime)
-    testCompileClasspath.extendsFrom(minecraftClientOnlyNamedCompile)
-    testRuntimeClasspath.extendsFrom(minecraftClientOnlyNamedRuntime)
-    testRuntimeClasspath.extendsFrom(modRuntimeClasspathClientMapped)
+afterEvaluate {
+    configurations {
+        testCompileClasspath.extendsFrom(minecraftCommonNamedCompile)
+        testRuntimeClasspath.extendsFrom(minecraftCommonNamedRuntime)
+        testCompileClasspath.extendsFrom(minecraftClientOnlyNamedCompile)
+        testRuntimeClasspath.extendsFrom(minecraftClientOnlyNamedRuntime)
+        testRuntimeClasspath.extendsFrom(modRuntimeClasspathClientMapped)
+    }
 }
 
 processResources {

@@ -8,13 +8,11 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.command.argument.IdentifierArgumentType;
-import net.minecraft.registry.DefaultedRegistry;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
-import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 
 import java.io.IOException;
 import java.nio.file.Files;

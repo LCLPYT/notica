@@ -68,9 +68,9 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         // support for non-vanilla pitch values not implemented currently
         if (custom != null) {
-            pitch = NoteHelper.getVanillaPitch((byte) (note.key() + custom.key() - 45), note.pitch());
+            pitch = NoteHelper.transposedPitch((byte) (note.key() + custom.key() - 45), note.pitch());
         } else {
-            pitch = NoteHelper.getVanillaPitch(note.key(), note.pitch());
+            pitch = NoteHelper.transposedPitch(note.key(), note.pitch());
         }
 
         float volume = layer.volume() * note.velocity() * this.volume / 10000f;

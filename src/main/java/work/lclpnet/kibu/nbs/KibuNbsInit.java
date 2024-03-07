@@ -8,13 +8,14 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
 import work.lclpnet.kibu.nbs.cmd.MusicCommand;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.CompletableFuture;
 
 public class KibuNbsInit implements ModInitializer {
 
@@ -23,15 +24,34 @@ public class KibuNbsInit implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		Path songsDirectory = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("songs");
+		Path songsDirectory = createSongsDirectory();
+
+		KibuNbsApiImpl.configure(songsDirectory, LOGGER);
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
 				new MusicCommand(songsDirectory, LOGGER).register(dispatcher));
 
-		ServerLifecycleEvents.SERVER_STARTING.register(server ->
-				KibuNbsApiImpl.init(server, songsDirectory, LOGGER));
+		PlayerConnectionHooks.QUIT.register(player -> KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player));
 
 		LOGGER.info("Initialized.");
+	}
+
+	private Path createSongsDirectory() {
+		Path dir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("songs");
+
+		CompletableFuture.runAsync(() -> createDirectory(dir));
+
+		return dir;
+	}
+
+	private void createDirectory(Path dir) {
+		if (Files.exists(dir)) return;
+
+		try {
+			Files.createDirectories(dir);
+		} catch (IOException e) {
+			LOGGER.error("Failed to create directory {}", dir, e);
+		}
 	}
 
 	/**

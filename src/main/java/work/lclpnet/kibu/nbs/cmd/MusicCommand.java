@@ -56,7 +56,7 @@ public class MusicCommand {
 
         Path path = songDirectory.resolve(songFile);
 
-        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance();
+        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
         instance.loadSongFile(path, id)
                 .exceptionally(error -> {
                     logger.error("Failed to load song file", error);

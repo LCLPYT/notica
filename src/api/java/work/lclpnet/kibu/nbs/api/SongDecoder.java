@@ -44,20 +44,23 @@ public class SongDecoder {
         // HEADER
         short durationTicks = readShortLE(in);
 
-        final byte songVanillaInstrumentCount, version;
+        final byte songVanillaInstrumentCount, version, customInstrumentOffset;
 
         if (durationTicks == 0) {
             // new format
             version = in.readByte();
+
             songVanillaInstrumentCount = in.readByte();
+            customInstrumentOffset = (byte) (vanillaInstrumentCount - songVanillaInstrumentCount);
 
             // in version 3, length was re-added
             if (version >= 3) {
                 durationTicks = readShortLE(in);
             }
         } else {
+            version = 0;
             songVanillaInstrumentCount = 10;
-            version = 1;
+            customInstrumentOffset = 0;
         }
 
         final short layerCount = readShortLE(in);
@@ -80,7 +83,6 @@ public class SongDecoder {
         LoopConfig loopConfig = readLoopConfig(version, in);
 
         // NOTE BLOCKS
-        final byte customInstrumentOffset = (byte) (vanillaInstrumentCount - songVanillaInstrumentCount);
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
         boolean stereo = false;
         short tick = -1;
@@ -106,6 +108,8 @@ public class SongDecoder {
                 byte instrument = in.readByte();
 
                 // support nbs files from versions with fewer vanilla instruments
+                // modern vanilla instruments are encoded as custom instruments;
+                // e.g. songVanillaCount= 10, instrument=12 (didgeridoo), instrument_shifted=18 (custom instrument)
                 if (customInstrumentOffset > 0 && instrument >= songVanillaInstrumentCount) {
                     instrument += customInstrumentOffset;
                 }

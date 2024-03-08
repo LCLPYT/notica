@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
 import work.lclpnet.kibu.nbs.cmd.MusicCommand;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
+import work.lclpnet.kibu.translate.TranslationService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,15 +24,24 @@ public class KibuNbsInit implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		Path songsDirectory = createSongsDirectory();
-
 		KibuNbsApiImpl.configure(songsDirectory, LOGGER);
 
+		TranslationService translations = getTranslationService();
+
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				new MusicCommand(songsDirectory, LOGGER).register(dispatcher));
+				new MusicCommand(songsDirectory, translations, LOGGER).register(dispatcher));
 
 		PlayerConnectionHooks.QUIT.register(player -> KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player));
 
 		LOGGER.info("Initialized.");
+	}
+
+	private static TranslationService getTranslationService() {
+		var result = ModTranslations.load(LOGGER);
+		TranslationService translations = result.translations();
+
+		result.whenLoaded().thenRun(() -> LOGGER.info("{} translations loaded.", MOD_ID));
+		return translations;
 	}
 
 	private Path createSongsDirectory() {

@@ -30,7 +30,8 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
     private final MinecraftServer server;
     private final SimpleSongResolver songResolver;
     private final InstrumentSoundProvider soundProvider;
-    private final Map<UUID, Controller> remotes = new HashMap<>();
+    private final Map<UUID, Controller> controllers = new HashMap<>();
+    private final ExtendedOctaveRangeSupport extendedOctaveRangeSupport = new ExtendedOctaveRangeSupport();
 
     public static void configure(Path songsDirectory, Logger logger) {
         KibuNbsApiImpl.songsDirectory = Objects.requireNonNull(songsDirectory, "Songs directory is null");
@@ -48,12 +49,13 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
     }
 
     public void onPlayerQuit(ServerPlayerEntity player) {
-        remotes.remove(player.getUuid());
+        controllers.remove(player.getUuid());
+        extendedOctaveRangeSupport.onPlayerQuit(player);
     }
 
     public void execute(Collection<? extends ServerPlayerEntity> players, Consumer<Controller> action) {
         for (ServerPlayerEntity player : players) {
-            Controller controller = remotes.computeIfAbsent(player.getUuid(), uuid -> createController(player));
+            Controller controller = controllers.computeIfAbsent(player.getUuid(), uuid -> createController(player));
 
             if (controller instanceof PlayerHolder playerHolder) {
                 // update the player reference, in case the player instance changed by respawning
@@ -70,13 +72,17 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
             return new RemoteController(player.networkHandler);
         }
 
-        ExtendedOctaveRange extendedOctaveRange = () -> true;  // TODO customize per player
+        ExtendedOctaveRange extendedOctaveRange = extendedOctaveRangeSupport.get(player);
         return new ServerController(player, songResolver, soundProvider, extendedOctaveRange, logger);
     }
 
-    private boolean hasModInstalled(ServerPlayerEntity player) {
+    public boolean hasModInstalled(ServerPlayerEntity player) {
         // TODO
         return false;
+    }
+
+    public ExtendedOctaveRangeSupport getExtendedOctaveRangeSupport() {
+        return extendedOctaveRangeSupport;
     }
 
     public static KibuNbsApiImpl getInstance(MinecraftServer server) {

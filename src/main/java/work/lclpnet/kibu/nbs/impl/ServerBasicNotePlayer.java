@@ -59,6 +59,7 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         CustomInstrument custom = song.instruments().custom(instrument);
 
         if (custom != null) {
+            // TODO
             return;
         }
 
@@ -67,12 +68,14 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         byte key = note.key();
         short pitch = note.pitch();
-        float vanillaPitch = NoteHelper.transposedPitch(key, pitch);
+        float vanillaPitch;
 
         if (NoteHelper.isOutsideVanillaRange(key, pitch) && extendedOctaveRange.isSupported()) {
             // play extended octave range sound
             sound = soundProvider.getExtendedSound(sound, key, pitch);
             vanillaPitch = NoteHelper.normalizedPitch(key, pitch);
+        } else {
+            vanillaPitch = NoteHelper.transposedPitch(key, pitch);
         }
 
         float volume = layer.volume() * note.velocity() * this.volume / 10000f;

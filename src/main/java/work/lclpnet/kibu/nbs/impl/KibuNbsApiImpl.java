@@ -5,6 +5,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.KibuNbsAPI;
+import work.lclpnet.kibu.nbs.api.ExtendedOctaveRange;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.SongDecoder;
@@ -69,7 +70,8 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
             return new RemoteController(player.networkHandler);
         }
 
-        return new ServerController(player, songResolver, soundProvider, logger);
+        ExtendedOctaveRange extendedOctaveRange = () -> true;  // TODO customize per player
+        return new ServerController(player, songResolver, soundProvider, extendedOctaveRange, logger);
     }
 
     private boolean hasModInstalled(ServerPlayerEntity player) {

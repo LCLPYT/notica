@@ -4,6 +4,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import work.lclpnet.kibu.nbs.api.ExtendedOctaveRange;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
@@ -18,11 +19,14 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
     private ServerPlayerEntity player;
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
+    private final ExtendedOctaveRange extendedOctaveRange;
 
-    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume) {
+    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume,
+                                 ExtendedOctaveRange extendedOctaveRange) {
         this.player = player;
         this.soundProvider = soundProvider;
         this.volume = Math.max(0f, Math.min(1f, volume));
+        this.extendedOctaveRange = extendedOctaveRange;
     }
 
     @Override
@@ -54,27 +58,47 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         CustomInstrument custom = song.instruments().custom(instrument);
 
-        SoundEvent sound;
-
         if (custom != null) {
-            sound = soundProvider.getCustomInstrumentSound(custom);
-        } else {
-            sound = soundProvider.getVanillaInstrumentSound(instrument);
+            return;
         }
 
-        if (sound == null) return;
+        SoundEvent sound = soundProvider.getVanillaInstrumentSound(instrument);
+        if (sound == null) return;  // unknown vanilla sound
 
-        float pitch;
+        byte key = note.key();
+        short pitch = note.pitch();
+        float vanillaPitch = NoteHelper.transposedPitch(key, pitch);
 
-        // support for non-vanilla pitch values not implemented currently
-        if (custom != null) {
-            pitch = NoteHelper.transposedPitch((byte) (note.key() + custom.key() - 45), note.pitch());
-        } else {
-            pitch = NoteHelper.transposedPitch(note.key(), note.pitch());
+        if (NoteHelper.isOutsideVanillaRange(key, pitch) && extendedOctaveRange.isSupported()) {
+            // play extended octave range sound
+            sound = soundProvider.getExtendedSound(sound, key, pitch);
+            vanillaPitch = NoteHelper.normalizedPitch(key, pitch);
         }
 
         float volume = layer.volume() * note.velocity() * this.volume / 10000f;
+        player.playSound(sound, SoundCategory.RECORDS, volume, vanillaPitch);
 
-        player.playSound(sound, SoundCategory.RECORDS, volume, pitch);
+//        SoundEvent sound;
+//
+//        if (custom != null) {
+//            sound = soundProvider.getCustomInstrumentSound(custom);
+//        } else {
+//            sound = soundProvider.getVanillaInstrumentSound(instrument);
+//        }
+//
+//        if (sound == null) return;
+//
+//        byte key;
+//
+//        if (custom != null) {
+//            key = (byte) (note.key() + custom.key() - 45);
+//        } else {
+//            key = note.key();
+//        }
+//
+//        short pitch = note.pitch();
+//
+//        float pitch = getPitch(note, custom);
+//        float volume = layer.volume() * note.velocity() * this.volume / 10000f;
     }
 }

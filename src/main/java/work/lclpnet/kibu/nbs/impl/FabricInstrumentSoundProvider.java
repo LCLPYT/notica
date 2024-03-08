@@ -7,9 +7,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import work.lclpnet.kibu.nbs.data.CustomInstrument;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
+import work.lclpnet.kibu.nbs.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.mixin.SoundEventAccessor;
+import work.lclpnet.kibu.nbs.util.NoteHelper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +21,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
 
     private final Registry<SoundEvent> soundRegistry;
     private final Map<CustomInstrument, SoundEvent> cache = new HashMap<>();
+    private final Map<String, SoundEvent> extended = new HashMap<>();
 
     public FabricInstrumentSoundProvider(MinecraftServer server) {
         this(server.getRegistryManager());
@@ -71,6 +75,32 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         return sound;
+    }
+
+    @NotNull
+    @Override
+    public SoundEvent getExtendedSound(final @NotNull SoundEvent sound, byte key, short pitch) {
+        String name = NoteHelper.getExtendedSoundName(sound.getId().toString(), key, pitch);
+        SoundEvent extendedSound = this.extended.get(name);
+
+        if (extendedSound != null) {
+            return extendedSound;
+        }
+
+        // create a new sound event
+        Identifier id = new Identifier(name);
+
+        SoundEventAccessor access = (SoundEventAccessor) sound;
+
+        if (access.isStaticDistance()) {
+            extendedSound = SoundEvent.of(id, access.getDistanceToTravel());
+        } else {
+            extendedSound = SoundEvent.of(id);
+        }
+
+        this.extended.put(name, extendedSound);
+
+        return extendedSound;
     }
 
     @Nullable

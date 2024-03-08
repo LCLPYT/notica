@@ -42,15 +42,15 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         if (server == null) return;
 
         // TODO execute playback on server for ServerController so that this can removed
-        server.submit(() -> {
-            if (!song.stereo()) {
-                playMono(song, layer, note);
-                return;
-            }
-
-            // TODO
+//        server.submit(() -> {
+        if (!song.stereo()) {
             playMono(song, layer, note);
-        });
+            return;
+        }
+
+        // TODO
+        playMono(song, layer, note);
+//        });
     }
 
     private void playMono(Song song, Layer layer, Note note) {

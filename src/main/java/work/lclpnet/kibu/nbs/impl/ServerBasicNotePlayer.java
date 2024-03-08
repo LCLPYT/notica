@@ -43,16 +43,6 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         MinecraftServer server = player.getServer();
         if (server == null) return;
 
-        if (!song.stereo()) {
-            playMono(song, layer, note);
-            return;
-        }
-
-        // TODO
-        playMono(song, layer, note);
-    }
-
-    private void playMono(Song song, Layer layer, Note note) {
         final byte instrument = note.instrument();
         CustomInstrument custom = song.instruments().custom(instrument);
 

@@ -3,6 +3,7 @@ package work.lclpnet.kibu.nbs;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,17 +24,30 @@ public class KibuNbsInit implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		Path songsDirectory = createSongsDirectory();
-		KibuNbsApiImpl.configure(songsDirectory, LOGGER);
+		Path configDir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
+
+		Path songsDir = createSongsDirectory(configDir);
+		Path playerConfigsDir = configDir.resolve("players");
+
+		KibuNbsApiImpl.configure(songsDir, playerConfigsDir, LOGGER);
 
 		TranslationService translations = getTranslationService();
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				new MusicCommand(songsDirectory, translations, LOGGER).register(dispatcher));
+				new MusicCommand(songsDir, translations, LOGGER).register(dispatcher));
 
-		PlayerConnectionHooks.QUIT.register(player -> KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player));
+		PlayerConnectionHooks.JOIN.register(this::onPlayerJoin);
+		PlayerConnectionHooks.QUIT.register(this::onPlayerQuit);
 
 		LOGGER.info("Initialized.");
+	}
+
+	private void onPlayerJoin(ServerPlayerEntity player) {
+		KibuNbsApiImpl.getInstance(player.getServer()).onPlayerJoin(player);
+	}
+
+	private void onPlayerQuit(ServerPlayerEntity player) {
+		KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player);
 	}
 
 	private static TranslationService getTranslationService() {
@@ -41,11 +55,12 @@ public class KibuNbsInit implements ModInitializer {
 		TranslationService translations = result.translations();
 
 		result.whenLoaded().thenRun(() -> LOGGER.info("{} translations loaded.", MOD_ID));
+
 		return translations;
 	}
 
-	private Path createSongsDirectory() {
-		Path dir = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("songs");
+	private Path createSongsDirectory(Path configDir) {
+		Path dir = configDir.resolve("songs");
 
 		CompletableFuture.runAsync(() -> createDirectory(dir));
 

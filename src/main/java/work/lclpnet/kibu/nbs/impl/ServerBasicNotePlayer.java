@@ -4,9 +4,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
-import work.lclpnet.kibu.nbs.api.ExtendedOctaveRange;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
+import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.data.CustomInstrument;
 import work.lclpnet.kibu.nbs.data.Layer;
@@ -19,14 +19,14 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
     private ServerPlayerEntity player;
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
-    private final ExtendedOctaveRange extendedOctaveRange;
+    private final PlayerConfig playerConfig;
 
     public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume,
-                                 ExtendedOctaveRange extendedOctaveRange) {
+                                 PlayerConfig playerConfig) {
         this.player = player;
         this.soundProvider = soundProvider;
         this.volume = Math.max(0f, Math.min(1f, volume));
-        this.extendedOctaveRange = extendedOctaveRange;
+        this.playerConfig = playerConfig;
     }
 
     @Override
@@ -73,7 +73,7 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         short pitch = note.pitch();
         float vanillaPitch;
 
-        if (NoteHelper.isOutsideVanillaRange(key, pitch) && extendedOctaveRange.isSupported()) {
+        if (NoteHelper.isOutsideVanillaRange(key, pitch) && playerConfig.isExtendedRangeSupported()) {
             // play extended octave range sound
             sound = soundProvider.getExtendedSound(sound, key, pitch);
             vanillaPitch = NoteHelper.normalizedPitch(key, pitch);
@@ -81,7 +81,7 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             vanillaPitch = NoteHelper.transposedPitch(key, pitch);
         }
 
-        float volume = layer.volume() * note.velocity() * 1e-4f * this.volume;
+        float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
 
         player.playSound(sound, SoundCategory.RECORDS, volume, vanillaPitch);
     }

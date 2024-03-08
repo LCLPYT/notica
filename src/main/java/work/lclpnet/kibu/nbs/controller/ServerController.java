@@ -23,16 +23,16 @@ public class ServerController implements Controller, PlayerHolder {
     private ServerPlayerEntity player;
     private final SongResolver resolver;
     private final InstrumentSoundProvider soundProvider;
-    private final ExtendedOctaveRange extendedOctaveRange;
+    private final PlayerConfig playerConfig;
     private final Logger logger;
     private final Map<Identifier, PlayingSong> playing = new HashMap<>();
 
     public ServerController(ServerPlayerEntity player, SongResolver resolver, InstrumentSoundProvider soundProvider,
-                            ExtendedOctaveRange extendedOctaveRange, Logger logger) {
+                            PlayerConfig playerConfig, Logger logger) {
         this.player = player;
         this.resolver = resolver;
         this.soundProvider = soundProvider;
-        this.extendedOctaveRange = extendedOctaveRange;
+        this.playerConfig = playerConfig;
         this.logger = logger;
     }
 
@@ -49,7 +49,7 @@ public class ServerController implements Controller, PlayerHolder {
 
     @Override
     public void playSong(SongDescriptor descriptor, float volume) {
-        startSong(descriptor, () -> new ServerBasicNotePlayer(player, soundProvider, volume, extendedOctaveRange));
+        startSong(descriptor, () -> new ServerBasicNotePlayer(player, soundProvider, volume, playerConfig));
     }
 
     @Override

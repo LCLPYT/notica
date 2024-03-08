@@ -5,52 +5,64 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.KibuNbsAPI;
-import work.lclpnet.kibu.nbs.api.ExtendedOctaveRange;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
+import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.SongDecoder;
 import work.lclpnet.kibu.nbs.controller.Controller;
 import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.controller.ServerController;
 import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+
+import static java.util.Objects.requireNonNull;
 
 public class KibuNbsApiImpl implements KibuNbsAPI {
 
     private static KibuNbsApiImpl instance = null;
     private static Logger logger = null;
-    private static Path songsDirectory = null;
+    private static Path songsDir = null, playerConfigDir = null;
     private final MinecraftServer server;
     private final SimpleSongResolver songResolver;
     private final InstrumentSoundProvider soundProvider;
+    private final PlayerConfigContainer playerConfigs;
     private final Map<UUID, Controller> controllers = new HashMap<>();
-    private final ExtendedOctaveRangeSupport extendedOctaveRangeSupport = new ExtendedOctaveRangeSupport();
 
-    public static void configure(Path songsDirectory, Logger logger) {
-        KibuNbsApiImpl.songsDirectory = Objects.requireNonNull(songsDirectory, "Songs directory is null");
-        KibuNbsApiImpl.logger = Objects.requireNonNull(logger, "Logger is null");
+    public static void configure(Path songsDir, Path playerConfigDir, Logger logger) {
+        KibuNbsApiImpl.songsDir = requireNonNull(songsDir, "Songs directory is null");
+        KibuNbsApiImpl.playerConfigDir = requireNonNull(playerConfigDir, "Player Config directory is null");
+        KibuNbsApiImpl.logger = requireNonNull(logger, "Logger is null");
     }
 
     private KibuNbsApiImpl(MinecraftServer server) {
-        if (logger == null || songsDirectory == null) {
+        if (logger == null || songsDir == null || playerConfigDir == null) {
             throw new IllegalStateException("Not configured yet. KibuNbsApiImpl::configure should be called first");
         }
 
         this.server = server;
         this.songResolver = new SimpleSongResolver();
         this.soundProvider = new FabricInstrumentSoundProvider(server);
+        this.playerConfigs = new PlayerConfigContainer(playerConfigDir, logger);
+    }
+
+    public void onPlayerJoin(ServerPlayerEntity player) {
+        playerConfigs.onPlayerJoin(player);
     }
 
     public void onPlayerQuit(ServerPlayerEntity player) {
         controllers.remove(player.getUuid());
-        extendedOctaveRangeSupport.onPlayerQuit(player);
+        playerConfigs.onPlayerQuit(player);
     }
 
     public void execute(Collection<? extends ServerPlayerEntity> players, Consumer<Controller> action) {
@@ -72,8 +84,9 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
             return new RemoteController(player.networkHandler);
         }
 
-        ExtendedOctaveRange extendedOctaveRange = extendedOctaveRangeSupport.get(player);
-        return new ServerController(player, songResolver, soundProvider, extendedOctaveRange, logger);
+        PlayerConfig playerConfig = playerConfigs.get(player);
+
+        return new ServerController(player, songResolver, soundProvider, playerConfig, logger);
     }
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
@@ -81,12 +94,12 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
         return false;
     }
 
-    public ExtendedOctaveRangeSupport getExtendedOctaveRangeSupport() {
-        return extendedOctaveRangeSupport;
+    public PlayerConfigContainer getPlayerConfigs() {
+        return playerConfigs;
     }
 
     public static KibuNbsApiImpl getInstance(MinecraftServer server) {
-        Objects.requireNonNull(server, "Server must not be null");
+        requireNonNull(server, "Server must not be null");
 
         if (instance == null || instance.server != server) {
             instance = new KibuNbsApiImpl(server);

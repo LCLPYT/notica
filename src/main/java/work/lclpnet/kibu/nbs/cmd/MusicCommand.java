@@ -2,6 +2,7 @@ package work.lclpnet.kibu.nbs.cmd;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -15,6 +16,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
+import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
 import work.lclpnet.kibu.translate.TranslationService;
 
 import java.io.IOException;
@@ -25,8 +27,8 @@ import java.util.concurrent.CompletableFuture;
 
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.util.Formatting.GREEN;
-import static net.minecraft.util.Formatting.RED;
+import static net.minecraft.util.Formatting.*;
+import static work.lclpnet.kibu.translate.text.FormatWrapper.styled;
 
 public class MusicCommand {
 
@@ -55,7 +57,10 @@ public class MusicCommand {
                 .then(literal("set")
                         .then(literal("extended_range")
                                 .then(argument("enabled", BoolArgumentType.bool())
-                                        .executes(this::changeExtendedRange))));
+                                        .executes(this::changeExtendedRange)))
+                        .then(literal("volume")
+                                .then(argument("percent", FloatArgumentType.floatArg(0f, 100f))
+                                        .executes(this::changeVolume))));
     }
 
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -71,12 +76,32 @@ public class MusicCommand {
             return 0;
         }
 
-        instance.getExtendedOctaveRangeSupport().setSupported(player, enabled);
+        PlayerConfigContainer configs = instance.getPlayerConfigs();
+        configs.get(player).setExtendedRangeSupported(enabled);
+        configs.saveConfig(player);
 
         String key = enabled ? "kibu-nbs.music.extended_octaves.enabled" : "kibu-nbs.music.extended_octaves.disabled";
         Formatting color = enabled ? GREEN : RED;
 
         var msg = translations.translateText(player, key).formatted(color);
+
+        player.sendMessage(msg);
+
+        return 1;
+    }
+
+    private int changeVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        float percent = FloatArgumentType.getFloat(ctx, "percent");
+
+        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
+
+        PlayerConfigContainer configs = instance.getPlayerConfigs();
+        configs.get(player).setVolume(percent / 100);
+        configs.saveConfig(player);
+
+        var msg = translations.translateText(player, "kibu-nbs.music.volume.changed",
+                        styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN);
 
         player.sendMessage(msg);
 

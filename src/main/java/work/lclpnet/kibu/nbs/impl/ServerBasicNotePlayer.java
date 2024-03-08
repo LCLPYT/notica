@@ -1,5 +1,7 @@
 package work.lclpnet.kibu.nbs.impl;
 
+import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
@@ -41,8 +43,6 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         MinecraftServer server = player.getServer();
         if (server == null) return;
 
-        // TODO execute playback on server for ServerController so that this can removed
-//        server.submit(() -> {
         if (!song.stereo()) {
             playMono(song, layer, note);
             return;
@@ -50,7 +50,6 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         // TODO
         playMono(song, layer, note);
-//        });
     }
 
     private void playMono(Song song, Layer layer, Note note) {
@@ -83,6 +82,26 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
 
-        player.playSound(sound, SoundCategory.RECORDS, volume, vanillaPitch);
+        double x = player.getX();
+        double y = player.getY();
+        double z = player.getZ();
+
+        float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
+
+        if (Math.abs(panning) >= 1e-3) {
+            double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
+
+            x += Math.sin(yaw) * panning;
+            z += -Math.cos(yaw) * panning;
+        }
+
+        playSoundAt(sound, x, y, z, volume, vanillaPitch);
+    }
+
+    private void playSoundAt(SoundEvent sound, double x, double y, double z, float volume, float pitch) {
+        var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,
+                volume, pitch, player.getRandom().nextLong());
+
+        player.networkHandler.sendPacket(packet);
     }
 }

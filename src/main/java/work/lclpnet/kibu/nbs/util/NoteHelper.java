@@ -23,15 +23,15 @@ public class NoteHelper {
      * @return The vanilla pitch [0.5, 2.0], where the key is transposed to the range [33, 57] if needed.
      */
     public static float transposedPitch(byte key, short pitch) {
-        pitch += (short) (key * 100);
+        key += (byte) (pitch / 100);
 
-        while (pitch < LOWEST_VANILLA_PITCH) pitch += OCTAVE_PITCH;
-        while (pitch > HIGHEST_VANILLA_PITCH) pitch -= OCTAVE_PITCH;
+        while (key < LOWEST_VANILLA_KEY) key += OCTAVE_KEYS;
+        while (key > HIGHEST_VANILLA_KEY) key -= OCTAVE_KEYS;
 
-        pitch -= LOWEST_VANILLA_PITCH;
+        key -= LOWEST_VANILLA_KEY;
 
         // convert to vanilla pitch value [0.5, 2]
-        return vanillaPitch(pitch);
+        return vanillaPitch((short) (key * 100 + pitch % 100));
     }
 
     /**
@@ -48,7 +48,7 @@ public class NoteHelper {
         key -= (byte) (33 + range * 24);
 
         // convert to vanilla pitch value [0.5, 2]
-        return vanillaPitch((short) (key * 100 + (pitch % 100)));
+        return vanillaPitch((short) (key * 100 + pitch % 100));
     }
 
     private static float vanillaPitch(short pitch) {

@@ -68,7 +68,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
             return sound;
         }
 
-        sound = tryFetchSound(instrument);
+        sound = fetchCustomSound(instrument);
 
         if (sound != null) {
             cache.put(instrument, sound);
@@ -104,27 +104,49 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
     }
 
     @Nullable
-    private SoundEvent tryFetchSound(CustomInstrument instrument) {
+    private SoundEvent fetchCustomSound(CustomInstrument instrument) {
         String file = instrument.soundFile();
 
         if (file.endsWith(".ogg")) {
             file = file.substring(0, file.length() - 4);
         }
 
-        Identifier id = Identifier.tryParse(file);
+        // support for old nbs files that encoded the pling sound as custom instrument
+        if (file.equalsIgnoreCase("pling")) {
+            return SoundEvents.BLOCK_NOTE_BLOCK_PLING.value();
+        }
 
-        if (id != null) {
-            SoundEvent sound = soundRegistry.get(id);
+        // try to parse filename as sound id
+        Identifier idFromFile = Identifier.tryParse(file);
+
+        if (idFromFile != null) {
+            SoundEvent sound = soundRegistry.get(idFromFile);
 
             if (sound != null) {
                 return sound;
             }
         }
 
-        id = Identifier.tryParse(instrument.name());
+        // try the sound name instead
+        Identifier idFromName = Identifier.tryParse(instrument.name());
 
-        if (id == null) return null;
+        if (idFromName != null) {
+            SoundEvent sound = soundRegistry.get(idFromName);
 
-        return soundRegistry.get(id);
+            if (sound != null) {
+                return sound;
+            }
+        }
+
+        // fallback for non-vanilla custom sounds
+        if (idFromFile != null) {
+            return SoundEvent.of(idFromFile);
+        }
+
+        if (idFromName != null) {
+            return SoundEvent.of(idFromName);
+        }
+
+        return null;
     }
 }

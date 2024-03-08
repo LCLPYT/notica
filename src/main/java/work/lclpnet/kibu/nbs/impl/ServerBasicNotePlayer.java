@@ -55,18 +55,21 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
     private void playMono(Song song, Layer layer, Note note) {
         final byte instrument = note.instrument();
-
         CustomInstrument custom = song.instruments().custom(instrument);
 
+        SoundEvent sound;
+        byte key;
+
         if (custom != null) {
-            // TODO
-            return;
+            sound = soundProvider.getCustomInstrumentSound(custom);
+            key = (byte) (note.key() + custom.key() - 45);
+        } else {
+            sound = soundProvider.getVanillaInstrumentSound(instrument);
+            key = note.key();
         }
 
-        SoundEvent sound = soundProvider.getVanillaInstrumentSound(instrument);
-        if (sound == null) return;  // unknown vanilla sound
+        if (sound == null) return;
 
-        byte key = note.key();
         short pitch = note.pitch();
         float vanillaPitch;
 
@@ -78,30 +81,8 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             vanillaPitch = NoteHelper.transposedPitch(key, pitch);
         }
 
-        float volume = layer.volume() * note.velocity() * this.volume / 10000f;
-        player.playSound(sound, SoundCategory.RECORDS, volume, vanillaPitch);
+        float volume = layer.volume() * note.velocity() * 1e-4f * this.volume;
 
-//        SoundEvent sound;
-//
-//        if (custom != null) {
-//            sound = soundProvider.getCustomInstrumentSound(custom);
-//        } else {
-//            sound = soundProvider.getVanillaInstrumentSound(instrument);
-//        }
-//
-//        if (sound == null) return;
-//
-//        byte key;
-//
-//        if (custom != null) {
-//            key = (byte) (note.key() + custom.key() - 45);
-//        } else {
-//            key = note.key();
-//        }
-//
-//        short pitch = note.pitch();
-//
-//        float pitch = getPitch(note, custom);
-//        float volume = layer.volume() * note.velocity() * this.volume / 10000f;
+        player.playSound(sound, SoundCategory.RECORDS, volume, vanillaPitch);
     }
 }

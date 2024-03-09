@@ -62,6 +62,7 @@ dependencies {
     apiImplementation(implementation('org.jetbrains:annotations:24.0.0'))
 
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.8.1'
 }
 
 test {

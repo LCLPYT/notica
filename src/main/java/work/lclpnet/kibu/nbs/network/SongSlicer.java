@@ -6,6 +6,7 @@ import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.NoteContainer;
+import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.impl.ListIndex;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableNote;
 
@@ -13,6 +14,53 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SongSlicer {
+
+    public static SongSlice sliceAt(Song song, int tickOffset, int layerOffset, long maxBytes) {
+        if (maxBytes < 18) throw new IllegalArgumentException("A SongSlice is at least 18 bytes big");
+
+        maxBytes -= 4;  // possible bytes at the end, subtract them from the budget
+
+        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
+        SongSlice remaining = new ConcreteSongSlice(song, tickOffset, song.durationTicks(), layerOffset, maxLayerIndex);
+
+        long totalBytes = 16;
+
+        int lastLayer = layerOffset - 1;
+        int lastTick = tickOffset - 1;
+        boolean firstTick = true;
+
+        for (NoteEvent noteEvent : remaining) {
+            int tick = noteEvent.tick();
+
+            if (tick != lastTick) {
+                if (firstTick) {
+                    firstTick = false;
+                } else {
+                    // write layer jump end
+                    totalBytes += 2;
+                }
+
+                // write tick jump
+                totalBytes += 2;
+            }
+
+            totalBytes += 8;
+
+            if (totalBytes > maxBytes) {
+                break;
+            }
+
+            lastTick = tick;
+            lastLayer = noteEvent.layer();
+        }
+
+        if (firstTick) {
+            // empty slice
+            return new ConcreteSongSlice(new ListIndex<>(Map.of()), tickOffset, tickOffset - 1, layerOffset, layerOffset - 1);
+        }
+
+        return new ConcreteSongSlice(song, tickOffset, lastTick, layerOffset, lastLayer);
+    }
 
     public static long getByteSize(SongSlice slice) {
         int tickStart = slice.tickStart();

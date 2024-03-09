@@ -23,7 +23,7 @@ public class PlaySongS2CPacket implements FabricPacket {
         this.songDescriptor = songDescriptor;
         this.volume = volume;
         this.header = header;
-        this.slice = null;
+        this.slice = slice;
     }
 
     public PlaySongS2CPacket(PacketByteBuf buf) {
@@ -52,5 +52,13 @@ public class PlaySongS2CPacket implements FabricPacket {
 
     public float getVolume() {
         return volume;
+    }
+
+    public SongHeader getHeader() {
+        return header;
+    }
+
+    public SongSlice getSlice() {
+        return slice;
     }
 }

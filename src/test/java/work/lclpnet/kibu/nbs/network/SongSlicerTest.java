@@ -135,4 +135,16 @@ class SongSlicerTest {
                 Arguments.of(-10, 25, -2, 0)  // start values are kept
         );
     }
+
+    @Test
+    void sliceSeconds_one_asExpected() {
+        Song song = ConcreteSongSliceTest.createSong();
+
+        SongSlice slice = SongSlicer.sliceSeconds(song, 1);
+
+        assertEquals(0, slice.tickStart());
+        assertEquals(5, slice.tickEnd());
+        assertEquals(0, slice.layerStart());
+        assertEquals(2, slice.layerEnd());
+    }
 }

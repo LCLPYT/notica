@@ -98,7 +98,7 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
 
     private Controller createController(ServerPlayerEntity player) {
         if (hasModInstalled(player)) {
-            return new RemoteController(player);
+            return new RemoteController(player, songResolver, logger);
         }
 
         PlayerConfig playerConfig = playerConfigs.get(player);

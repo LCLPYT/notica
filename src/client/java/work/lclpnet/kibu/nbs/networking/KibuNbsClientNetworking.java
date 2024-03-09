@@ -4,6 +4,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.text.Text;
+import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.network.packet.PlaySongS2CPacket;
 
 public class KibuNbsClientNetworking {
@@ -14,5 +15,9 @@ public class KibuNbsClientNetworking {
 
     private void onPlaySong(PlaySongS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
         player.sendMessage(Text.literal("play " + packet.getSongDescriptor().id().toString() + " " + packet.getVolume()));
+
+        for (NoteEvent noteEvent : packet.getSlice()) {
+            System.out.println(noteEvent);
+        }
     }
 }

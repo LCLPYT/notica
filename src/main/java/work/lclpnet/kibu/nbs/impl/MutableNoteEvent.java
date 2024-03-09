@@ -29,4 +29,9 @@ public class MutableNoteEvent implements NoteEvent {
         this.layer = layer;
         this.note = note;
     }
+
+    @Override
+    public String toString() {
+        return "MutableNoteEvent{tick=%d, layer=%d, note=%s}".formatted(tick, layer, note);
+    }
 }

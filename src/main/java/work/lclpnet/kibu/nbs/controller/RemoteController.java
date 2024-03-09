@@ -1,9 +1,17 @@
 package work.lclpnet.kibu.nbs.controller;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.Position;
+import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
+import work.lclpnet.kibu.nbs.api.SongResolver;
+import work.lclpnet.kibu.nbs.api.SongSlice;
+import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
+import work.lclpnet.kibu.nbs.network.SongHeader;
+import work.lclpnet.kibu.nbs.network.SongSlicer;
+import work.lclpnet.kibu.nbs.network.packet.PlaySongS2CPacket;
 
 import java.util.Set;
 
@@ -13,9 +21,13 @@ import java.util.Set;
 public class RemoteController implements Controller, PlayerHolder {
 
     private ServerPlayerEntity player;
+    private final SongResolver resolver;
+    private final Logger logger;
 
-    public RemoteController(ServerPlayerEntity player) {
+    public RemoteController(ServerPlayerEntity player, SongResolver resolver, Logger logger) {
         this.player = player;
+        this.resolver = resolver;
+        this.logger = logger;
     }
 
     @Override
@@ -26,9 +38,23 @@ public class RemoteController implements Controller, PlayerHolder {
     }
 
     @Override
-    public void playSong(SongDescriptor song, float volume) {
-//        var packet = new PlaySongS2CPacket(song, volume);
-//        ServerPlayNetworking.send(player, packet);
+    public void playSong(SongDescriptor descriptor, float volume) {
+        resolver.resolve(descriptor)
+                .exceptionally(error -> {
+                    logger.error("Failed to resolve song {}", descriptor, error);
+                    return null;
+                })
+                .thenAccept(song -> startSong(descriptor, song, volume));
+    }
+
+    private void startSong(SongDescriptor descriptor, Song song, float volume) {
+        SongHeader header = new SongHeader(song);
+
+        // send the first 5 seconds along with the play packet, so that the client can start playing instantly
+        SongSlice slice = SongSlicer.sliceSeconds(song, 5);
+
+        var packet = new PlaySongS2CPacket(descriptor, volume, header, slice);
+        ServerPlayNetworking.send(player, packet);
     }
 
     @Override

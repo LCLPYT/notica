@@ -15,6 +15,13 @@ import java.util.Map;
 
 public class SongSlicer {
 
+    public static SongSlice sliceSeconds(Song song, int seconds) {
+        int tickEnd = Math.min(song.durationTicks(), (int) Math.ceil(seconds * song.ticksPerSecond()));
+        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
+
+        return new ConcreteSongSlice(song, 0, tickEnd, 0, maxLayerIndex);
+    }
+
     public static SongSlice sliceAt(Song song, int tickOffset, int layerOffset, long maxBytes) {
         if (maxBytes < 18) throw new IllegalArgumentException("A SongSlice is at least 18 bytes big");
 

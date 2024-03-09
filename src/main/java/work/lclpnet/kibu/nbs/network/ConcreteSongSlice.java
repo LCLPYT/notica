@@ -1,27 +1,20 @@
 package work.lclpnet.kibu.nbs.network;
 
 import org.jetbrains.annotations.NotNull;
+import work.lclpnet.kibu.nbs.api.Index;
 import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.api.SongSlice;
-import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.NoteContainer;
 import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.impl.MutableNoteEvent;
 
 import java.util.Iterator;
 
-public class ConcreteSongSlice implements SongSlice {
-
-    private final Song song;
-    private final int tickStart, tickEnd;
-    private final int layerStart, layerEnd;
+public record ConcreteSongSlice(Index<? extends NoteContainer> layers, int tickStart, int tickEnd, int layerStart, int layerEnd) implements SongSlice {
 
     public ConcreteSongSlice(Song song, int tickStart, int tickEnd, int layerStart, int layerEnd) {
-        this.song = song;
-        this.tickStart = tickStart;
-        this.tickEnd = tickEnd;
-        this.layerStart = layerStart;
-        this.layerEnd = layerEnd;
+        this(song.layers(), tickStart, tickEnd, layerStart, layerEnd);
     }
 
     @Override
@@ -47,7 +40,6 @@ public class ConcreteSongSlice implements SongSlice {
     @NotNull
     @Override
     public Iterator<NoteEvent> iterator() {
-        var layers = song.layers();
         int layerCount = layers.size();
         int firstLayerIndex = layers.streamKeys().min().orElse(0);
 
@@ -77,7 +69,7 @@ public class ConcreteSongSlice implements SongSlice {
                     }
 
                     for (; layerIndex < untilLayer; layerIndex++) {
-                        Layer layer = layers.get(layerIndex);
+                        NoteContainer layer = layers.get(layerIndex);
 
                         if (layer == null) continue;
 

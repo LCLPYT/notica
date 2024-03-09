@@ -7,6 +7,7 @@ import work.lclpnet.kibu.nbs.KibuNbsInit;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 import work.lclpnet.kibu.nbs.network.SongHeader;
+import work.lclpnet.kibu.nbs.network.SongSlicer;
 
 public class PlaySongS2CPacket implements FabricPacket {
 
@@ -29,7 +30,7 @@ public class PlaySongS2CPacket implements FabricPacket {
         this.songDescriptor = SongDescriptor.read(buf);
         this.volume = buf.readFloat();
         this.header = new SongHeader(buf);
-        slice = null;
+        this.slice = SongSlicer.readSlice(buf);
     }
 
     @Override
@@ -37,6 +38,7 @@ public class PlaySongS2CPacket implements FabricPacket {
         songDescriptor.write(buf);
         buf.writeFloat(volume);
         header.write(buf);
+        SongSlicer.writeSlice(buf, slice);
     }
 
     @Override

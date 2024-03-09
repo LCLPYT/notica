@@ -14,6 +14,7 @@ import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.controller.Controller;
 import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.controller.ServerController;
+import work.lclpnet.kibu.nbs.network.KibuNbsNetworking;
 import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
 
 import java.io.IOException;
@@ -66,13 +67,21 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
         playerConfigs.onPlayerQuit(player);
     }
 
+    public void onPlayerChange(ServerPlayerEntity to) {
+        Controller controller = controllers.get(to.getUuid());
+
+        if (controller instanceof PlayerHolder playerHolder) {
+            // update the player reference
+            playerHolder.setPlayer(to);
+        }
+    }
+
     public void execute(Collection<? extends ServerPlayerEntity> players, Consumer<Controller> action) {
         for (ServerPlayerEntity player : players) {
             Controller controller = getController(player);
 
             action.accept(controller);
         }
-
     }
 
     @NotNull
@@ -89,7 +98,7 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
 
     private Controller createController(ServerPlayerEntity player) {
         if (hasModInstalled(player)) {
-            return new RemoteController(player.networkHandler);
+            return new RemoteController(player);
         }
 
         PlayerConfig playerConfig = playerConfigs.get(player);
@@ -98,8 +107,7 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
     }
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
-        // TODO
-        return false;
+        return KibuNbsNetworking.canSendAll(player);
     }
 
     public PlayerConfigContainer getPlayerConfigs() {

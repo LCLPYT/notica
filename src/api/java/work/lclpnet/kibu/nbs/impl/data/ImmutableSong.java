@@ -1,8 +1,7 @@
 package work.lclpnet.kibu.nbs.impl.data;
 
+import work.lclpnet.kibu.nbs.api.Index;
 import work.lclpnet.kibu.nbs.api.data.*;
-
-import java.util.Map;
 
 /**
  * An immutable song object representing a note block song.
@@ -16,6 +15,6 @@ import java.util.Map;
  * @param signature The time signature of the song in quarters. When this is 3, time signature will be 3/4.
  */
 public record ImmutableSong(int durationTicks, float ticksPerSecond, SongMeta metaData, LoopConfig loopConfig,
-                            Map<Integer, Layer> layers, Instruments instruments, boolean stereo, byte signature) implements Song {
+                            Index<? extends Layer> layers, Instruments instruments, boolean stereo, byte signature) implements Song {
 
 }

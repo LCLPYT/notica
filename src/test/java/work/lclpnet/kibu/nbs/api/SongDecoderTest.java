@@ -40,7 +40,7 @@ class SongDecoderTest {
         var layers = song.layers();
         assertEquals(61, layers.size());
 
-        int notesSum = layers.values().stream()
+        int notesSum = layers.stream()
                 .mapToInt(layer -> layer.notes().size())
                 .sum();
 

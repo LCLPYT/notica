@@ -2,6 +2,7 @@ package work.lclpnet.kibu.nbs;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
 import work.lclpnet.kibu.nbs.cmd.MusicCommand;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
+import work.lclpnet.kibu.nbs.network.KibuNbsNetworking;
 import work.lclpnet.kibu.translate.TranslationService;
 
 import java.io.IOException;
@@ -38,6 +40,9 @@ public class KibuNbsInit implements ModInitializer {
 
 		PlayerConnectionHooks.JOIN.register(this::onPlayerJoin);
 		PlayerConnectionHooks.QUIT.register(this::onPlayerQuit);
+		ServerPlayerEvents.COPY_FROM.register(this::copyFromPlayer);
+
+		new KibuNbsNetworking().register();
 
 		LOGGER.info("Initialized.");
 	}
@@ -48,6 +53,10 @@ public class KibuNbsInit implements ModInitializer {
 
 	private void onPlayerQuit(ServerPlayerEntity player) {
 		KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player);
+	}
+
+	private void copyFromPlayer(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
+		KibuNbsApiImpl.getInstance(newPlayer.getServer()).onPlayerChange(newPlayer);
 	}
 
 	private static TranslationService getTranslationService() {

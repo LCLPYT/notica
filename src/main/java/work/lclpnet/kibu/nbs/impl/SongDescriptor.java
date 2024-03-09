@@ -1,5 +1,6 @@
 package work.lclpnet.kibu.nbs.impl;
 
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
 /**
@@ -9,4 +10,14 @@ import net.minecraft.util.Identifier;
  */
 public record SongDescriptor(Identifier id, byte[] checksum) {
 
+    public void write(PacketByteBuf buf) {
+        buf.writeIdentifier(id);
+        buf.writeByteArray(checksum);
+    }
+
+    public static SongDescriptor read(PacketByteBuf buf) {
+        Identifier id = buf.readIdentifier();
+        byte[] checksum = buf.readByteArray();
+        return new SongDescriptor(id, checksum);
+    }
 }

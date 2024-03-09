@@ -57,7 +57,6 @@ public class SongPlayback implements Runnable {
     @SuppressWarnings("BusyWait")
     @Override
     public void run() {
-        final var layers = song.layers().values();
         LoopConfig loopConfig = song.loopConfig();
 
         int loopAmount = loopConfig.loopCount();
@@ -75,7 +74,7 @@ public class SongPlayback implements Runnable {
             final long before = System.currentTimeMillis();
             final int t = tick++;
 
-            for (Layer layer : layers) {
+            for (Layer layer : song.layers()) {
                 Note note = layer.notes().get(t);
 
                 if (note == null) continue;

@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import org.junit.jupiter.api.Test;
 import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.impl.ListIndex;
 import work.lclpnet.kibu.nbs.impl.data.*;
 
 import java.lang.reflect.Field;
@@ -27,7 +28,9 @@ class SongPlaybackTest {
         notes.put(4, note);
 
         int ticks = 5;
-        ImmutableSong song = new ImmutableSong(ticks, 16f, ImmutableSongMeta.EMPTY, ImmutableLoopConfig.NONE, Map.of(0, ImmutableLayer.of(notes)),
+        var layers = new ListIndex<>(Map.of(0, ImmutableLayer.of(new ListIndex<>(notes))));
+
+        ImmutableSong song = new ImmutableSong(ticks, 16f, ImmutableSongMeta.EMPTY, ImmutableLoopConfig.NONE, layers,
                 ImmutableInstruments.DEFAULT, false, (byte) 4);
 
         LongList timestamps = new LongArrayList(ticks);
@@ -57,8 +60,10 @@ class SongPlaybackTest {
 
     @Test
     void whenDone_afterPlayback_isCalled() {
+        var layers = new ListIndex<>(Map.of(0, ImmutableLayer.of(new ListIndex<>(Map.of()))));
+
         ImmutableSong song = new ImmutableSong(0, 16f, ImmutableSongMeta.EMPTY, ImmutableLoopConfig.NONE,
-                Map.of(0, ImmutableLayer.of(Map.of())), ImmutableInstruments.DEFAULT, false, (byte) 4);
+                layers, ImmutableInstruments.DEFAULT, false, (byte) 4);
 
         var executed = new AtomicBoolean(false);
         var playback = new SongPlayback(song, (s, l, n) -> {});

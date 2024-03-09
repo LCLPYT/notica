@@ -1,6 +1,6 @@
 package work.lclpnet.kibu.nbs.api.data;
 
-import java.util.Map;
+import work.lclpnet.kibu.nbs.api.Index;
 
 public interface Song {
 
@@ -27,7 +27,7 @@ public interface Song {
     /**
      * @return The individual note layers of this song.
      */
-    Map<Integer, Layer> layers();
+    Index<? extends Layer> layers();
 
     /**
      * @return The instruments configuration of this song. Includes custom instruments.

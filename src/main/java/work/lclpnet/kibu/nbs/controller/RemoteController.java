@@ -1,7 +1,8 @@
 package work.lclpnet.kibu.nbs.controller;
 
-import net.minecraft.server.network.ServerPlayNetworkHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.Position;
+import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 
 import java.util.Set;
@@ -9,17 +10,25 @@ import java.util.Set;
 /**
  * A remote controller that delegates the commands to a remote player using networking.
  */
-public class RemoteController implements Controller {
+public class RemoteController implements Controller, PlayerHolder {
 
-    private final ServerPlayNetworkHandler networkHandler;
+    private ServerPlayerEntity player;
 
-    public RemoteController(ServerPlayNetworkHandler networkHandler) {
-        this.networkHandler = networkHandler;
+    public RemoteController(ServerPlayerEntity player) {
+        this.player = player;
+    }
+
+    @Override
+    public void setPlayer(ServerPlayerEntity player) {
+        synchronized (this) {
+            this.player = player;
+        }
     }
 
     @Override
     public void playSong(SongDescriptor song, float volume) {
-        // TODO implement
+//        var packet = new PlaySongS2CPacket(song, volume);
+//        ServerPlayNetworking.send(player, packet);
     }
 
     @Override

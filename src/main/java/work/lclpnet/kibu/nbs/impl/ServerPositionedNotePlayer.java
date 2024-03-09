@@ -3,10 +3,10 @@ package work.lclpnet.kibu.nbs.impl;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.Position;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
-import work.lclpnet.kibu.nbs.data.Layer;
-import work.lclpnet.kibu.nbs.data.Note;
-import work.lclpnet.kibu.nbs.data.Song;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
+import work.lclpnet.kibu.nbs.api.data.Layer;
+import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.Song;
 
 public class ServerPositionedNotePlayer implements NotePlayer, PlayerHolder {
 

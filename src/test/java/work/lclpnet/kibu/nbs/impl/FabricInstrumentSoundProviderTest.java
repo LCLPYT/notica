@@ -2,15 +2,16 @@ package work.lclpnet.kibu.nbs.impl;
 
 import net.minecraft.Bootstrap;
 import net.minecraft.SharedConstants;
-import net.minecraft.registry.*;
+import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import work.lclpnet.kibu.nbs.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.impl.data.ImmutableCustomInstrument;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class FabricInstrumentSoundProviderTest {
 
@@ -50,7 +51,7 @@ class FabricInstrumentSoundProviderTest {
     void getCustomInstrument_soundFileValid_bySoundFile() {
         var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
-        CustomInstrument instrument = new CustomInstrument("", "entity.experience_orb.pickup.ogg", (byte) 45);
+        ImmutableCustomInstrument instrument = new ImmutableCustomInstrument("", "entity.experience_orb.pickup.ogg", (byte) 45);
         SoundEvent sound = provider.getCustomInstrumentSound(instrument);
         assertEquals(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, sound);
     }
@@ -59,7 +60,7 @@ class FabricInstrumentSoundProviderTest {
     void getCustomInstrument_soundFileInvalid_byName() {
         var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
-        CustomInstrument instrument = new CustomInstrument("entity.experience_orb.pickup", "bla bla", (byte) 45);
+        ImmutableCustomInstrument instrument = new ImmutableCustomInstrument("entity.experience_orb.pickup", "bla bla", (byte) 45);
         SoundEvent sound = provider.getCustomInstrumentSound(instrument);
         assertEquals(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, sound);
     }
@@ -68,7 +69,7 @@ class FabricInstrumentSoundProviderTest {
     void getCustomInstrument_soundFileAndNameInvalid_null() {
         var provider = new FabricInstrumentSoundProvider(Registries.SOUND_EVENT);
 
-        CustomInstrument instrument = new CustomInstrument("bla bla bla", "bla bla", (byte) 45);
+        ImmutableCustomInstrument instrument = new ImmutableCustomInstrument("bla bla bla", "bla bla", (byte) 45);
         assertNull(provider.getCustomInstrumentSound(instrument));
     }
 }

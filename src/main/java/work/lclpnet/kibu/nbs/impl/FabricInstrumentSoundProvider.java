@@ -10,7 +10,7 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
-import work.lclpnet.kibu.nbs.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.api.data.CustomInstrument;
 import work.lclpnet.kibu.nbs.mixin.SoundEventAccessor;
 import work.lclpnet.kibu.nbs.util.NoteHelper;
 

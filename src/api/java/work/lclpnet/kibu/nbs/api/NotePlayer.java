@@ -1,8 +1,8 @@
 package work.lclpnet.kibu.nbs.api;
 
-import work.lclpnet.kibu.nbs.data.Layer;
-import work.lclpnet.kibu.nbs.data.Note;
-import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.api.data.Layer;
+import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.Song;
 
 public interface NotePlayer {
 

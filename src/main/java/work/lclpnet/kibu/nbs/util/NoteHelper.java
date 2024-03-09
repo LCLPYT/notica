@@ -8,8 +8,6 @@ public class NoteHelper {
             OCTAVE_KEYS = 12,
             TWO_OCTAVES_KEYS = OCTAVE_KEYS * 2;
     private static final short
-            LOWEST_VANILLA_PITCH = LOWEST_VANILLA_KEY * 100,
-            HIGHEST_VANILLA_PITCH = HIGHEST_VANILLA_KEY * 100,
             OCTAVE_PITCH = OCTAVE_KEYS * 100;
 
     private NoteHelper() {}

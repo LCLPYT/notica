@@ -10,10 +10,10 @@ import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.SongDecoder;
+import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.controller.Controller;
 import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.controller.ServerController;
-import work.lclpnet.kibu.nbs.data.Song;
 import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
 
 import java.io.IOException;

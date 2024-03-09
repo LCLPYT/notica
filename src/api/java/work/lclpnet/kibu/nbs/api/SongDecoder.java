@@ -1,7 +1,10 @@
 package work.lclpnet.kibu.nbs.api;
 
 import org.jetbrains.annotations.NotNull;
-import work.lclpnet.kibu.nbs.data.*;
+import work.lclpnet.kibu.nbs.api.data.Layer;
+import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.Song;
+import work.lclpnet.kibu.nbs.impl.data.*;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -64,7 +67,7 @@ public class SongDecoder {
 
         final short layerCount = readShortLE(in);
 
-        SongMeta meta = readMetaData(in);
+        ImmutableSongMeta meta = readMetaData(in);
 
         float ticksPerSecond = readShortLE(in) / 100f;
 
@@ -80,7 +83,7 @@ public class SongDecoder {
         readIntLE(in);      // note blocks removed
         readString(in);     // midi/schematic file name
 
-        LoopConfig loopConfig = readLoopConfig(version, in);
+        ImmutableLoopConfig loopConfig = readLoopConfig(version, in);
 
         // NOTE BLOCKS
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
@@ -136,7 +139,7 @@ public class SongDecoder {
                 }
 
                 var notes = layerNotes.computeIfAbsent((int) layer, i -> new HashMap<>());
-                Note note = new Note(instrument, key, velocity, panning, pitch);
+                ImmutableNote note = new ImmutableNote(instrument, key, velocity, panning, pitch);
                 notes.put((int) tick, note);
             }
         }
@@ -152,9 +155,9 @@ public class SongDecoder {
         stereo |= layerResult.stereo();
 
         // CUSTOM INSTRUMENTS
-        Instruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
+        ImmutableInstruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
 
-        return new Song(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
+        return new ImmutableSong(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
     }
 
     @NotNull
@@ -187,24 +190,24 @@ public class SongDecoder {
 
             if (notes == null) continue;
 
-            layers.put(i, new Layer(name, volume, panning, notes));
+            layers.put(i, new ImmutableLayer(name, volume, panning, notes));
         }
 
         return new LayerResult(layers, stereo);
     }
 
     @NotNull
-    private static Instruments readInstruments(DataInputStream in, byte customInstrumentOffset, byte songVanillaInstrumentCount) throws IOException {
+    private static ImmutableInstruments readInstruments(DataInputStream in, byte customInstrumentOffset, byte songVanillaInstrumentCount) throws IOException {
         final byte customInstrumentCount = in.readByte();
 
-        CustomInstrument[] customInstruments = new CustomInstrument[customInstrumentCount];
+        ImmutableCustomInstrument[] customInstruments = new ImmutableCustomInstrument[customInstrumentCount];
 
         for (int i = 0; i < customInstrumentCount; i++) {
             String name = readString(in);
             String file = readString(in);
             byte key = in.readByte();
 
-            customInstruments[i] = new CustomInstrument(name, file, key);
+            customInstruments[i] = new ImmutableCustomInstrument(name, file, key);
 
             in.readByte();  // press piano key (unused)
         }
@@ -216,29 +219,29 @@ public class SongDecoder {
 
         byte customBegin = (byte) (songVanillaInstrumentCount + customInstrumentOffset);
 
-        return new Instruments(customInstruments, customBegin);
+        return new ImmutableInstruments(customInstruments, customBegin);
     }
 
     @NotNull
-    private static LoopConfig readLoopConfig(byte version, DataInputStream in) throws IOException {
+    private static ImmutableLoopConfig readLoopConfig(byte version, DataInputStream in) throws IOException {
         if (version < 4) {
-            return new LoopConfig(false, (byte) 0, (short) 0);
+            return new ImmutableLoopConfig(false, (byte) 0, (short) 0);
         }
 
         boolean loopEnabled = in.readByte() == 1;
         byte loopCount = in.readByte();
         short loopStartTick = readShortLE(in);
 
-        return new LoopConfig(loopEnabled, loopCount, loopStartTick);
+        return new ImmutableLoopConfig(loopEnabled, loopCount, loopStartTick);
     }
 
     @NotNull
-    private static SongMeta readMetaData(DataInputStream in) throws IOException {
+    private static ImmutableSongMeta readMetaData(DataInputStream in) throws IOException {
         String name = readString(in);
         String author = readString(in);
         String originalAuthor = readString(in);
         String description = readString(in);
-        return new SongMeta(name, author, originalAuthor, description);
+        return new ImmutableSongMeta(name, author, originalAuthor, description);
     }
 
     private record LayerResult(Map<Integer, Layer> layers, boolean stereo) {}

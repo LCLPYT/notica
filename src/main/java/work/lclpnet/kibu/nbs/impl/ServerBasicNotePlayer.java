@@ -10,10 +10,10 @@ import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
-import work.lclpnet.kibu.nbs.data.CustomInstrument;
-import work.lclpnet.kibu.nbs.data.Layer;
-import work.lclpnet.kibu.nbs.data.Note;
-import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.api.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.api.data.Layer;
+import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.util.NoteHelper;
 
 public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {

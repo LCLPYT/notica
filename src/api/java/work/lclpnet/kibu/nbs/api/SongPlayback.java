@@ -2,10 +2,10 @@ package work.lclpnet.kibu.nbs.api;
 
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.kibu.hook.HookFactory;
-import work.lclpnet.kibu.nbs.data.Layer;
-import work.lclpnet.kibu.nbs.data.LoopConfig;
-import work.lclpnet.kibu.nbs.data.Note;
-import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.api.data.Layer;
+import work.lclpnet.kibu.nbs.api.data.LoopConfig;
+import work.lclpnet.kibu.nbs.api.data.Note;
+import work.lclpnet.kibu.nbs.api.data.Song;
 
 public class SongPlayback implements Runnable {
 

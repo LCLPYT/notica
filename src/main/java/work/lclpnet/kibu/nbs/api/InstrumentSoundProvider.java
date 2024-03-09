@@ -3,7 +3,7 @@ package work.lclpnet.kibu.nbs.api;
 import net.minecraft.sound.SoundEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import work.lclpnet.kibu.nbs.data.CustomInstrument;
+import work.lclpnet.kibu.nbs.api.data.CustomInstrument;
 
 public interface InstrumentSoundProvider {
 

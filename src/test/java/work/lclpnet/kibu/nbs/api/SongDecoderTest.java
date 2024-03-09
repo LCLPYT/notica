@@ -1,7 +1,11 @@
 package work.lclpnet.kibu.nbs.api;
 
 import org.junit.jupiter.api.Test;
-import work.lclpnet.kibu.nbs.data.*;
+import work.lclpnet.kibu.nbs.api.data.Instruments;
+import work.lclpnet.kibu.nbs.api.data.Song;
+import work.lclpnet.kibu.nbs.api.data.SongMeta;
+import work.lclpnet.kibu.nbs.impl.data.ImmutableLoopConfig;
+import work.lclpnet.kibu.nbs.impl.data.ImmutableSongMeta;
 
 import java.io.IOException;
 
@@ -22,12 +26,16 @@ class SongDecoderTest {
         assertEquals(2302, song.durationTicks());
         assertEquals(16.0f, song.ticksPerSecond(), 10e-6f);
         assertEquals(143.875f, song.durationSeconds(), 1e-6f);
+        assertEquals(4, song.signature());
+        assertEquals(2304, song.paddedDurationTicks());
+        assertEquals(144f, song.paddedDurationSeconds(), 1e-6f);
+        assertTrue(song.stereo());
 
         SongMeta meta = song.metaData();
-        assertEquals(new SongMeta("Megalovania (Smash Ultimate Version)", "ShinkoNetCavy",
+        assertEquals(new ImmutableSongMeta("Megalovania (Smash Ultimate Version)", "ShinkoNetCavy",
                 "Toby Fox", ""), meta);
 
-        assertEquals(new LoopConfig(true, (byte) 0, (short) 0), song.loopConfig());
+        assertEquals(new ImmutableLoopConfig(true, (byte) 0, (short) 0), song.loopConfig());
 
         var layers = song.layers();
         assertEquals(61, layers.size());

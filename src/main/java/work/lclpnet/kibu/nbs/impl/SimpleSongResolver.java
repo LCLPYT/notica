@@ -2,7 +2,7 @@ package work.lclpnet.kibu.nbs.impl;
 
 import net.minecraft.util.Identifier;
 import work.lclpnet.kibu.nbs.api.SongResolver;
-import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.api.data.Song;
 
 import java.util.HashMap;
 import java.util.Map;

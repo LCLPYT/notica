@@ -5,7 +5,7 @@ import net.minecraft.util.math.Position;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.*;
-import work.lclpnet.kibu.nbs.data.Song;
+import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.impl.ServerBasicNotePlayer;
 import work.lclpnet.kibu.nbs.impl.ServerPositionedNotePlayer;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;

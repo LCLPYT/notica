@@ -17,6 +17,7 @@ public class SongPlayback implements Runnable {
     private int tick = 0;
     private double extraMs = 0f;
     private volatile Hook<Runnable> onComplete = null;
+    private volatile Thread thread = null;
 
     public SongPlayback(Song song, NotePlayer notePlayer) {
         this.song = song;
@@ -29,13 +30,27 @@ public class SongPlayback implements Runnable {
         this.remainder = Math.max(0, period - exactTempo);
     }
 
-    public synchronized void start() {
-        if (started) return;
-        started = true;
+    public void start() {
+        synchronized (this) {
+            if (started) return;
+            started = true;
 
-        Thread thread = new Thread(this, "Song Player");
-        thread.setDaemon(true);
-        thread.start();
+            thread = new Thread(this, "Song Player");
+            thread.setDaemon(true);
+            thread.start();
+        }
+    }
+
+    public void stop() {
+        synchronized (this) {
+            if (!started) return;
+            started = false;
+
+            if (thread != null && thread.isAlive()) {
+                thread.interrupt();
+                thread = null;
+            }
+        }
     }
 
     @SuppressWarnings("BusyWait")
@@ -43,7 +58,7 @@ public class SongPlayback implements Runnable {
     public void run() {
         final var layers = song.layers().values();
 
-        while (tick < ticks) {
+        while (started && tick <= ticks) {
             final long before = System.currentTimeMillis();
             final int t = tick++;
 

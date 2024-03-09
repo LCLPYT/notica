@@ -1,7 +1,11 @@
 package work.lclpnet.kibu.nbs.controller;
 
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Position;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
+
+import java.util.Optional;
+import java.util.Set;
 
 public interface Controller {
 
@@ -20,4 +24,14 @@ public interface Controller {
      * @param volume The volume of the song. Ranges [0..1]
      */
     void playSongAt(SongDescriptor song, Position position, float volume);
+
+    void stopSong(SongDescriptor song);
+
+    Set<SongDescriptor> getPlayingSongs();
+
+    default Optional<SongDescriptor> getPlayingSongById(Identifier id) {
+        return getPlayingSongs().stream()
+                .filter(descriptor -> id.equals(descriptor.id()))
+                .findAny();
+    }
 }

@@ -1,7 +1,6 @@
 package work.lclpnet.kibu.nbs.controller;
 
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Position;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -12,7 +11,9 @@ import work.lclpnet.kibu.nbs.impl.ServerPositionedNotePlayer;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -25,7 +26,7 @@ public class ServerController implements Controller, PlayerHolder {
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfig playerConfig;
     private final Logger logger;
-    private final Map<Identifier, PlayingSong> playing = new HashMap<>();
+    private final Map<SongDescriptor, PlayingSong> playing = new HashMap<>();
 
     public ServerController(ServerPlayerEntity player, SongResolver resolver, InstrumentSoundProvider soundProvider,
                             PlayerConfig playerConfig, Logger logger) {
@@ -57,6 +58,22 @@ public class ServerController implements Controller, PlayerHolder {
         startSong(descriptor, () -> new ServerPositionedNotePlayer(player, position));
     }
 
+    @Override
+    public void stopSong(SongDescriptor song) {
+        PlayingSong playingSong = removePlaying(song);
+
+        if (playingSong == null) return;
+
+        playingSong.playback().stop();
+    }
+
+    @Override
+    public Set<SongDescriptor> getPlayingSongs() {
+        synchronized (this) {
+            return new HashSet<>(playing.keySet());
+        }
+    }
+
     private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, Supplier<T> supplier) {
         resolver.resolve(descriptor)
                 .exceptionally(error -> {
@@ -70,22 +87,24 @@ public class ServerController implements Controller, PlayerHolder {
     private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, @Nullable Song song, Supplier<T> supplier) {
         if (song == null) return;
 
+        stopSong(descriptor);
+
         T notePlayer = supplier.get();
         SongPlayback playback = new SongPlayback(song, notePlayer);
 
-        final Identifier id = descriptor.id();
-        playback.whenDone(() -> removePlaying(id));
+        playback.whenDone(() -> removePlaying(descriptor));
 
         synchronized (this) {
-            playing.put(id, new PlayingSong(playback, notePlayer));
+            playing.put(descriptor, new PlayingSong(playback, notePlayer));
         }
 
         playback.start();
     }
 
-    private void removePlaying(Identifier id) {
+    @Nullable
+    private PlayingSong removePlaying(SongDescriptor descriptor) {
         synchronized (this) {
-            playing.remove(id);
+            return playing.remove(descriptor);
         }
     }
 

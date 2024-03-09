@@ -3,6 +3,7 @@ package work.lclpnet.kibu.nbs.impl;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.KibuNbsAPI;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
@@ -67,16 +68,23 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
 
     public void execute(Collection<? extends ServerPlayerEntity> players, Consumer<Controller> action) {
         for (ServerPlayerEntity player : players) {
-            Controller controller = controllers.computeIfAbsent(player.getUuid(), uuid -> createController(player));
-
-            if (controller instanceof PlayerHolder playerHolder) {
-                // update the player reference, in case the player instance changed by respawning
-                playerHolder.setPlayer(player);
-            }
+            Controller controller = getController(player);
 
             action.accept(controller);
         }
 
+    }
+
+    @NotNull
+    public Controller getController(ServerPlayerEntity player) {
+        Controller controller = controllers.computeIfAbsent(player.getUuid(), uuid -> createController(player));
+
+        if (controller instanceof PlayerHolder playerHolder) {
+            // update the player reference, in case the player instance changed by respawning
+            playerHolder.setPlayer(player);
+        }
+
+        return controller;
     }
 
     private Controller createController(ServerPlayerEntity player) {

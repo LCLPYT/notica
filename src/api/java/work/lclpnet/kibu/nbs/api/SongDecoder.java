@@ -68,10 +68,11 @@ public class SongDecoder {
 
         float ticksPerSecond = readShortLE(in) / 100f;
 
-        // unused
         in.readBoolean();   // auto save
         in.readByte();      // auto save interval
-        in.readByte();      // time signature
+
+        byte timeSignature = in.readByte();      // time signature
+
         readIntLE(in);      // minutes spent
         readIntLE(in);      // left clicks
         readIntLE(in);      // right clicks
@@ -153,7 +154,7 @@ public class SongDecoder {
         // CUSTOM INSTRUMENTS
         Instruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
 
-        return new Song(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo);
+        return new Song(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
     }
 
     @NotNull

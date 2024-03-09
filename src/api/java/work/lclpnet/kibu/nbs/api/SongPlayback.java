@@ -3,6 +3,7 @@ package work.lclpnet.kibu.nbs.api;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.kibu.hook.HookFactory;
 import work.lclpnet.kibu.nbs.data.Layer;
+import work.lclpnet.kibu.nbs.data.LoopConfig;
 import work.lclpnet.kibu.nbs.data.Note;
 import work.lclpnet.kibu.nbs.data.Song;
 
@@ -57,8 +58,20 @@ public class SongPlayback implements Runnable {
     @Override
     public void run() {
         final var layers = song.layers().values();
+        LoopConfig loopConfig = song.loopConfig();
 
-        while (started && tick <= ticks) {
+        int loopAmount = loopConfig.loopCount();
+        final boolean shouldLoop = loopConfig.enabled();
+        final int endTick;
+
+        if (shouldLoop) {
+            int interval = Math.max(2, Math.min(song.signature(), 8)) * 4;
+            endTick = ticks + interval - (ticks % interval);
+        } else {
+            endTick = ticks + 1;
+        }
+
+        while (started && tick < endTick) {
             final long before = System.currentTimeMillis();
             final int t = tick++;
 
@@ -68,6 +81,16 @@ public class SongPlayback implements Runnable {
                 if (note == null) continue;
 
                 notePlayer.playNote(song, layer, note);
+            }
+
+            if (shouldLoop && tick == endTick) {
+                boolean infinite = loopConfig.infinite();
+
+                if (infinite || loopAmount > 0) {
+                    if (!infinite) loopAmount--;
+
+                    tick = loopConfig.loopStartTick();
+                }
             }
 
             long elapsed = System.currentTimeMillis() - before;

@@ -25,7 +25,8 @@ class SongPlaybackTest {
         notes.put(4, note);
 
         int ticks = 5;
-        Song song = new Song(ticks, 16f, SongMeta.EMPTY, LoopConfig.NONE, Map.of(0, Layer.of(notes)), Instruments.DEFAULT, false);
+        Song song = new Song(ticks, 16f, SongMeta.EMPTY, LoopConfig.NONE, Map.of(0, Layer.of(notes)),
+                Instruments.DEFAULT, false, (byte) 4);
 
         LongList timestamps = new LongArrayList(ticks);
         NotePlayer player = (s, l, n) -> timestamps.add(System.currentTimeMillis());
@@ -46,7 +47,8 @@ class SongPlaybackTest {
     }
     @Test
     void whenDone_afterPlayback_isCalled() {
-        Song song = new Song(0, 16f, SongMeta.EMPTY, LoopConfig.NONE, Map.of(0, Layer.of(Map.of())), Instruments.DEFAULT, false);
+        Song song = new Song(0, 16f, SongMeta.EMPTY, LoopConfig.NONE,
+                Map.of(0, Layer.of(Map.of())), Instruments.DEFAULT, false, (byte) 4);
 
         var executed = new AtomicBoolean(false);
         var playback = new SongPlayback(song, (s, l, n) -> {});

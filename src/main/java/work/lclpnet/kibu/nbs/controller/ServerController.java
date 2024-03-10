@@ -75,13 +75,8 @@ public class ServerController implements Controller, PlayerHolder {
     }
 
     private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, Supplier<T> supplier) {
-        resolver.resolve(descriptor)
-                .exceptionally(error -> {
-                    logger.error("Failed to resolve song {}", descriptor, error);
-                    return null;
-                })
-                .thenAccept(song -> startSong(descriptor, song, supplier));
-
+        Song song = resolver.resolve(descriptor);
+        startSong(descriptor, song, supplier);
     }
 
     private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, @Nullable Song song, Supplier<T> supplier) {

@@ -39,12 +39,8 @@ public class RemoteController implements Controller, PlayerHolder {
 
     @Override
     public void playSong(SongDescriptor descriptor, float volume) {
-        resolver.resolve(descriptor)
-                .exceptionally(error -> {
-                    logger.error("Failed to resolve song {}", descriptor, error);
-                    return null;
-                })
-                .thenAccept(song -> startSong(descriptor, song, volume));
+        Song song = resolver.resolve(descriptor);
+        startSong(descriptor, song, volume);
     }
 
     private void startSong(SongDescriptor descriptor, Song song, float volume) {

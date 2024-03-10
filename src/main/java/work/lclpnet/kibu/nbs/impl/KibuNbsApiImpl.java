@@ -138,4 +138,8 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
             return new SongDescriptor(id, new byte[0]);  // TODO checksum
         });
     }
+
+    public SimpleSongResolver getSongResolver() {
+        return songResolver;
+    }
 }

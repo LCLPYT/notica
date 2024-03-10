@@ -42,7 +42,7 @@ public class KibuNbsInit implements ModInitializer {
 		PlayerConnectionHooks.QUIT.register(this::onPlayerQuit);
 		ServerPlayerEvents.COPY_FROM.register(this::copyFromPlayer);
 
-		new KibuNbsNetworking().register();
+		new KibuNbsNetworking(LOGGER).register();
 
 		LOGGER.info("Initialized.");
 	}

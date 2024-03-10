@@ -1,6 +1,7 @@
 package work.lclpnet.kibu.nbs.util;
 
 import work.lclpnet.kibu.nbs.api.Index;
+import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.*;
 import work.lclpnet.kibu.nbs.impl.ListIndex;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableSongMeta;
@@ -78,5 +79,15 @@ public class PendingSong implements Song {
     @Override
     public byte signature() {
         return signature;
+    }
+
+    /**
+     * Load a song slice into this song.
+     * @param slice The song slice.
+     * @return True, if the there is more data to fetch. False if the pending song has been completely loaded.
+     */
+    public boolean accept(SongSlice slice) {
+        // TODO
+        return true;
     }
 }

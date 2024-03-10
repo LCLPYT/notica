@@ -152,7 +152,7 @@ public class SongSlicer {
             buf.writeByte(note.instrument());
             buf.writeByte(note.key());
             buf.writeByte(note.velocity());
-            buf.writeByte(note.panning());
+            buf.writeByte(note.panning());  // unsigned
             buf.writeShort(note.pitch());
         }
 
@@ -191,7 +191,7 @@ public class SongSlicer {
                 byte instrument = buf.readByte();
                 byte key = buf.readByte();
                 byte velocity = buf.readByte();
-                byte panning = buf.readByte();
+                short panning = buf.readUnsignedByte();
                 short pitch = buf.readShort();
 
                 var notes = layerNotes.computeIfAbsent(layer, l -> new HashMap<>());

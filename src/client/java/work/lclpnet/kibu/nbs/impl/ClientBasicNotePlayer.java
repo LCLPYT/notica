@@ -2,6 +2,8 @@ package work.lclpnet.kibu.nbs.impl;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
@@ -60,25 +62,11 @@ public class ClientBasicNotePlayer implements NotePlayer {
 
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
 
-        double x = player.getX();
-        double y = player.getEyeY();
-        double z = player.getZ();
-
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
 
-        if (Math.abs(panning) >= 1e-3) {
-            double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
+        var instance = new PositionedSoundInstance(sound.getId(), SoundCategory.RECORDS, volume, vanillaPitch,
+                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true);
 
-            x += Math.sin(yaw) * panning;
-            z += -Math.cos(yaw) * panning;
-        }
-
-        playSoundAt(client, player, x, y, z, sound, volume, vanillaPitch);
-    }
-
-    private static void playSoundAt(MinecraftClient client, ClientPlayerEntity player, double x, double y, double z,
-                                    SoundEvent sound, float volume, float vanillaPitch) {
-        client.executeSync(() -> player.clientWorld.playSound(player, x, y, z, sound, SoundCategory.RECORDS, volume,
-                vanillaPitch, player.getRandom().nextLong()));
+        client.executeSync(() -> client.getSoundManager().play(instance));
     }
 }

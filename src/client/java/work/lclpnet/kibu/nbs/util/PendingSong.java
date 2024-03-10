@@ -84,10 +84,14 @@ public class PendingSong implements Song {
     /**
      * Load a song slice into this song.
      * @param slice The song slice.
-     * @return True, if the there is more data to fetch. False if the pending song has been completely loaded.
      */
-    public boolean accept(SongSlice slice) {
-        // TODO
-        return true;
+    public void accept(SongSlice slice) {
+        for (var pointer : slice.layers().iterate()) {
+            PendingLayer layer = layers.get(pointer.index());
+
+            if (layer == null) continue;
+
+            layer.merge(pointer.value().notes(), slice.tickStart());
+        }
     }
 }

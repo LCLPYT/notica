@@ -71,6 +71,7 @@ public class MusicCommand {
                                 .executes(this::stopSongSelf)))
                 .then(literal("set")
                         .then(literal("extended_range")
+                                .requires(this::isVanillaPlayer)
                                 .then(argument("enabled", BoolArgumentType.bool())
                                         .executes(this::changeExtendedRange)))
                         .then(literal("volume")
@@ -78,18 +79,23 @@ public class MusicCommand {
                                         .executes(this::changeVolume))));
     }
 
+    private boolean isVanillaPlayer(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+
+        if (player == null) {
+            return false;
+        }
+
+        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
+
+        return !instance.hasModInstalled(player);
+    }
+
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
 
         KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
-
-        if (instance.hasModInstalled(player)) {
-            // extended octave range is automatically supported by the mod on the client
-            var msg = translations.translateText(player, "kibu-nbs.music.extended_octaves.mod").formatted(RED);
-            player.sendMessage(msg);
-            return 0;
-        }
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(enabled);
@@ -114,6 +120,7 @@ public class MusicCommand {
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setVolume(percent / 100);
         configs.saveConfig(player);
+        instance.syncPlayerConfig(player);
 
         var msg = translations.translateText(player, "kibu-nbs.music.volume.changed",
                 styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN);

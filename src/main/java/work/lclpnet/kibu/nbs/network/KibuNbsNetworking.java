@@ -7,10 +7,9 @@ import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.Song;
+import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
-import work.lclpnet.kibu.nbs.network.packet.PlaySongS2CPacket;
-import work.lclpnet.kibu.nbs.network.packet.RequestSongC2SPacket;
-import work.lclpnet.kibu.nbs.network.packet.RespondSongS2CPacket;
+import work.lclpnet.kibu.nbs.network.packet.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +31,7 @@ public class KibuNbsNetworking {
 
     public void register() {
         ServerPlayNetworking.registerGlobalReceiver(RequestSongC2SPacket.TYPE, this::onRequestSong);
+        ServerPlayNetworking.registerGlobalReceiver(StopSongBidiPacket.TYPE, this::onSongStopped);
     }
 
     private void onRequestSong(RequestSongC2SPacket packet, ServerPlayerEntity player, PacketSender sender) {
@@ -56,20 +56,31 @@ public class KibuNbsNetworking {
 
         logger.debug("Player {} requested song slice {}, {} for song {}", player.getNameForScoreboard(), tickOffset, layerOffset, songId);
 
-        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
-
         // check if there even is more data left to send
-        int ticks = song.durationTicks();
-        if (tickOffset > ticks || (tickOffset == ticks && layerOffset >= maxLayerIndex)) {
+        if (SongSlicer.isFinished(song, tickOffset, layerOffset)) {
             logger.debug("Cannot send more song data for song {}, end is reached", songId);
             return;
         }
 
         int maxBytes = MAX_PACKET_BYTES - 200;  // leave a little bit of padding for the packet meta-data
         SongSlice slice = SongSlicer.sliceAt(song, tickOffset, layerOffset, maxBytes);
-        RespondSongS2CPacket responsePacket = new RespondSongS2CPacket(songId, slice);
+        boolean finished = SongSlicer.isFinished(song, slice);
+
+        RespondSongS2CPacket responsePacket = new RespondSongS2CPacket(songId, slice, finished);
 
         ServerPlayNetworking.send(player, responsePacket);
+    }
+
+    private void onSongStopped(StopSongBidiPacket packet, ServerPlayerEntity player, PacketSender sender) {
+        Identifier songId = packet.getSongId();
+
+        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
+
+        instance.maybeGetController(player).ifPresent(controller -> {
+            if (controller instanceof RemoteController remote) {
+                remote.removePlaying(songId);
+            }
+        });
     }
 
     private PlayerData getData(ServerPlayerEntity player) {
@@ -85,7 +96,9 @@ public class KibuNbsNetworking {
     }
 
     public static boolean canSendAll(ServerPlayerEntity player) {
-        return canSend(player, PlaySongS2CPacket.TYPE);
+        return canSend(player, PlaySongS2CPacket.TYPE) &&
+               canSend(player, StopSongBidiPacket.TYPE) &&
+               canSend(player, MusicOptionsS2CPacket.TYPE);
     }
 
     private static class PlayerData {

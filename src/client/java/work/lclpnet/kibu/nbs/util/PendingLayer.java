@@ -5,13 +5,14 @@ import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.impl.ListIndex;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class PendingLayer implements Layer {
 
     private final byte volume;
     private final short panning;
-    private final Index<Note> notes = new ListIndex<>(Map.of());  // TODO change to a mutable index
+    private ListIndex<Note> notes = new ListIndex<>(Map.of());
 
     public PendingLayer(byte volume, short panning) {
         this.volume = volume;
@@ -38,7 +39,17 @@ public class PendingLayer implements Layer {
         return notes;
     }
 
-    public void setNote(int i, Note note) {
-        // TODO implement
+    public void merge(Index<? extends Note> notes, int offset) {
+        Map<Integer, Note> merged = new HashMap<>(this.notes.size() + notes.size());
+
+        for (var pointer : this.notes.iterate()) {
+            merged.put(pointer.index(), pointer.value());
+        }
+
+        for (var pointer : notes.iterate()) {
+            merged.put(pointer.index() + offset, pointer.value());
+        }
+
+        this.notes = new ListIndex<>(merged);
     }
 }

@@ -3,7 +3,6 @@ package work.lclpnet.kibu.nbs.controller;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.Position;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.*;
 import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.impl.ServerBasicNotePlayer;
@@ -25,16 +24,14 @@ public class ServerController implements Controller, PlayerHolder {
     private final SongResolver resolver;
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfig playerConfig;
-    private final Logger logger;
     private final Map<SongDescriptor, PlayingSong> playing = new HashMap<>();
 
     public ServerController(ServerPlayerEntity player, SongResolver resolver, InstrumentSoundProvider soundProvider,
-                            PlayerConfig playerConfig, Logger logger) {
+                            PlayerConfig playerConfig) {
         this.player = player;
         this.resolver = resolver;
         this.soundProvider = soundProvider;
         this.playerConfig = playerConfig;
-        this.logger = logger;
     }
 
     @Override
@@ -50,12 +47,20 @@ public class ServerController implements Controller, PlayerHolder {
 
     @Override
     public void playSong(SongDescriptor descriptor, float volume) {
-        startSong(descriptor, () -> new ServerBasicNotePlayer(player, soundProvider, volume, playerConfig));
+        Song song = resolver.resolve(descriptor);
+
+        if (song == null) return;
+
+        startSong(descriptor, song, () -> new ServerBasicNotePlayer(player, soundProvider, volume, playerConfig));
     }
 
     @Override
     public void playSongAt(SongDescriptor descriptor, Position position, float volume) {
-        startSong(descriptor, () -> new ServerPositionedNotePlayer(player, position));
+        Song song = resolver.resolve(descriptor);
+
+        if (song == null) return;
+
+        startSong(descriptor, song, () -> new ServerPositionedNotePlayer(player, position));
     }
 
     @Override
@@ -74,14 +79,7 @@ public class ServerController implements Controller, PlayerHolder {
         }
     }
 
-    private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, Supplier<T> supplier) {
-        Song song = resolver.resolve(descriptor);
-        startSong(descriptor, song, supplier);
-    }
-
-    private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, @Nullable Song song, Supplier<T> supplier) {
-        if (song == null) return;
-
+    private <T extends NotePlayer & PlayerHolder> void startSong(SongDescriptor descriptor, Song song, Supplier<T> supplier) {
         stopSong(descriptor);
 
         T notePlayer = supplier.get();

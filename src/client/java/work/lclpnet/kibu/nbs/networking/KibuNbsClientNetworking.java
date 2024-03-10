@@ -5,30 +5,35 @@ import net.fabricmc.fabric.api.networking.v1.PacketSender;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
+import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.impl.ClientController;
 import work.lclpnet.kibu.nbs.impl.ClientSongResolver;
 import work.lclpnet.kibu.nbs.impl.SongDescriptor;
-import work.lclpnet.kibu.nbs.network.packet.PlaySongS2CPacket;
-import work.lclpnet.kibu.nbs.network.packet.RequestSongC2SPacket;
-import work.lclpnet.kibu.nbs.network.packet.RespondSongS2CPacket;
+import work.lclpnet.kibu.nbs.network.packet.*;
 import work.lclpnet.kibu.nbs.util.PendingSong;
+import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 public class KibuNbsClientNetworking {
 
     private final ClientSongResolver songRepository;
     private final ClientController controller;
+    private final PlayerConfigEntry playerConfig;
     private final Logger logger;
 
-    public KibuNbsClientNetworking(ClientSongResolver songRepository, ClientController controller, Logger logger) {
+    public KibuNbsClientNetworking(ClientSongResolver songRepository, ClientController controller,
+                                   PlayerConfigEntry playerConfig, Logger logger) {
         this.songRepository = songRepository;
         this.controller = controller;
+        this.playerConfig = playerConfig;
         this.logger = logger;
     }
 
     public void register() {
         ClientPlayNetworking.registerGlobalReceiver(PlaySongS2CPacket.TYPE, this::onPlaySong);
         ClientPlayNetworking.registerGlobalReceiver(RespondSongS2CPacket.TYPE, this::onRespondSong);
+        ClientPlayNetworking.registerGlobalReceiver(StopSongBidiPacket.TYPE, this::onStopSong);
+        ClientPlayNetworking.registerGlobalReceiver(MusicOptionsS2CPacket.TYPE, this::onMusicOptionsSync);
     }
 
     private void onPlaySong(PlaySongS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
@@ -44,7 +49,9 @@ public class KibuNbsClientNetworking {
 
             SongSlice slice = packet.getSlice();
 
-            if (song.accept(slice)) {
+            song.accept(slice);
+
+            if (!packet.isLast()) {
                 requestNext(descriptor.id(), slice);
             }
 
@@ -52,6 +59,17 @@ public class KibuNbsClientNetworking {
         }
 
         controller.playSong(descriptor, packet.getVolume());
+    }
+
+    private void onStopSong(StopSongBidiPacket packet, ClientPlayerEntity player, PacketSender sender) {
+        Identifier songId = packet.getSongId();
+
+        controller.stopSong(songId);
+    }
+
+    private void onMusicOptionsSync(MusicOptionsS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
+        PlayerConfig config = packet.getConfig();
+        playerConfig.copyClient(config);
     }
 
     private void onRespondSong(RespondSongS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
@@ -64,7 +82,9 @@ public class KibuNbsClientNetworking {
 
         logger.debug("Received song slice {} for song {}", slice, songId);
 
-        if (song.accept(slice)) {
+        song.accept(slice);
+
+        if (!packet.isLast()) {
             requestNext(songId, slice);
         }
     }

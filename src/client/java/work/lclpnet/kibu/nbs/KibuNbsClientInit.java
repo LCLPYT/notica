@@ -7,6 +7,7 @@ import work.lclpnet.kibu.nbs.impl.ClientController;
 import work.lclpnet.kibu.nbs.impl.ClientInstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.impl.ClientSongResolver;
 import work.lclpnet.kibu.nbs.networking.KibuNbsClientNetworking;
+import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 public class KibuNbsClientInit implements ClientModInitializer {
 
@@ -14,9 +15,13 @@ public class KibuNbsClientInit implements ClientModInitializer {
 	public void onInitializeClient() {
 		ClientSongResolver songResolver = new ClientSongResolver();
 		ClientInstrumentSoundProvider soundProvider = new ClientInstrumentSoundProvider();
-		ClientController controller = new ClientController(songResolver, KibuNbsInit.LOGGER, soundProvider);
 
-		new KibuNbsClientNetworking(songResolver, controller, KibuNbsInit.LOGGER).register();
+		PlayerConfigEntry playerConfig = new PlayerConfigEntry();
+		playerConfig.setExtendedRangeSupported(true);
+
+		ClientController controller = new ClientController(songResolver, KibuNbsInit.LOGGER, soundProvider, playerConfig);
+
+		new KibuNbsClientNetworking(songResolver, controller, playerConfig, KibuNbsInit.LOGGER).register();
 
 		ClientJoinGameCallback.EVENT.register(networkHandler -> soundProvider.setRegistryManager(networkHandler.getRegistryManager()));
 		ClientDisconnectCallback.EVENT.register(() -> soundProvider.setRegistryManager(null));

@@ -210,4 +210,15 @@ public class SongSlicer {
 
         return new ConcreteSongSlice(layers, tickStart, tickEnd, layerStart, layerEnd);
     }
+
+    public static boolean isFinished(Song song, SongSlice slice) {
+        return isFinished(song, slice.tickEnd(), slice.layerEnd());
+    }
+
+    public static boolean isFinished(Song song, int tickOffset, int layerOffset) {
+        int ticks = song.durationTicks();
+        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
+
+        return tickOffset > ticks || (tickOffset == ticks && layerOffset >= maxLayerIndex);
+    }
 }

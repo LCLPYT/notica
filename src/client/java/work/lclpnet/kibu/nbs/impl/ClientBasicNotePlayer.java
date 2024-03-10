@@ -1,44 +1,36 @@
 package work.lclpnet.kibu.nbs.impl;
 
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
-import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.data.CustomInstrument;
 import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.util.NoteHelper;
 
-public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
+public class ClientBasicNotePlayer implements NotePlayer {
 
-    private ServerPlayerEntity player;
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
     private final PlayerConfig playerConfig;
 
-    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume,
-                                 PlayerConfig playerConfig) {
-        this.player = player;
+    public ClientBasicNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig) {
         this.soundProvider = soundProvider;
-        this.volume = Math.max(0f, Math.min(1f, volume));
+        this.volume = volume;
         this.playerConfig = playerConfig;
     }
 
     @Override
-    public void setPlayer(ServerPlayerEntity player) {
-        synchronized (this) {
-            this.player = player;
-        }
-    }
-
-    @Override
     public void playNote(Song song, Layer layer, Note note) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientPlayerEntity player = client.player;
+        if (player == null) return;
+
         final byte instrument = note.instrument();
         CustomInstrument custom = song.instruments().custom(instrument);
 
@@ -69,7 +61,7 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
 
         double x = player.getX();
-        double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
+        double y = player.getEyeY();
         double z = player.getZ();
 
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
@@ -81,13 +73,12 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             z += -Math.cos(yaw) * panning;
         }
 
-        playSoundAt(sound, x, y, z, volume, vanillaPitch);
+        playSoundAt(client, player, x, y, z, sound, volume, vanillaPitch);
     }
 
-    private void playSoundAt(SoundEvent sound, double x, double y, double z, float volume, float pitch) {
-        var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,
-                volume, pitch, player.getRandom().nextLong());
-
-        player.networkHandler.sendPacket(packet);
+    private static void playSoundAt(MinecraftClient client, ClientPlayerEntity player, double x, double y, double z,
+                                    SoundEvent sound, float volume, float vanillaPitch) {
+        client.executeSync(() -> player.clientWorld.playSound(player, x, y, z, sound, SoundCategory.RECORDS, volume,
+                vanillaPitch, player.getRandom().nextLong()));
     }
 }

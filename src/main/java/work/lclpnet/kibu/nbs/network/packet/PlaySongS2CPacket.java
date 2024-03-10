@@ -17,12 +17,14 @@ public class PlaySongS2CPacket implements FabricPacket {
     private final SongDescriptor songDescriptor;
     private final float volume;
     private final SongHeader header;
+    private final boolean last;
     private final SongSlice slice;
 
-    public PlaySongS2CPacket(SongDescriptor songDescriptor, float volume, SongHeader header, SongSlice slice) {
+    public PlaySongS2CPacket(SongDescriptor songDescriptor, float volume, SongHeader header, boolean last, SongSlice slice) {
         this.songDescriptor = songDescriptor;
         this.volume = volume;
         this.header = header;
+        this.last = last;
         this.slice = slice;
     }
 
@@ -30,6 +32,7 @@ public class PlaySongS2CPacket implements FabricPacket {
         this.songDescriptor = SongDescriptor.read(buf);
         this.volume = buf.readFloat();
         this.header = new SongHeader(buf);
+        this.last = buf.readBoolean();
         this.slice = SongSlicer.readSlice(buf);
     }
 
@@ -38,6 +41,7 @@ public class PlaySongS2CPacket implements FabricPacket {
         songDescriptor.write(buf);
         buf.writeFloat(volume);
         header.write(buf);
+        buf.writeBoolean(last);
         SongSlicer.writeSlice(buf, slice);
     }
 
@@ -60,5 +64,9 @@ public class PlaySongS2CPacket implements FabricPacket {
 
     public SongSlice getSlice() {
         return slice;
+    }
+
+    public boolean isLast() {
+        return last;
     }
 }

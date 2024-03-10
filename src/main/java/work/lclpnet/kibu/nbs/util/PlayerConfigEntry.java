@@ -1,5 +1,7 @@
 package work.lclpnet.kibu.nbs.util;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.nbt.NbtCompound;
 import work.lclpnet.kibu.nbs.api.MutablePlayerConfig;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
@@ -63,5 +65,11 @@ public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
         if (nbt.contains(EXTENDED_RANGE_KEY)) {
             this.extendedRangeSupported = nbt.getBoolean(EXTENDED_RANGE_KEY);
         }
+    }
+
+    @Environment(EnvType.CLIENT)
+    public void copyClient(PlayerConfig config) {
+        // copy config on the client
+        this.volume = config.getVolume();
     }
 }

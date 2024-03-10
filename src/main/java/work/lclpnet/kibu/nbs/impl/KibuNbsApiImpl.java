@@ -1,5 +1,6 @@
 package work.lclpnet.kibu.nbs.impl;
 
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
@@ -15,15 +16,14 @@ import work.lclpnet.kibu.nbs.controller.Controller;
 import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.controller.ServerController;
 import work.lclpnet.kibu.nbs.network.KibuNbsNetworking;
+import work.lclpnet.kibu.nbs.network.packet.MusicOptionsS2CPacket;
 import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
+import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -60,6 +60,8 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
 
     public void onPlayerJoin(ServerPlayerEntity player) {
         playerConfigs.onPlayerJoin(player);
+
+        syncPlayerConfig(player);
     }
 
     public void onPlayerQuit(ServerPlayerEntity player) {
@@ -96,14 +98,27 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
         return controller;
     }
 
+    public Optional<Controller> maybeGetController(ServerPlayerEntity player) {
+        var optional = Optional.ofNullable(controllers.get(player.getUuid()));
+
+        optional.ifPresent(controller -> {
+            if (controller instanceof PlayerHolder playerHolder) {
+                // update the player reference, in case the player instance changed by respawning
+                playerHolder.setPlayer(player);
+            }
+        });
+
+        return optional;
+    }
+
     private Controller createController(ServerPlayerEntity player) {
         if (hasModInstalled(player)) {
-            return new RemoteController(player, songResolver, logger);
+            return new RemoteController(player, songResolver);
         }
 
         PlayerConfig playerConfig = playerConfigs.get(player);
 
-        return new ServerController(player, songResolver, soundProvider, playerConfig, logger);
+        return new ServerController(player, songResolver, soundProvider, playerConfig);
     }
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
@@ -141,5 +156,13 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
 
     public SimpleSongResolver getSongResolver() {
         return songResolver;
+    }
+
+    public void syncPlayerConfig(ServerPlayerEntity player) {
+        if (!hasModInstalled(player)) return;
+
+        PlayerConfigEntry config = getPlayerConfigs().get(player);
+        var packet = new MusicOptionsS2CPacket(config);
+        ServerPlayNetworking.send(player, packet);
     }
 }

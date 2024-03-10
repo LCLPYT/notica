@@ -2,8 +2,8 @@ package work.lclpnet.kibu.nbs.controller;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Position;
-import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.SongResolver;
 import work.lclpnet.kibu.nbs.api.SongSlice;
@@ -12,7 +12,10 @@ import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 import work.lclpnet.kibu.nbs.network.SongHeader;
 import work.lclpnet.kibu.nbs.network.SongSlicer;
 import work.lclpnet.kibu.nbs.network.packet.PlaySongS2CPacket;
+import work.lclpnet.kibu.nbs.network.packet.StopSongBidiPacket;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -22,12 +25,11 @@ public class RemoteController implements Controller, PlayerHolder {
 
     private ServerPlayerEntity player;
     private final SongResolver resolver;
-    private final Logger logger;
+    private final Set<SongDescriptor> playing = new HashSet<>();
 
-    public RemoteController(ServerPlayerEntity player, SongResolver resolver, Logger logger) {
+    public RemoteController(ServerPlayerEntity player, SongResolver resolver) {
         this.player = player;
         this.resolver = resolver;
-        this.logger = logger;
     }
 
     @Override
@@ -40,6 +42,9 @@ public class RemoteController implements Controller, PlayerHolder {
     @Override
     public void playSong(SongDescriptor descriptor, float volume) {
         Song song = resolver.resolve(descriptor);
+
+        if (song == null) return;
+
         startSong(descriptor, song, volume);
     }
 
@@ -48,9 +53,12 @@ public class RemoteController implements Controller, PlayerHolder {
 
         // send the first 5 seconds along with the play packet, so that the client can start playing instantly
         SongSlice slice = SongSlicer.sliceSeconds(song, 5);
+        boolean finished = SongSlicer.isFinished(song, slice);
 
-        var packet = new PlaySongS2CPacket(descriptor, volume, header, slice);
+        var packet = new PlaySongS2CPacket(descriptor, volume, header, finished, slice);
         ServerPlayNetworking.send(player, packet);
+
+        playing.add(descriptor);
     }
 
     @Override
@@ -60,11 +68,18 @@ public class RemoteController implements Controller, PlayerHolder {
 
     @Override
     public void stopSong(SongDescriptor song) {
-        // TODO implement
+        if (!playing.remove(song)) return;
+
+        var packet = new StopSongBidiPacket(song.id());
+        ServerPlayNetworking.send(player, packet);
+    }
+
+    public void removePlaying(Identifier id) {
+        playing.removeIf(song -> song.id().equals(id));
     }
 
     @Override
     public Set<SongDescriptor> getPlayingSongs() {
-        return Set.of();  // TODO implement
+        return Collections.unmodifiableSet(playing);
     }
 }

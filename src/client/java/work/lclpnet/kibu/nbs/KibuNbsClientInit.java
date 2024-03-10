@@ -24,6 +24,9 @@ public class KibuNbsClientInit implements ClientModInitializer {
 		new KibuNbsClientNetworking(songResolver, controller, playerConfig, KibuNbsInit.LOGGER).register();
 
 		ClientJoinGameCallback.EVENT.register(networkHandler -> soundProvider.setRegistryManager(networkHandler.getRegistryManager()));
-		ClientDisconnectCallback.EVENT.register(() -> soundProvider.setRegistryManager(null));
+		ClientDisconnectCallback.EVENT.register(() -> {
+			controller.stopAll();
+			soundProvider.setRegistryManager(null);
+        });
 	}
 }

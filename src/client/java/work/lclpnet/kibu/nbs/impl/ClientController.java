@@ -14,6 +14,7 @@ import work.lclpnet.kibu.nbs.network.packet.StopSongBidiPacket;
 import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -96,6 +97,12 @@ public class ClientController implements Controller {
 
     @Override
     public Set<SongDescriptor> getPlayingSongs() {
-        return playing.keySet();
+        return new HashSet<>(playing.keySet());
+    }
+
+    public void stopAll() {
+        for (SongDescriptor song : getPlayingSongs()) {
+            stopSong(song);
+        }
     }
 }

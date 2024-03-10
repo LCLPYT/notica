@@ -4,6 +4,7 @@ import net.minecraft.network.PacketByteBuf;
 import work.lclpnet.kibu.nbs.api.Index;
 import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.api.SongSlice;
+import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.NoteContainer;
 import work.lclpnet.kibu.nbs.api.data.Song;
@@ -217,8 +218,24 @@ public class SongSlicer {
 
     public static boolean isFinished(Song song, int tickOffset, int layerOffset) {
         int ticks = song.durationTicks();
-        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
 
-        return tickOffset > ticks || (tickOffset == ticks && layerOffset >= maxLayerIndex);
+        if (tickOffset > ticks) return true;
+
+        if (tickOffset < ticks) return false;
+
+        var layers = song.layers();
+
+        int lastLayer = layers.streamKeys()
+                .filter(i -> {
+                    Layer layer = layers.get(i);
+
+                    if (layer == null) return false;
+
+                    return layer.notes().get(ticks) != null;
+                })
+                .max()
+                .orElse(-1);
+
+        return layerOffset >= lastLayer;
     }
 }

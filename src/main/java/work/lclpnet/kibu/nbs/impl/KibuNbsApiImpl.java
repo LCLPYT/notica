@@ -1,45 +1,42 @@
 package work.lclpnet.kibu.nbs.impl;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
-import work.lclpnet.kibu.nbs.KibuNbsAPI;
+import work.lclpnet.kibu.nbs.KibuNbsApi;
+import work.lclpnet.kibu.nbs.api.CheckedSong;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
-import work.lclpnet.kibu.nbs.api.PlayerConfig;
-import work.lclpnet.kibu.nbs.api.PlayerHolder;
-import work.lclpnet.kibu.nbs.api.SongDecoder;
+import work.lclpnet.kibu.nbs.api.PlayerStoppedPlaybackListener;
+import work.lclpnet.kibu.nbs.api.SongHandle;
 import work.lclpnet.kibu.nbs.api.data.Song;
-import work.lclpnet.kibu.nbs.controller.Controller;
-import work.lclpnet.kibu.nbs.controller.RemoteController;
-import work.lclpnet.kibu.nbs.controller.ServerController;
 import work.lclpnet.kibu.nbs.network.KibuNbsNetworking;
 import work.lclpnet.kibu.nbs.network.packet.MusicOptionsS2CPacket;
 import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
 import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
-public class KibuNbsApiImpl implements KibuNbsAPI {
+public class KibuNbsApiImpl implements KibuNbsApi {
 
     private static KibuNbsApiImpl instance = null;
     private static Logger logger = null;
     private static Path songsDir = null, playerConfigDir = null;
     private final MinecraftServer server;
-    private final SimpleSongResolver songResolver;
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfigContainer playerConfigs;
-    private final Map<UUID, Controller> controllers = new HashMap<>();
+    private final Map<UUID, SongPlayerRef> playerRefs = new HashMap<>();
+    private final Map<Identifier, Song> songsById = new HashMap<>();
+    private final Set<SongHandle> handles = new HashSet<>();
+    private final Multimap<Identifier, SongHandle> handlesById = ArrayListMultimap.create();
+    private final Set<PlayerStoppedPlaybackListener> playbackListeners = new HashSet<>();
 
     public static void configure(Path songsDir, Path playerConfigDir, Logger logger) {
         KibuNbsApiImpl.songsDir = requireNonNull(songsDir, "Songs directory is null");
@@ -53,72 +50,105 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
         }
 
         this.server = server;
-        this.songResolver = new SimpleSongResolver();
         this.soundProvider = new FabricInstrumentSoundProvider(server);
         this.playerConfigs = new PlayerConfigContainer(playerConfigDir, logger);
     }
 
+    @Override
+    public SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players) {
+        if (players.isEmpty()) {
+            throw new IllegalArgumentException("Listeners are empty");
+        }
+
+        Identifier id = song.id();
+        songsById.put(id, song.song());
+
+        ServerSongHandle handle = new ServerSongHandle(song, volume);
+
+        Set<SongPlayerRef> moddedPlayers = new HashSet<>();
+        Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
+
+        for (ServerPlayerEntity player : players) {
+            // check if the playing is already listening to this song
+            getPlayingSong(player, id).ifPresent(other -> other.remove(player));
+
+            SongPlayerRef ref = createRef(player);
+
+            if (hasModInstalled(player)) {
+                moddedPlayers.add(ref);
+            } else {
+                vanillaPlayers.add(ref);
+            }
+        }
+
+        handle.onDestroy(() -> {
+            handles.remove(handle);
+            playbackListeners.remove(handle);
+
+            handlesById.remove(id, handle);
+
+            cleanSong(id);
+        });
+
+        handles.add(handle);
+        playbackListeners.add(handle);
+
+        handlesById.put(id, handle);
+
+        handle.start(vanillaPlayers, moddedPlayers, soundProvider);
+
+        return handle;
+    }
+
+    private void cleanSong(Identifier id) {
+        if (!handlesById.containsKey(id)) {
+            songsById.remove(id);
+        }
+    }
+
+    @Override
+    public Set<SongHandle> getPlayingSongs() {
+        return Collections.unmodifiableSet(handles);
+    }
+
+    @Override
+    public Set<SongHandle> getPlayingSongs(ServerPlayerEntity player) {
+        return getPlayingSongs().stream()
+                .filter(handle -> handle.isListener(player))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
+    public Set<SongHandle> getPlayingSongs(Identifier songId) {
+        return getPlayingSongs().stream()
+                .filter(handle -> handle.getSongId().equals(songId))
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
+    @Override
+    public Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId) {
+        return getPlayingSongs().stream()
+                .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
+                .findAny();
+    }
+
     public void onPlayerJoin(ServerPlayerEntity player) {
         playerConfigs.onPlayerJoin(player);
-
         syncPlayerConfig(player);
     }
 
     public void onPlayerQuit(ServerPlayerEntity player) {
-        controllers.remove(player.getUuid());
         playerConfigs.onPlayerQuit(player);
+        playerRefs.remove(player.getUuid());
     }
 
     public void onPlayerChange(ServerPlayerEntity to) {
-        Controller controller = controllers.get(to.getUuid());
+        UUID uuid = to.getUuid();
+        SongPlayerRef ref = playerRefs.get(uuid);
 
-        if (controller instanceof PlayerHolder playerHolder) {
-            // update the player reference
-            playerHolder.setPlayer(to);
+        if (ref != null) {
+            ref.updatePlayer(to);
         }
-    }
-
-    public void execute(Collection<? extends ServerPlayerEntity> players, Consumer<Controller> action) {
-        for (ServerPlayerEntity player : players) {
-            Controller controller = getController(player);
-
-            action.accept(controller);
-        }
-    }
-
-    @NotNull
-    public Controller getController(ServerPlayerEntity player) {
-        Controller controller = controllers.computeIfAbsent(player.getUuid(), uuid -> createController(player));
-
-        if (controller instanceof PlayerHolder playerHolder) {
-            // update the player reference, in case the player instance changed by respawning
-            playerHolder.setPlayer(player);
-        }
-
-        return controller;
-    }
-
-    public Optional<Controller> maybeGetController(ServerPlayerEntity player) {
-        var optional = Optional.ofNullable(controllers.get(player.getUuid()));
-
-        optional.ifPresent(controller -> {
-            if (controller instanceof PlayerHolder playerHolder) {
-                // update the player reference, in case the player instance changed by respawning
-                playerHolder.setPlayer(player);
-            }
-        });
-
-        return optional;
-    }
-
-    private Controller createController(ServerPlayerEntity player) {
-        if (hasModInstalled(player)) {
-            return new RemoteController(player, songResolver);
-        }
-
-        PlayerConfig playerConfig = playerConfigs.get(player);
-
-        return new ServerController(player, songResolver, soundProvider, playerConfig);
     }
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
@@ -139,30 +169,32 @@ public class KibuNbsApiImpl implements KibuNbsAPI {
         return instance;
     }
 
-    public CompletableFuture<SongDescriptor> loadSongFile(Path path, Identifier id) {
-        return CompletableFuture.supplyAsync(() -> {
-            Song song;
-            try (var in = Files.newInputStream(path)) {
-                song = SongDecoder.parse(in);
-            } catch (IOException e) {
-                throw new CompletionException(e);
-            }
-
-            songResolver.addSong(id, song);
-
-            return new SongDescriptor(id, new byte[0]);  // TODO checksum
-        });
-    }
-
-    public SimpleSongResolver getSongResolver() {
-        return songResolver;
-    }
-
     public void syncPlayerConfig(ServerPlayerEntity player) {
         if (!hasModInstalled(player)) return;
 
         PlayerConfigEntry config = getPlayerConfigs().get(player);
         var packet = new MusicOptionsS2CPacket(config);
         ServerPlayNetworking.send(player, packet);
+    }
+
+    private SongPlayerRef createRef(ServerPlayerEntity player) {
+        return playerRefs.computeIfAbsent(player.getUuid(), uuid -> {
+            PlayerConfigEntry config = playerConfigs.get(player);
+            return new SongPlayerRef(player, config);
+        });
+    }
+
+    public Optional<Song> getSong(Identifier id) {
+        return Optional.ofNullable(songsById.get(id));
+    }
+
+    public void notifySongStopped(ServerPlayerEntity player, Identifier songId) {
+        var listeners = new HashSet<>(playbackListeners);
+
+        for (PlayerStoppedPlaybackListener listener : listeners) {
+            if (!listener.getSongId().equals(songId) || !listener.isListener(player)) continue;
+
+            listener.onStoppedPlayback(player);
+        }
     }
 }

@@ -8,37 +8,30 @@ import net.minecraft.sound.SoundEvent;
 import work.lclpnet.kibu.nbs.api.InstrumentSoundProvider;
 import work.lclpnet.kibu.nbs.api.NotePlayer;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
-import work.lclpnet.kibu.nbs.api.PlayerHolder;
 import work.lclpnet.kibu.nbs.api.data.CustomInstrument;
 import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.Song;
 import work.lclpnet.kibu.nbs.util.NoteHelper;
 
-public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
+import java.util.Set;
 
-    private ServerPlayerEntity player;
+public class ServerBasicNotePlayer implements NotePlayer {
+
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
-    private final PlayerConfig playerConfig;
+    private final Set<SongPlayerRef> players;
 
-    public ServerBasicNotePlayer(ServerPlayerEntity player, InstrumentSoundProvider soundProvider, float volume,
-                                 PlayerConfig playerConfig) {
-        this.player = player;
+    public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume) {
         this.soundProvider = soundProvider;
         this.volume = Math.max(0f, Math.min(1f, volume));
-        this.playerConfig = playerConfig;
-    }
-
-    @Override
-    public void setPlayer(ServerPlayerEntity player) {
-        synchronized (this) {
-            this.player = player;
-        }
+        this.players = players;
     }
 
     @Override
     public void playNote(Song song, Layer layer, Note note) {
+        if (players.isEmpty()) return;
+
         final byte instrument = note.instrument();
         CustomInstrument custom = song.instruments().custom(instrument);
 
@@ -55,10 +48,24 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
 
         if (sound == null) return;
 
+        float volume = layer.volume() * note.velocity() * 1e-4f * this.volume;
+        float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
         short pitch = note.pitch();
+
+        synchronized (this) {
+            for (SongPlayerRef playerRef : players) {
+                playSoundFor(playerRef, panning, sound, volume, key, pitch);
+            }
+        }
+    }
+
+    private void playSoundFor(SongPlayerRef playerRef, float panning, SoundEvent sound, float volume, byte key, short pitch) {
+        ServerPlayerEntity player = playerRef.getPlayer();
+        PlayerConfig config = playerRef.getConfig();
+
         float vanillaPitch;
 
-        if (NoteHelper.isOutsideVanillaRange(key, pitch) && playerConfig.isExtendedRangeSupported()) {
+        if (NoteHelper.isOutsideVanillaRange(key, pitch) && config.isExtendedRangeSupported()) {
             // play extended octave range sound
             sound = soundProvider.getExtendedSound(sound, key, pitch);
             vanillaPitch = NoteHelper.normalizedPitch(key, pitch);
@@ -66,13 +73,11 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             vanillaPitch = NoteHelper.transposedPitch(key, pitch);
         }
 
-        float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
+        volume *= config.getVolume();
 
         double x = player.getX();
         double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
         double z = player.getZ();
-
-        float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
 
         if (Math.abs(panning) >= 1e-3) {
             double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
@@ -81,13 +86,13 @@ public class ServerBasicNotePlayer implements NotePlayer, PlayerHolder {
             z += -Math.cos(yaw) * panning;
         }
 
-        playSoundAt(sound, x, y, z, volume, vanillaPitch);
-    }
-
-    private void playSoundAt(SoundEvent sound, double x, double y, double z, float volume, float pitch) {
         var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,
-                volume, pitch, player.getRandom().nextLong());
+                volume, vanillaPitch, player.getRandom().nextLong());
 
         player.networkHandler.sendPacket(packet);
+    }
+
+    public void removePlayer(SongPlayerRef player) {
+        players.remove(player);
     }
 }

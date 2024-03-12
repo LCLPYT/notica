@@ -23,6 +23,7 @@ public class KibuNbsInit implements ModInitializer {
 
 	public static final String MOD_ID = "kibu-nbs";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	private KibuNbsNetworking networking = null;
 
 	@Override
 	public void onInitialize() {
@@ -38,11 +39,12 @@ public class KibuNbsInit implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
 				new MusicCommand(songsDir, translations, LOGGER).register(dispatcher));
 
+		networking = new KibuNbsNetworking(LOGGER);
+		networking.register();
+
 		PlayerConnectionHooks.JOIN.register(this::onPlayerJoin);
 		PlayerConnectionHooks.QUIT.register(this::onPlayerQuit);
 		ServerPlayerEvents.COPY_FROM.register(this::copyFromPlayer);
-
-		new KibuNbsNetworking(LOGGER).register();
 
 		LOGGER.info("Initialized.");
 	}
@@ -53,6 +55,7 @@ public class KibuNbsInit implements ModInitializer {
 
 	private void onPlayerQuit(ServerPlayerEntity player) {
 		KibuNbsApiImpl.getInstance(player.getServer()).onPlayerQuit(player);
+		networking.onQuit(player);
 	}
 
 	private void copyFromPlayer(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {

@@ -7,7 +7,6 @@ import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.Song;
-import work.lclpnet.kibu.nbs.controller.RemoteController;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
 import work.lclpnet.kibu.nbs.network.packet.*;
 
@@ -44,12 +43,14 @@ public class KibuNbsNetworking {
 
         Identifier songId = packet.getSongId();
         KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
-        Song song = instance.getSongResolver().resolve(songId);
+        var optSong = instance.getSong(songId);
 
-        if (song == null) {
+        if (optSong.isEmpty()) {
             logger.warn("Player {} requested unknown song {}", player.getNameForScoreboard(), songId);
             return;
         }
+
+        Song song = optSong.get();
 
         int tickOffset = packet.getTickOffset();
         int layerOffset = packet.getLayerOffset();
@@ -76,11 +77,7 @@ public class KibuNbsNetworking {
 
         KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
 
-        instance.maybeGetController(player).ifPresent(controller -> {
-            if (controller instanceof RemoteController remote) {
-                remote.removePlaying(songId);
-            }
-        });
+        instance.notifySongStopped(player, songId);
     }
 
     private PlayerData getData(ServerPlayerEntity player) {

@@ -4,5 +4,5 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 public interface PlayerHolder {
 
-    void setPlayer(ServerPlayerEntity player);
+    void updatePlayer(ServerPlayerEntity player);
 }

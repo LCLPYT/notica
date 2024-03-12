@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -16,11 +17,12 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
+import work.lclpnet.kibu.nbs.KibuNbsApi;
 import work.lclpnet.kibu.nbs.KibuNbsInit;
-import work.lclpnet.kibu.nbs.controller.Controller;
+import work.lclpnet.kibu.nbs.api.SongHandle;
 import work.lclpnet.kibu.nbs.impl.KibuNbsApiImpl;
-import work.lclpnet.kibu.nbs.impl.SongDescriptor;
 import work.lclpnet.kibu.nbs.util.PlayerConfigContainer;
+import work.lclpnet.kibu.nbs.util.ServerSongLoader;
 import work.lclpnet.kibu.translate.TranslationService;
 import work.lclpnet.kibu.translate.text.RootText;
 
@@ -28,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
@@ -61,14 +64,18 @@ public class MusicCommand {
                         .then(argument("song", StringArgumentType.string())
                                 .suggests(this::availableSongFiles)
                                 .executes(this::playSongAutoSelf)
-                                .then(argument("id", IdentifierArgumentType.identifier())
-                                        .executes(this::playSongIdSelf))))
+                                .then(argument("listeners", EntityArgumentType.players())
+                                        .executes(this::playSongAuto)
+                                        .then(argument("id", IdentifierArgumentType.identifier())
+                                                .executes(this::playSongId)))))
                 .then(literal("stop")
                         .requires(s -> s.hasPermissionLevel(2))
                         .executes(this::stopAllSelf)
-                        .then(argument("id", IdentifierArgumentType.identifier())
-                                .suggests(this::playingSongIds)
-                                .executes(this::stopSongSelf)))
+                        .then(argument("listeners", EntityArgumentType.players())
+                                .executes(this::stopAll)
+                                .then(argument("id", IdentifierArgumentType.identifier())
+                                        .suggests(this::commonPlayingSongIds)
+                                        .executes(this::stopSong))))
                 .then(literal("set")
                         .then(literal("extended_range")
                                 .requires(this::isVanillaPlayer)
@@ -77,18 +84,6 @@ public class MusicCommand {
                         .then(literal("volume")
                                 .then(argument("percent", FloatArgumentType.floatArg(0f, 100f))
                                         .executes(this::changeVolume))));
-    }
-
-    private boolean isVanillaPlayer(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-
-        if (player == null) {
-            return false;
-        }
-
-        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
-
-        return !instance.hasModInstalled(player);
     }
 
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -131,53 +126,70 @@ public class MusicCommand {
     }
 
     private int playSongAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        ServerCommandSource source = ctx.getSource();
+        ServerPlayerEntity player = source.getPlayerOrThrow();
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
         Identifier id = createSongId(path);
 
-        return playSongSelf(player, path, id);
+        return playSong(source, List.of(player), path, id);
     }
 
-    private int playSongIdSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int playSongAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = createSongId(path);
+
+        return playSong(ctx.getSource(), listeners, path, id);
+    }
+
+    private int playSongId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
 
         Path path = songDirectory.resolve(songFile);
 
-        return playSongSelf(player, path, id);
+        return playSong(ctx.getSource(), listeners, path, id);
     }
 
-    private int playSongSelf(ServerPlayerEntity player, Path path, Identifier id) {
+    private int playSong(ServerCommandSource source, Collection<? extends ServerPlayerEntity> listeners, Path path, Identifier id) {
         Path relativePath = songDirectory.relativize(path);
-        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
 
-        instance.loadSongFile(path, id).exceptionally(error -> {
+        CompletableFuture.supplyAsync(() -> {
+            try (var in = Files.newInputStream(path)) {
+                return ServerSongLoader.load(in, id);
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            }
+        }).exceptionally(error -> {
             RootText msg;
 
             if (error instanceof CompletionException c && c.getCause() instanceof NoSuchFileException) {
-                msg = translations.translateText(player, "kibu-nbs.music.play.not_found", styled(relativePath, YELLOW));
+                msg = translations.translateText(source, "kibu-nbs.music.play.not_found", styled(relativePath, YELLOW));
             } else {
-                msg = translations.translateText(player, "kibu-nbs.music.play.error");
+                msg = translations.translateText(source, "kibu-nbs.music.play.error");
             }
 
             msg.formatted(RED);
 
-            player.sendMessage(msg);
+            source.sendMessage(msg);
 
             logger.error("Failed to load song file", error);
             return null;
-        }).thenAccept(descriptor -> {
-            if (descriptor == null) return;
+        }).thenAccept(song -> {
+            if (song == null) return;
 
-            var msg = translations.translateText(player, "kibu-nbs.music.play", styled(relativePath, YELLOW))
+            var msg = translations.translateText(source, "kibu-nbs.music.play", styled(relativePath, YELLOW))
                     .formatted(GREEN);
 
-            player.sendMessage(msg);
+            source.sendMessage(msg);
 
-            instance.execute(List.of(player), controller -> controller.playSong(descriptor, 1f));
+            KibuNbsApi api = KibuNbsApi.getInstance(source.getServer());
+            api.playSong(song, 1f, listeners);
         });
 
         return 1;
@@ -186,49 +198,89 @@ public class MusicCommand {
     private int stopAllSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
 
-        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
-        instance.execute(List.of(player), controller -> {
-            var playing = controller.getPlayingSongs();
-            int count = playing.size();
+        KibuNbsApi api = KibuNbsApi.getInstance(player.getServer());
+        var handles = api.getPlayingSongs(player);
+        boolean empty = handles.isEmpty();
 
-            for (SongDescriptor song : playing) {
-                controller.stopSong(song);
-            }
+        for (SongHandle handle : handles) {
+            handle.remove(player);
+        }
 
-            RootText msg;
+        RootText msg;
 
-            if (count == 0) {
-                msg = translations.translateText(player, "kibu-nbs.music.none_playing").formatted(RED);
-            } else {
-                msg = translations.translateText(player, "kibu-nbs.music.stopped.all").formatted(GREEN);
-            }
+        if (empty) {
+            msg = translations.translateText(player, "kibu-nbs.music.none_playing").formatted(RED);
+        } else {
+            msg = translations.translateText(player, "kibu-nbs.music.stopped.all").formatted(GREEN);
+        }
 
-            player.sendMessage(msg);
-        });
+        player.sendMessage(msg);
 
-        return 0;
+        return empty ? 0 : 1;
     }
 
-    private int stopSongSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int stopAll(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+
+        ServerCommandSource source = ctx.getSource();
+        KibuNbsApi api = KibuNbsApi.getInstance(source.getServer());
+
+        int stopped = 0;
+
+        for (ServerPlayerEntity listener : listeners) {
+            for (SongHandle handle : api.getPlayingSongs(listener)) {
+                stopped++;
+
+                handle.remove(listener);
+            }
+        }
+
+        RootText msg;
+
+        boolean empty = stopped == 0;
+        if (empty) {
+            msg = translations.translateText(source, "kibu-nbs.music.none_playing").formatted(RED);
+        } else {
+            msg = translations.translateText(source, "kibu-nbs.music.stopped.all").formatted(GREEN);
+        }
+
+        source.sendMessage(msg);
+
+        return empty ? 0 : 1;
+    }
+
+    private int stopSong(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
         Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
 
-        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
-        instance.execute(List.of(player), controller -> controller.getPlayingSongById(id).ifPresentOrElse(song -> {
-            controller.stopSong(song);
+        ServerCommandSource source = ctx.getSource();
+        KibuNbsApi api = KibuNbsApi.getInstance(source.getServer());
 
-            var msg = translations.translateText(player, "kibu-nbs.music.stopped", styled(id, YELLOW))
-                    .formatted(GREEN);
+        int stopped = 0;
 
-            player.sendMessage(msg);
-        }, () -> {
-            var msg = translations.translateText(player, "kibu-nbs.music.not_playing", styled(id, YELLOW))
+        for (ServerPlayerEntity listener : listeners) {
+            var optHandle = api.getPlayingSong(listener, id);
+
+            if (optHandle.isEmpty()) continue;
+
+            stopped++;
+            optHandle.get().remove(listener);
+        }
+
+        if (stopped == 0) {
+            var msg = translations.translateText(source, "kibu-nbs.music.not_playing", styled(id, YELLOW))
                     .formatted(RED);
 
-            player.sendMessage(msg);
-        }));
+            source.sendMessage(msg);
+            return 0;
+        }
 
-        return 0;
+        var msg = translations.translateText(source, "kibu-nbs.music.stopped", styled(id, YELLOW))
+                .formatted(GREEN);
+
+        source.sendMessage(msg);
+
+        return 1;
     }
 
     private CompletableFuture<Suggestions> availableSongFiles(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
@@ -247,15 +299,14 @@ public class MusicCommand {
         });
     }
 
-    private CompletableFuture<Suggestions> playingSongIds(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
-        ServerPlayerEntity player = ctx.getSource().getPlayer();
+    private CompletableFuture<Suggestions> commonPlayingSongIds(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
 
-        if (player == null) return builder.buildFuture();
+        KibuNbsApi api = KibuNbsApi.getInstance(ctx.getSource().getServer());
 
-        Controller controller = KibuNbsApiImpl.getInstance(player.getServer()).getController(player);
-
-        controller.getPlayingSongs().stream()
-                .map(SongDescriptor::id)
+        api.getPlayingSongs().stream()
+                .filter(handle -> listeners.stream().allMatch(handle::isListener))
+                .map(SongHandle::getSongId)
                 .map(Identifier::toString)
                 .forEach(builder::suggest);
 
@@ -287,5 +338,17 @@ public class MusicCommand {
         name = name.replaceAll("[^a-z0-9/._-]", "");
 
         return KibuNbsInit.identifier(name);
+    }
+
+    private boolean isVanillaPlayer(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+
+        if (player == null) {
+            return false;
+        }
+
+        KibuNbsApiImpl instance = KibuNbsApiImpl.getInstance(player.getServer());
+
+        return !instance.hasModInstalled(player);
     }
 }

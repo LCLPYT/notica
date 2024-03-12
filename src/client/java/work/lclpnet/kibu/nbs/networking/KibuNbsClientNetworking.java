@@ -7,21 +7,21 @@ import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.SongSlice;
-import work.lclpnet.kibu.nbs.impl.ClientController;
-import work.lclpnet.kibu.nbs.impl.ClientSongResolver;
-import work.lclpnet.kibu.nbs.impl.SongDescriptor;
+import work.lclpnet.kibu.nbs.impl.ClientMusicBackend;
+import work.lclpnet.kibu.nbs.impl.ClientSongRepository;
 import work.lclpnet.kibu.nbs.network.packet.*;
+import work.lclpnet.kibu.nbs.util.ByteHelper;
 import work.lclpnet.kibu.nbs.util.PendingSong;
 import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 public class KibuNbsClientNetworking {
 
-    private final ClientSongResolver songRepository;
-    private final ClientController controller;
+    private final ClientSongRepository songRepository;
+    private final ClientMusicBackend controller;
     private final PlayerConfigEntry playerConfig;
     private final Logger logger;
 
-    public KibuNbsClientNetworking(ClientSongResolver songRepository, ClientController controller,
+    public KibuNbsClientNetworking(ClientSongRepository songRepository, ClientMusicBackend controller,
                                    PlayerConfigEntry playerConfig, Logger logger) {
         this.songRepository = songRepository;
         this.controller = controller;
@@ -37,12 +37,13 @@ public class KibuNbsClientNetworking {
     }
 
     private void onPlaySong(PlaySongS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
-        SongDescriptor descriptor = packet.getSongDescriptor();
+        Identifier songId = packet.getSongId();
+        byte[] checksum = packet.getChecksum();
 
-        PendingSong song = songRepository.resolve(descriptor);
+        PendingSong song = songRepository.get(checksum);
 
         if (song == null) {
-            logger.debug("Song {} is not cached, requesting it", descriptor);
+            logger.debug("Song {} ({}) is not cached, requesting it", songId, ByteHelper.toHexString(checksum, 32));
 
             // song is not cached, create a new instance
             song = new PendingSong(packet.getHeader());
@@ -52,13 +53,13 @@ public class KibuNbsClientNetworking {
             song.accept(slice);
 
             if (!packet.isLast()) {
-                requestNext(descriptor.id(), slice);
+                requestNext(songId, slice);
             }
 
-            songRepository.add(descriptor, song);
+            songRepository.add(songId, checksum, song);
         }
 
-        controller.playSong(descriptor, packet.getVolume());
+        controller.playSong(songId, packet.getVolume());
     }
 
     private void onStopSong(StopSongBidiPacket packet, ClientPlayerEntity player, PacketSender sender) {
@@ -76,7 +77,7 @@ public class KibuNbsClientNetworking {
         Identifier songId = packet.getSongId();
         SongSlice slice = packet.getSlice();
 
-        PendingSong song = songRepository.resolve(songId);
+        PendingSong song = songRepository.get(songId);
 
         if (song == null) return;
 

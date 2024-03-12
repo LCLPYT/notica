@@ -7,6 +7,8 @@ import work.lclpnet.kibu.nbs.api.data.LoopConfig;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.Song;
 
+import java.util.Objects;
+
 public class SongPlayback implements Runnable {
 
     private final Song song;
@@ -19,10 +21,11 @@ public class SongPlayback implements Runnable {
     private double extraMs = 0f;
     private volatile Hook<Runnable> onComplete = null;
     private volatile Thread thread = null;
+    private volatile boolean stopped = false;
 
     public SongPlayback(Song song, NotePlayer notePlayer) {
-        this.song = song;
-        this.notePlayer = notePlayer;
+        this.song = Objects.requireNonNull(song, "Song must not be null");
+        this.notePlayer = Objects.requireNonNull(notePlayer, "NotePlayer must not be null");
 
         this.ticks = song.durationTicks();
 
@@ -46,6 +49,7 @@ public class SongPlayback implements Runnable {
         synchronized (this) {
             if (!started) return;
             started = false;
+            stopped = true;
 
             if (thread != null && thread.isAlive()) {
                 thread.interrupt();
@@ -133,5 +137,11 @@ public class SongPlayback implements Runnable {
         }
 
         return onComplete;
+    }
+
+    public boolean isStopped() {
+        synchronized (this) {
+            return stopped;
+        }
     }
 }

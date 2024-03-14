@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.nbs.KibuNbsApi;
 import work.lclpnet.kibu.nbs.api.CheckedSong;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
+@ApiStatus.Internal
 public class KibuNbsApiImpl implements KibuNbsApi {
 
     private static KibuNbsApiImpl instance = null;

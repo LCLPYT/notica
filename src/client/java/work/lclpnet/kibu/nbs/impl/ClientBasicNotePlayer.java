@@ -2,7 +2,6 @@ package work.lclpnet.kibu.nbs.impl;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
@@ -49,22 +48,11 @@ public class ClientBasicNotePlayer implements NotePlayer {
 
         if (sound == null) return;
 
-        short pitch = note.pitch();
-        float vanillaPitch;
-
-        if (NoteHelper.isOutsideVanillaRange(key, pitch) && playerConfig.isExtendedRangeSupported()) {
-            // play extended octave range sound
-            sound = soundProvider.getExtendedSound(sound, key, pitch);
-            vanillaPitch = NoteHelper.normalizedPitch(key, pitch);
-        } else {
-            vanillaPitch = NoteHelper.transposedPitch(key, pitch);
-        }
-
+        float openAlPitch = NoteHelper.openAlPitch((short) (key * 100 + note.pitch()));  // (0.0, any]
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
-
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
 
-        var instance = new PositionedSoundInstance(sound.getId(), SoundCategory.RECORDS, volume, vanillaPitch,
+        var instance = new NbsSoundInstance(sound.getId(), SoundCategory.RECORDS, volume, openAlPitch,
                 player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true);
 
         client.executeSync(() -> client.getSoundManager().play(instance));

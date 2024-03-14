@@ -1,9 +1,9 @@
-package work.lclpnet.kibu.nbs.util;
+package work.lclpnet.kibu.nbs.impl;
 
 import work.lclpnet.kibu.nbs.api.Index;
+import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.*;
-import work.lclpnet.kibu.nbs.impl.ListIndex;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableSongMeta;
 import work.lclpnet.kibu.nbs.network.SongHeader;
 
@@ -14,7 +14,7 @@ public class PendingSong implements Song {
     private final int durationTicks;
     private final float ticksPerSecond;
     private final LoopConfig loopConfig;
-    private final Index<PendingLayer> layers;
+    private final Index<MutableLayer> layers;
     private final Instruments instruments;
     private final boolean stereo;
     private final byte signature;
@@ -28,17 +28,17 @@ public class PendingSong implements Song {
         this.signature = header.signature();
 
         var layerInfo = header.layerInfo();
-        var layers = new HashMap<Integer, PendingLayer>(layerInfo.size());
+        var layers = new HashMap<Integer, MutableLayer>(layerInfo.size());
 
-        for (var entry : layerInfo.iterate()) {
+        for (var entry : layerInfo.iterateOrdered()) {
             LayerInfo info = entry.value();
 
-            PendingLayer layer = new PendingLayer(info.volume(), info.panning());
+            MutableLayer layer = new MutableLayer(info.volume(), info.panning());
 
             layers.put(entry.index(), layer);
         }
 
-        this.layers = new ListIndex<>(layers);
+        this.layers = new FixedIndex<>(layers);
     }
 
     @Override
@@ -62,7 +62,7 @@ public class PendingSong implements Song {
     }
 
     @Override
-    public Index<PendingLayer> layers() {
+    public Index<MutableLayer> layers() {
         return layers;
     }
 
@@ -86,12 +86,16 @@ public class PendingSong implements Song {
      * @param slice The song slice.
      */
     public void accept(SongSlice slice) {
-        for (var pointer : slice.layers().iterate()) {
-            PendingLayer layer = layers.get(pointer.index());
+        int i = 0;
+        for (NoteEvent noteEvent : slice) {
+            MutableLayer layer = layers.get(noteEvent.layer());
 
             if (layer == null) continue;
 
-            layer.merge(pointer.value().notes(), slice.tickStart());
+            i++;
+            layer.accept(noteEvent);
         }
+
+        System.out.println("ACCEPT " + slice + " notes " + i);
     }
 }

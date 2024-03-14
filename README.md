@@ -5,7 +5,7 @@ Player with the mod installed benefit from reduced network-usage, as well as bet
 
 ## Features
 ### NBS file playback
-Play any song created with [Open Note Block Studio](https://opennbs.org/) on a server or in multiplayer.
+Play any song created with [Open Note Block Studio](https://opennbs.org/) on a server or in single player.
 Place the .nbs files in the `config/kibu-nbs/songs` directory.
 Use the `/music play <song> [players]` command to play a song.
 
@@ -104,7 +104,7 @@ You can play a song to a given set of players using:
 float volume = 1f;
 Set<ServerPlayerEntity> listeners = Set.of(playerOne, playerTwo);
 
-SongHandle handle = api.playSong(song, 1f, listeners);
+SongHandle handle = api.playSong(song, volume, listeners);
 ```
 
 You can use the song handle to remove certain listeners or stop the playback altogether.

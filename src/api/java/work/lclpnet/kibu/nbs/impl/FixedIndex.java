@@ -7,14 +7,14 @@ import work.lclpnet.kibu.nbs.api.IndexPointer;
 
 import java.util.*;
 
-public class ListIndex<T> implements Index<T> {
+public class FixedIndex<T> implements Index<T> {
 
     private final int[] indexMapping;
     private final int[] reverseIndexMapping;
     private final List<T> items;
     private final int minIndex;
 
-    public ListIndex(Map<Integer, ? extends T> map) {
+    public FixedIndex(Map<Integer, ? extends T> map) {
         int minIndex = 0, maxIndex = -1;
 
         for (Integer i : map.keySet()) {
@@ -88,12 +88,12 @@ public class ListIndex<T> implements Index<T> {
     }
 
     @Override
-    public Iterable<Integer> keys() {
+    public Iterable<Integer> keysOrdered() {
         return () -> Arrays.stream(reverseIndexMapping).iterator();
     }
 
     @Override
-    public Iterable<IndexPointer<T>> iterate() {
+    public Iterable<IndexPointer<T>> iterateOrdered() {
         return IndexIterator::new;
     }
 
@@ -120,6 +120,7 @@ public class ListIndex<T> implements Index<T> {
     @NotNull
     @Override
     public Iterator<T> iterator() {
+        // is ordered by default
         return items.iterator();
     }
 

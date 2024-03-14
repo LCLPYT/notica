@@ -9,9 +9,9 @@ import work.lclpnet.kibu.nbs.api.PlayerConfig;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.impl.ClientMusicBackend;
 import work.lclpnet.kibu.nbs.impl.ClientSongRepository;
+import work.lclpnet.kibu.nbs.impl.PendingSong;
 import work.lclpnet.kibu.nbs.network.packet.*;
 import work.lclpnet.kibu.nbs.util.ByteHelper;
-import work.lclpnet.kibu.nbs.util.PendingSong;
 import work.lclpnet.kibu.nbs.util.PlayerConfigEntry;
 
 public class KibuNbsClientNetworking {
@@ -50,6 +50,8 @@ public class KibuNbsClientNetworking {
 
             SongSlice slice = packet.getSlice();
 
+            logger.debug("Got initial slice {} for song {}", slice, songId);
+
             song.accept(slice);
 
             if (!packet.isLast()) {
@@ -79,13 +81,18 @@ public class KibuNbsClientNetworking {
 
         PendingSong song = songRepository.get(songId);
 
-        if (song == null) return;
+        if (song == null) {
+            logger.debug("Cannot receive song slice for unknown song {}", songId);
+            return;
+        }
 
         logger.debug("Received song slice {} for song {}", slice, songId);
 
         song.accept(slice);
 
-        if (!packet.isLast()) {
+        if (packet.isLast()) {
+            logger.debug("Song slice response was the last one. Song request for song {} completed", songId);
+        } else {
             requestNext(songId, slice);
         }
     }
@@ -95,7 +102,12 @@ public class KibuNbsClientNetworking {
     }
 
     private void request(Identifier songId, int tickOffset, int layerOffset) {
-        if (!ClientPlayNetworking.canSend(RequestSongC2SPacket.TYPE)) return;
+        if (!ClientPlayNetworking.canSend(RequestSongC2SPacket.TYPE)) {
+            logger.debug("Server didn't declare the ability to accept song requests, aborting song request");
+            return;
+        }
+
+        logger.debug("Requesting song slice {}, {} of song {}", tickOffset, layerOffset, songId);
 
         RequestSongC2SPacket packet = new RequestSongC2SPacket(songId, tickOffset, layerOffset);
 

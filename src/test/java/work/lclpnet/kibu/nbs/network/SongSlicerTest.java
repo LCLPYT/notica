@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.Song;
+import work.lclpnet.kibu.nbs.test.TestSongHelper;
 
 import java.util.stream.Stream;
 
@@ -19,7 +20,7 @@ class SongSlicerTest {
 
     @Test
     void getByteSize_testSong_matches() {
-        SongSlice slice = new ConcreteSongSlice(ConcreteSongSliceTest.createSong(), 0, 25, -1, 2);
+        SongSlice slice = new ConcreteSongSlice(TestSongHelper.createSong(), 0, 25, -1, 2);
         assertSliceByteSizeMatches(slice);
     }
 
@@ -42,7 +43,7 @@ class SongSlicerTest {
 
     @Test
     void readSlice_writeSlice_working() {
-        SongSlice slice = new ConcreteSongSlice(ConcreteSongSliceTest.createSong(), 0, 25, 0, 2);
+        SongSlice slice = new ConcreteSongSlice(TestSongHelper.createSong(), 0, 25, 0, 2);
 
         PacketByteBuf buf = PacketByteBufs.create();
         SongSlice read;
@@ -79,7 +80,7 @@ class SongSlicerTest {
     @Test
     void sliceAt_lowCapacity_onlyOneNote() {
         // should not have space for more than one note
-        var slice = SongSlicer.sliceAt(ConcreteSongSliceTest.createSong(), 0, 0, 32);
+        var slice = SongSlicer.sliceAt(TestSongHelper.createSong(), 0, 0, 32);
 
         assertEquals(0, slice.tickStart());
         assertEquals(0, slice.tickEnd());
@@ -90,7 +91,7 @@ class SongSlicerTest {
     @Test
     void sliceAt_moreCapacity_twoNotes() {
         // should not have space for more than one note
-        var slice = SongSlicer.sliceAt(ConcreteSongSliceTest.createSong(), 0, 0, 38);
+        var slice = SongSlicer.sliceAt(TestSongHelper.createSong(), 0, 0, 38);
 
         assertEquals(0, slice.tickStart());
         assertEquals(0, slice.tickEnd());
@@ -101,7 +102,7 @@ class SongSlicerTest {
     @Test
     void sliceAt_infiniteCapacity_all() {
         // should not have space for more than one note
-        Song song = ConcreteSongSliceTest.createSong();
+        Song song = TestSongHelper.createSong();
         var slice = SongSlicer.sliceAt(song, 0, 0, Integer.MAX_VALUE);
 
         assertEquals(0, slice.tickStart());
@@ -113,7 +114,7 @@ class SongSlicerTest {
     @ParameterizedTest
     @MethodSource("sliceArgs")
     void sliceAt_predefined_equal(int tickStart, int tickEnd, int layerStart, int layerEnd) {
-        Song song = ConcreteSongSliceTest.createSong();
+        Song song = TestSongHelper.createSong();
 
         var tmp = new ConcreteSongSlice(song, tickStart, tickEnd, layerStart, layerEnd);
         long size = SongSlicer.getByteSize(tmp);
@@ -138,7 +139,7 @@ class SongSlicerTest {
 
     @Test
     void sliceSeconds_one_asExpected() {
-        Song song = ConcreteSongSliceTest.createSong();
+        Song song = TestSongHelper.createSong();
 
         SongSlice slice = SongSlicer.sliceSeconds(song, 1);
 

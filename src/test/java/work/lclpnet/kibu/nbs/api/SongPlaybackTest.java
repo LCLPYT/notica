@@ -4,7 +4,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongList;
 import org.junit.jupiter.api.Test;
 import work.lclpnet.kibu.nbs.api.data.Note;
-import work.lclpnet.kibu.nbs.impl.ListIndex;
+import work.lclpnet.kibu.nbs.impl.FixedIndex;
 import work.lclpnet.kibu.nbs.impl.data.*;
 
 import java.lang.reflect.Field;
@@ -28,7 +28,7 @@ class SongPlaybackTest {
         notes.put(4, note);
 
         int ticks = 5;
-        var layers = new ListIndex<>(Map.of(0, ImmutableLayer.of(new ListIndex<>(notes))));
+        var layers = new FixedIndex<>(Map.of(0, ImmutableLayer.of(new FixedIndex<>(notes))));
 
         ImmutableSong song = new ImmutableSong(ticks, 16f, ImmutableSongMeta.EMPTY, ImmutableLoopConfig.NONE, layers,
                 ImmutableInstruments.DEFAULT, false, (byte) 4);
@@ -60,7 +60,7 @@ class SongPlaybackTest {
 
     @Test
     void whenDone_afterPlayback_isCalled() {
-        var layers = new ListIndex<>(Map.of(0, ImmutableLayer.of(new ListIndex<>(Map.of()))));
+        var layers = new FixedIndex<>(Map.of(0, ImmutableLayer.of(new FixedIndex<>(Map.of()))));
 
         ImmutableSong song = new ImmutableSong(0, 16f, ImmutableSongMeta.EMPTY, ImmutableLoopConfig.NONE,
                 layers, ImmutableInstruments.DEFAULT, false, (byte) 4);

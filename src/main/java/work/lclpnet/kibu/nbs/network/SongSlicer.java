@@ -1,24 +1,23 @@
 package work.lclpnet.kibu.nbs.network;
 
 import net.minecraft.network.PacketByteBuf;
-import work.lclpnet.kibu.nbs.api.Index;
 import work.lclpnet.kibu.nbs.api.NoteEvent;
 import work.lclpnet.kibu.nbs.api.SongSlice;
 import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
-import work.lclpnet.kibu.nbs.api.data.NoteContainer;
 import work.lclpnet.kibu.nbs.api.data.Song;
-import work.lclpnet.kibu.nbs.impl.ListIndex;
+import work.lclpnet.kibu.nbs.impl.FixedIndex;
+import work.lclpnet.kibu.nbs.impl.MutableIndex;
+import work.lclpnet.kibu.nbs.impl.MutableLayer;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableNote;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class SongSlicer {
 
     public static SongSlice sliceSeconds(Song song, int seconds) {
         int tickEnd = Math.min(song.durationTicks(), (int) Math.ceil(seconds * song.ticksPerSecond()));
-        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
+        int maxLayerIndex = song.layers().streamKeysOrdered().max().orElse(-1);
 
         return new ConcreteSongSlice(song, 0, tickEnd, 0, maxLayerIndex);
     }
@@ -28,7 +27,7 @@ public class SongSlicer {
 
         maxBytes -= 4;  // possible bytes at the end, subtract them from the budget
 
-        int maxLayerIndex = song.layers().streamKeys().max().orElse(-1);
+        int maxLayerIndex = song.layers().streamKeysOrdered().max().orElse(-1);
         SongSlice remaining = new ConcreteSongSlice(song, tickOffset, song.durationTicks(), layerOffset, maxLayerIndex);
 
         long totalBytes = 16;
@@ -64,7 +63,7 @@ public class SongSlicer {
 
         if (firstTick) {
             // empty slice
-            return new ConcreteSongSlice(new ListIndex<>(Map.of()), tickOffset, tickOffset - 1, layerOffset, layerOffset - 1);
+            return new ConcreteSongSlice(new FixedIndex<>(Map.of()), tickOffset, tickOffset - 1, layerOffset, layerOffset - 1);
         }
 
         return new ConcreteSongSlice(song, tickOffset, lastTick, layerOffset, lastLayer);
@@ -171,7 +170,7 @@ public class SongSlicer {
         int layerStart = buf.readInt();
         int layerEnd = buf.readInt();
 
-        Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>();
+        MutableIndex<MutableLayer> layers = new MutableIndex<>();
         int tick = -1;
 
         while (true) {
@@ -194,20 +193,12 @@ public class SongSlicer {
                 short panning = buf.readUnsignedByte();
                 short pitch = buf.readShort();
 
-                var notes = layerNotes.computeIfAbsent(layer, l -> new HashMap<>());
+                var notes = layers.computeIfAbsent(layer, l -> new MutableLayer());
 
                 Note note = new ImmutableNote(instrument, key, velocity, panning, pitch);
-                notes.put(tick, note);
+                notes.accept(tick + tickStart, note);
             }
         }
-
-        Map<Integer, NoteContainer> layerMap = new HashMap<>(layerNotes.size());
-
-        for (var entry : layerNotes.entrySet()) {
-            layerMap.put(entry.getKey(), () -> new ListIndex<>(entry.getValue()));
-        }
-
-        Index<NoteContainer> layers = new ListIndex<>(layerMap);
 
         return new ConcreteSongSlice(layers, tickStart, tickEnd, layerStart, layerEnd);
     }
@@ -225,7 +216,7 @@ public class SongSlicer {
 
         var layers = song.layers();
 
-        int lastLayer = layers.streamKeys()
+        int lastLayer = layers.streamKeysOrdered()
                 .filter(i -> {
                     Layer layer = layers.get(i);
 

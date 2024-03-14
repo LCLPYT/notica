@@ -67,6 +67,10 @@ public class KibuNbsNetworking {
         SongSlice slice = SongSlicer.sliceAt(song, tickOffset, layerOffset, maxBytes);
         boolean finished = SongSlicer.isFinished(song, slice);
 
+        if (finished) {
+            logger.debug("Song slice response reached the end (song {})", songId);
+        }
+
         RespondSongS2CPacket responsePacket = new RespondSongS2CPacket(songId, slice, finished);
 
         ServerPlayNetworking.send(player, responsePacket);

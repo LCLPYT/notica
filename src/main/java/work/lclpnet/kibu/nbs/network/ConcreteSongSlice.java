@@ -40,13 +40,13 @@ public record ConcreteSongSlice(Index<? extends NoteContainer> layers, int tickS
     @NotNull
     @Override
     public Iterator<NoteEvent> iterator() {
-        int layerCount = layers.size();
-        int firstLayerIndex = layers.streamKeys().min().orElse(0);
+        int minLayerIndex = layers.streamKeysOrdered().min().orElse(0);
+        int maxLayerIndex = layers.streamKeysOrdered().max().orElse(-1);
 
         return new Iterator<>() {
             final MutableNoteEvent noteEvent = new MutableNoteEvent();
             int tick = tickStart;
-            int layerIndex = layerStart;
+            int layerIndex = Math.max(minLayerIndex, layerStart);
             boolean hasNext = false, done = false;
 
             @Override
@@ -63,12 +63,12 @@ public record ConcreteSongSlice(Index<? extends NoteContainer> layers, int tickS
                     int untilLayer;
 
                     if (tick == tickEnd) {
-                        untilLayer = layerEnd + 1;
+                        untilLayer = layerEnd;
                     } else {
-                        untilLayer = layerCount;
+                        untilLayer = maxLayerIndex;
                     }
 
-                    for (; layerIndex < untilLayer; layerIndex++) {
+                    for (; layerIndex <= untilLayer; layerIndex++) {
                         NoteContainer layer = layers.get(layerIndex);
 
                         if (layer == null) continue;
@@ -83,7 +83,7 @@ public record ConcreteSongSlice(Index<? extends NoteContainer> layers, int tickS
                         return;
                     }
 
-                    layerIndex = firstLayerIndex;
+                    layerIndex = minLayerIndex;
                 }
 
                 done = true;

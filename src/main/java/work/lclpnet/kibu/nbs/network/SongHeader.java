@@ -3,7 +3,7 @@ package work.lclpnet.kibu.nbs.network;
 import net.minecraft.network.PacketByteBuf;
 import work.lclpnet.kibu.nbs.api.Index;
 import work.lclpnet.kibu.nbs.api.data.*;
-import work.lclpnet.kibu.nbs.impl.ListIndex;
+import work.lclpnet.kibu.nbs.impl.FixedIndex;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableCustomInstrument;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableInstruments;
 import work.lclpnet.kibu.nbs.impl.data.ImmutableLoopConfig;
@@ -59,7 +59,7 @@ public class SongHeader {
     private void writeLayerInfo(PacketByteBuf buf) {
         buf.writeInt(layerInfo.size());
 
-        for (var entry : layerInfo.iterate()) {
+        for (var entry : layerInfo.iterateOrdered()) {
             buf.writeInt(entry.index());
 
             LayerInfo layer = entry.value();
@@ -133,7 +133,7 @@ public class SongHeader {
             layerInfo.put(key, new LayerProto(volume, panning));
         }
 
-        return new ListIndex<>(layerInfo);
+        return new FixedIndex<>(layerInfo);
     }
 
     private static Instruments readInstruments(PacketByteBuf buf) {

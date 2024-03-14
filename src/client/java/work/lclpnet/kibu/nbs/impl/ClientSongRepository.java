@@ -2,7 +2,6 @@ package work.lclpnet.kibu.nbs.impl;
 
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
-import work.lclpnet.kibu.nbs.util.PendingSong;
 
 import java.util.Arrays;
 import java.util.HashMap;

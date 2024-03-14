@@ -17,18 +17,18 @@ public interface Index<T> extends Iterable<T> {
 
     int size();
 
-    Iterable<IndexPointer<T>> iterate();
+    Iterable<IndexPointer<T>> iterateOrdered();
 
     default Stream<T> stream() {
         return StreamSupport.stream(Spliterators.spliterator(iterator(), size(), 0), false);
     }
 
-    default IntStream streamKeys() {
-        return StreamSupport.stream(Spliterators.spliterator(iterate().iterator(), size(), 0), false)
+    default IntStream streamKeysOrdered() {
+        return StreamSupport.stream(Spliterators.spliterator(iterateOrdered().iterator(), size(), 0), false)
                 .mapToInt(IndexPointer::index);
     }
 
-    default Iterable<Integer> keys() {
-        return () -> streamKeys().iterator();
+    default Iterable<Integer> keysOrdered() {
+        return () -> streamKeysOrdered().iterator();
     }
 }

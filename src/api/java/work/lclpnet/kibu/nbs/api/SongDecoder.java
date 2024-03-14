@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import work.lclpnet.kibu.nbs.api.data.Layer;
 import work.lclpnet.kibu.nbs.api.data.Note;
 import work.lclpnet.kibu.nbs.api.data.Song;
-import work.lclpnet.kibu.nbs.impl.ListIndex;
+import work.lclpnet.kibu.nbs.impl.FixedIndex;
 import work.lclpnet.kibu.nbs.impl.data.*;
 
 import java.io.DataInputStream;
@@ -191,10 +191,10 @@ public class SongDecoder {
 
             if (notes == null) continue;
 
-            layers.put(i, new ImmutableLayer(name, volume, panning, new ListIndex<>(notes)));
+            layers.put(i, new ImmutableLayer(name, volume, panning, new FixedIndex<>(notes)));
         }
 
-        return new LayerResult(new ListIndex<>(layers), stereo);
+        return new LayerResult(new FixedIndex<>(layers), stereo);
     }
 
     @NotNull

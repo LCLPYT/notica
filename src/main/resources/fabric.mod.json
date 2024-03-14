@@ -3,7 +3,7 @@
 	"id": "kibu-nbs",
 	"version": "${version}",
 	"name": "kibu-nbs",
-	"description": "A mod for playing .nbs files",
+	"description": "Play Note Block songs in-game! Vanilla and modded players are supported. Extends the note octave range.",
 	"authors": [
 		"LCLP"
 	],
@@ -38,5 +38,10 @@
 		"kibu-hooks": ">=0.43.0",
 		"kibu-translation-api": ">=0.11.1"
 	},
-	"suggests": {}
+	"suggests": {},
+	"custom": {
+		"modmenu": {
+			"parent": "kibu"
+		}
+	}
 }

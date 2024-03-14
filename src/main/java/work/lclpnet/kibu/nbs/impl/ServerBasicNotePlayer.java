@@ -83,7 +83,7 @@ public class ServerBasicNotePlayer implements NotePlayer {
             double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
 
             x += Math.sin(yaw) * panning;
-            z += -Math.cos(yaw) * panning;
+            z -= Math.cos(yaw) * panning;
         }
 
         var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,

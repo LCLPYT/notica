@@ -58,6 +58,7 @@ dependencies {
     include(modImplementation("work.lclpnet.mods.kibu:kibu-hooks:${project.kibu_hooks_version}"))
     include(modImplementation("work.lclpnet.mods.kibu:kibu-translation-api:${project.kibu_translation_api_version}"))
     include(modImplementation(apiImplementation("work.lclpnet.mods.kibu:kibu-hook-api:${project.kibu_hook_api_version}")))
+    include(modImplementation("work.lclpnet.mods.kibu:kibu-access-lib:${project.kibu_access_lib_version}"))
 
     apiImplementation(implementation('org.jetbrains:annotations:24.0.0'))
 
@@ -99,10 +100,12 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-jar {
-	from("LICENSE") {
+[jar, sourcesJar].each {
+	it.from("LICENSE") {
 		rename { "${it}_${project.base.archivesName.get()}"}
 	}
+
+    it.from sourceSets.api.output
 }
 
 // configure the maven publication

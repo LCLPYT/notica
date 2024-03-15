@@ -11,7 +11,7 @@ Use the `/music play <song> [players]` command to play a song.
 
 ![Play a song with Notica](https://i.imgur.com/ihCc1gY.gif)
 
-## Clientside song playback
+### Clientside song playback
 On a vanilla client connection, each note is sent to the player with a separate packet.
 This creates huge amounts of packets being sent, which causes lag and reduced playback quality.
 
@@ -20,7 +20,7 @@ This process is similar to video buffering.
 
 ![Notica Server Client Architecture](https://i.imgur.com/rZMliF9.png)
 
-## Improved playback quality
+### Improved playback quality
 Vanilla Minecraft has some limitations that impact the playback quality of songs.
 For one, notes can only be played in a certain octave range (F#3 to F#5).
 For another, sounds must have an integer position in the world, which causes audio artifacts when the player is moving during playback.
@@ -29,22 +29,22 @@ Additionally, stereo panning of notes is significantly worse because note positi
 Clients with Notica installed do not have these limitations, as notes are played directly via OpenAL, the audio engine used by Minecraft: Java Edition.
 Song playback will thereby sound similar to the playback within Open Note Block Studio.
 
-## Custom instruments
+### Custom instruments
 Any Minecraft sound can be used as a custom instrument in .nbs files.
 Notica supports all custom instrument related features of the [nbs file format specification](https://opennbs.org/nbs) (up to version 5).
 
-## Arbitrary song tempo
+### Arbitrary song tempo
 Much like other server-sided nbs players, Notica is not limited to specific song tempos.
 This mod makes sure that the song playback timings are accurate, by running song playbacks asynchronously.
 Packets are sent without server-thread synchronization, which would limit the tempo to 20 ticks per second again.
 
-## Song Looping
+### Song Looping
 NBS format version 4 introduces loop-options like on/off, max loop count and loop start tick.
 This mod supports these options and will automatically loop accordingly.
 
 Hint: If a song loops indefinitely, you can stop it using `/music stop` in-game.
 
-## Extended octave range
+### Extended octave range
 As mentioned earlier, Minecraft imposes a limit to the note pitch, limiting the octave range to F#3 until F#5.
 Modded players do not have this limitation, but vanilla players are still impacted.
 Notes outside the vanilla range will be transposed for vanilla players by default, so that can be played.

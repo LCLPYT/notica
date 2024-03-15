@@ -4,7 +4,6 @@ import work.lclpnet.notica.api.Index;
 import work.lclpnet.notica.api.NoteEvent;
 import work.lclpnet.notica.api.SongSlice;
 import work.lclpnet.notica.api.data.*;
-import work.lclpnet.notica.impl.FixedIndex;
 import work.lclpnet.notica.impl.data.ImmutableSongMeta;
 import work.lclpnet.notica.network.SongHeader;
 
@@ -87,16 +86,12 @@ public class PendingSong implements Song {
      * @param slice The song slice.
      */
     public void accept(SongSlice slice) {
-        int i = 0;
         for (NoteEvent noteEvent : slice) {
             MutableLayer layer = layers.get(noteEvent.layer());
 
             if (layer == null) continue;
 
-            i++;
             layer.accept(noteEvent);
         }
-
-        System.out.println("ACCEPT " + slice + " notes " + i);
     }
 }

@@ -13,9 +13,13 @@ public class NoticaConfig implements JsonConfig {
     @Nullable
     public URL extraNotesPackUrl = null;
 
-    public NoticaConfig() {}
+    public NoticaConfig() {
+        setDefaultUrl();
+    }
 
     public NoticaConfig(JSONObject json) {
+        setDefaultUrl();
+
         if (json.has("extra-notes-pack-url")) {
             String urlString = json.getString("extra-notes-pack-url");
 
@@ -24,6 +28,14 @@ public class NoticaConfig implements JsonConfig {
             } catch (MalformedURLException e) {
                 this.extraNotesPackUrl = null;
             }
+        }
+    }
+
+    private void setDefaultUrl() {
+        try {
+            this.extraNotesPackUrl = new URL("https://github.com/LCLPYT/notica/releases/download/1.0.0%2B1.20.4/extranotes.zip");
+        } catch (MalformedURLException e) {
+            this.extraNotesPackUrl = null;
         }
     }
 

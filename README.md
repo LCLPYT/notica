@@ -1,4 +1,4 @@
-# kibu-nbs
+# Notica
 A Fabric mod for playing note block songs in the .nbs file format to your players.
 This mod is vanilla compatible on the server-side, which means that vanilla players can join without this mod installed as well.
 Player with the mod installed benefit from reduced network-usage, as well as better playback quality.
@@ -6,7 +6,7 @@ Player with the mod installed benefit from reduced network-usage, as well as bet
 ## Features
 ### NBS file playback
 Play any song created with [Open Note Block Studio](https://opennbs.org/) on a server or in single player.
-Place the .nbs files in the `config/kibu-nbs/songs` directory.
+Place the .nbs files in the `config/notica/songs` directory.
 Use the `/music play <song> [players]` command to play a song.
 
 ## Clientside song playback
@@ -22,15 +22,15 @@ For one, notes can only be played in a certain octave range (F#3 to F#5).
 For another, sounds must have an integer position in the world, which causes audio artifacts when the player is moving during playback.
 Additionally, stereo panning of notes is significantly worse because note positions are clamped to the nearest integer values.
 
-Clients with kibu-nbs installed do not have these limitations, as notes are played directly via OpenAL, the audio engine used by Minecraft: Java Edition.
+Clients with Notica installed do not have these limitations, as notes are played directly via OpenAL, the audio engine used by Minecraft: Java Edition.
 Song playback will thereby sound similar to the playback within Open Note Block Studio.
 
 ## Custom instruments
 Any Minecraft sound can be used as a custom instrument in .nbs files.
-Kibu-nbs supports all custom instrument related features of the [nbs file format specification](https://opennbs.org/nbs) (up to version 5).
+Notica supports all custom instrument related features of the [nbs file format specification](https://opennbs.org/nbs) (up to version 5).
 
 ## Arbitrary song tempo
-Much like other server-sided nbs players, kibu-nbs is not limited to specific song tempos.
+Much like other server-sided nbs players, Notica is not limited to specific song tempos.
 This mod makes sure that the song playback timings are accurate, by running song playbacks asynchronously.
 Packets are sent without server-thread synchronization, which would limit the tempo to 20 ticks per second again.
 
@@ -60,7 +60,7 @@ When the resource pack is installed, vanilla players can use `/music set extende
 
 ## Developer API
 ### Gradle dependency
-First, add kibu-nbs as gradle dependency:
+First, add Notica as gradle dependency:
 ```groovy
 repositories {
     maven {
@@ -69,7 +69,7 @@ repositories {
 }
 
 dependencies {
-    modImplementation 'work.lclpnet.mods.kibu:kibu-nbs:1.0.0+1.20.4'  // replace with your version
+    modImplementation 'work.lclpnet.mods:notica:1.0.0+1.20.4'  // replace with your version
 }
 ```
 
@@ -94,9 +94,9 @@ The song will be loaded from the file `path/to/song.nbs` with a given identifier
 A `CheckedSong` is a song, associated with an id and a checksum, which can be arbitrary.
 
 ### Playing a song
-Song playback can be controlled via the KibuNbsApi interface, which can be acquired for a given `MinecraftServer` instance:
+Song playback can be controlled via the Notica interface, which can be acquired for a given `MinecraftServer` instance:
 ```java
-KibuNbsApi api = KibuNbsApi.getInstance(server);
+Notica api = Notica.getInstance(server);
 ```
 
 You can play a song to a given set of players using:

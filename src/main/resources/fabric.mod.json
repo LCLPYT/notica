@@ -1,31 +1,31 @@
 {
 	"schemaVersion": 1,
-	"id": "kibu-nbs",
+	"id": "notica",
 	"version": "${version}",
-	"name": "kibu-nbs",
+	"name": "Notica",
 	"description": "Play Note Block songs in-game! Vanilla and modded players are supported. Extends the note octave range.",
 	"authors": [
 		"LCLP"
 	],
 	"contact": {
-		"homepage": "https://github.com/LCLPYT/kibu-nbs",
-		"sources": "https://github.com/LCLPYT/kibu-nbs"
+		"homepage": "https://github.com/LCLPYT/notica",
+		"sources": "https://github.com/LCLPYT/notica"
 	},
 	"license": "MIT",
-	"icon": "assets/kibu-nbs/icon.png",
+	"icon": "assets/notica/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"work.lclpnet.kibu.nbs.KibuNbsInit"
+			"work.lclpnet.notica.NoticaInit"
 		],
 		"client": [
-			"work.lclpnet.kibu.nbs.KibuNbsClientInit"
+			"work.lclpnet.notica.NoticaClientInit"
 		]
 	},
 	"mixins": [
-		"kibu-nbs.mixins.json",
+		"notica.mixins.json",
 		{
-			"config": "kibu-nbs.client.mixins.json",
+			"config": "notica.client.mixins.json",
 			"environment": "client"
 		}
 	],
@@ -38,10 +38,5 @@
 		"kibu-hooks": ">=0.43.0",
 		"kibu-translation-api": ">=0.11.1"
 	},
-	"suggests": {},
-	"custom": {
-		"modmenu": {
-			"parent": "kibu"
-		}
-	}
+	"suggests": {}
 }

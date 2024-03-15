@@ -1,0 +1,13 @@
+{
+  "notica.music.extended_octaves.mod": "Extended octave range is already supported by your client.",
+  "notica.music.extended_octaves.enabled": "Enabled extended octave range support for the extra notes resource pack.",
+  "notica.music.extended_octaves.disabled": "Disabled extended octave range support.",
+  "notica.music.volume.changed": "Changed music volume to %s",
+  "notica.music.play": "Playing song %s",
+  "notica.music.play.not_found": "Song %s wasn't found",
+  "notica.music.play.error": "An unexpected error occurred while trying to play this song, see logs for more details",
+  "notica.music.stopped": "Stopped song %s",
+  "notica.music.stopped.all": "Stopped all songs",
+  "notica.music.not_playing": "Song %s is currently not playing",
+  "notica.music.none_playing": "No songs are currently being played"
+}

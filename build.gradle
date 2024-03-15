@@ -23,7 +23,7 @@ loom {
     splitEnvironmentSourceSets()
 
     mods {
-        "kibu-nbs" {
+        "notica" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }
@@ -117,7 +117,7 @@ publishing {
             from components.java
 
             pom {
-                name = 'kibu-nbs'
+                name = 'notica'
                 description = 'A fabric mod for playing .nbs files'
             }
         }

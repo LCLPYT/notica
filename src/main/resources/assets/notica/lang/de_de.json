@@ -1,0 +1,13 @@
+{
+  "notica.music.extended_octaves.mod": "Erweiterter Oktavbereich wird von deinem Client automatisch unterstützt.",
+  "notica.music.extended_octaves.enabled": "Erweiterter Oktavbereich für das Extra-Noten Ressourcenpaket wurde aktiviert.",
+  "notica.music.extended_octaves.disabled": "Erweiterter Oktavbereich wurde deaktiviert.",
+  "notica.music.volume.changed": "Musiklautstärke wurde auf %s geändert",
+  "notica.music.play": "Lied %s wird abgespielt",
+  "notica.music.play.not_found": "Lied %s wurde nicht gefunden",
+  "notica.music.play.error": "Beim abspielen dieses Liedes ist ein unerwarteter Fehler aufgetreten. Weitere details befinden sich in den Logs",
+  "notica.music.stopped": "Lied %s wurde gestoppt",
+  "notica.music.stopped.all": "Alle Lieder wurden gestoppt",
+  "notica.music.not_playing": "Lied %s wird momentan nicht abgespielt",
+  "notica.music.none_playing": "Momentan werden keine Lieder abgespielt"
+}

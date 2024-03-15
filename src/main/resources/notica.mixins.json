@@ -3,6 +3,7 @@
   "package": "work.lclpnet.notica.mixin",
   "compatibilityLevel": "JAVA_17",
   "mixins": [
+    "ServerCommonNetworkHandlerMixin",
     "SoundEventAccessor"
   ],
   "injectors": {

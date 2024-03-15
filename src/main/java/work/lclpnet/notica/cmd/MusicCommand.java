@@ -17,14 +17,15 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
+import work.lclpnet.kibu.translate.TranslationService;
+import work.lclpnet.kibu.translate.text.RootText;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.SongHandle;
 import work.lclpnet.notica.impl.NoticaImpl;
+import work.lclpnet.notica.util.NoticaServerPackManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
 import work.lclpnet.notica.util.ServerSongLoader;
-import work.lclpnet.kibu.translate.TranslationService;
-import work.lclpnet.kibu.translate.text.RootText;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,11 +46,13 @@ public class MusicCommand {
 
     private final Path songDirectory;
     private final TranslationService translations;
+    private final NoticaServerPackManager serverPackManager;
     private final Logger logger;
 
-    public MusicCommand(Path songDirectory, TranslationService translations, Logger logger) {
+    public MusicCommand(Path songDirectory, TranslationService translations, NoticaServerPackManager serverPackManager, Logger logger) {
         this.songDirectory = songDirectory;
         this.translations = translations;
+        this.serverPackManager = serverPackManager;
         this.logger = logger;
     }
 
@@ -78,7 +81,7 @@ public class MusicCommand {
                                         .executes(this::stopSong))))
                 .then(literal("set")
                         .then(literal("extended_range")
-                                .requires(this::isVanillaPlayer)
+                                .requires(this::extendedRangePredicate)
                                 .then(argument("enabled", BoolArgumentType.bool())
                                         .executes(this::changeExtendedRange)))
                         .then(literal("volume")
@@ -90,11 +93,18 @@ public class MusicCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
 
+        if (enabled && !serverPackManager.hasServerPackInstalled(player)) {
+            var msg = translations.translateText(player, "notica.music.server_pack_requesting").formatted(GRAY);
+            player.sendMessage(msg);
+
+            serverPackManager.sendServerPack(player);
+            return 1;
+        }
+
         NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(enabled);
-        configs.saveConfig(player);
 
         String key = enabled ? "notica.music.extended_octaves.enabled" : "notica.music.extended_octaves.disabled";
         Formatting color = enabled ? GREEN : RED;
@@ -103,7 +113,7 @@ public class MusicCommand {
 
         player.sendMessage(msg);
 
-        return 1;
+        return 2;
     }
 
     private int changeVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -340,7 +350,9 @@ public class MusicCommand {
         return NoticaInit.identifier(name);
     }
 
-    private boolean isVanillaPlayer(ServerCommandSource source) {
+    private boolean extendedRangePredicate(ServerCommandSource source) {
+        if (!serverPackManager.isEnabled()) return false;
+
         ServerPlayerEntity player = source.getPlayer();
 
         if (player == null) {

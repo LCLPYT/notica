@@ -10,9 +10,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
 import work.lclpnet.notica.cmd.MusicCommand;
+import work.lclpnet.notica.config.ConfigManager;
+import work.lclpnet.notica.event.ResourcePackStatusCallback;
 import work.lclpnet.notica.impl.NoticaImpl;
 import work.lclpnet.notica.network.NoticaNetworking;
 import work.lclpnet.kibu.translate.TranslationService;
+import work.lclpnet.notica.util.NoticaServerPackManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,6 +27,7 @@ public class NoticaInit implements ModInitializer {
 	public static final String MOD_ID = "notica";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	private NoticaNetworking networking = null;
+	private NoticaServerPackManager serverPackManager = null;
 
 	@Override
 	public void onInitialize() {
@@ -31,13 +35,17 @@ public class NoticaInit implements ModInitializer {
 
 		Path songsDir = createSongsDirectory(configDir);
 		Path playerConfigsDir = configDir.resolve("players");
+		Path configPath = configDir.resolve("config.json");
 
 		NoticaImpl.configure(songsDir, playerConfigsDir, LOGGER);
 
 		TranslationService translations = getTranslationService();
+		ConfigManager configManager = getConfigManager(configPath);
+
+		serverPackManager = new NoticaServerPackManager(configManager, translations, LOGGER);
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				new MusicCommand(songsDir, translations, LOGGER).register(dispatcher));
+				new MusicCommand(songsDir, translations,serverPackManager, LOGGER).register(dispatcher));
 
 		networking = new NoticaNetworking(LOGGER);
 		networking.register();
@@ -45,6 +53,7 @@ public class NoticaInit implements ModInitializer {
 		PlayerConnectionHooks.JOIN.register(this::onPlayerJoin);
 		PlayerConnectionHooks.QUIT.register(this::onPlayerQuit);
 		ServerPlayerEvents.COPY_FROM.register(this::copyFromPlayer);
+		ResourcePackStatusCallback.HOOK.register(serverPackManager::onResourcePackStatus);
 
 		LOGGER.info("Initialized.");
 	}
@@ -56,6 +65,7 @@ public class NoticaInit implements ModInitializer {
 	private void onPlayerQuit(ServerPlayerEntity player) {
 		NoticaImpl.getInstance(player.getServer()).onPlayerQuit(player);
 		networking.onQuit(player);
+		serverPackManager.onPlayerQuit(player);
 	}
 
 	private void copyFromPlayer(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
@@ -69,6 +79,14 @@ public class NoticaInit implements ModInitializer {
 		result.whenLoaded().thenRun(() -> LOGGER.info("{} translations loaded.", MOD_ID));
 
 		return translations;
+	}
+
+	private static ConfigManager getConfigManager(Path configPath) {
+		ConfigManager configManager = new ConfigManager(configPath, LOGGER);
+
+		configManager.init().thenRun(() -> LOGGER.info("{} config loaded.", MOD_ID));
+
+		return configManager;
 	}
 
 	private Path createSongsDirectory(Path configDir) {

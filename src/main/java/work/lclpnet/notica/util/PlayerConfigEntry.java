@@ -8,9 +8,7 @@ import work.lclpnet.notica.api.PlayerConfig;
 
 public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
 
-    private static final String
-            EXTENDED_RANGE_KEY = "extendedRange",
-            VOLUME_KEY = "volume";
+    private static final String VOLUME_KEY = "volume";
 
     private float volume = 1f;
     private boolean extendedRangeSupported = false;
@@ -18,9 +16,7 @@ public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
 
     @Override
     public void setExtendedRangeSupported(boolean supported) {
-        if (extendedRangeSupported == supported) return;
         this.extendedRangeSupported = supported;
-        markDirty();
     }
 
     @Override
@@ -54,16 +50,11 @@ public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
 
     public void writeNbt(NbtCompound nbt) {
         nbt.putFloat(VOLUME_KEY, volume);
-        nbt.putBoolean(EXTENDED_RANGE_KEY, extendedRangeSupported);
     }
 
     public void readNbt(NbtCompound nbt) {
         if (nbt.contains(VOLUME_KEY)) {
             this.volume = nbt.getFloat(VOLUME_KEY);
-        }
-
-        if (nbt.contains(EXTENDED_RANGE_KEY)) {
-            this.extendedRangeSupported = nbt.getBoolean(EXTENDED_RANGE_KEY);
         }
     }
 

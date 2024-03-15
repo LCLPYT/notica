@@ -9,7 +9,8 @@
 	],
 	"contact": {
 		"homepage": "https://github.com/LCLPYT/notica",
-		"sources": "https://github.com/LCLPYT/notica"
+		"sources": "https://github.com/LCLPYT/notica",
+		"issues": "https://github.com/LCLPYT/notica/issues"
 	},
 	"license": "MIT",
 	"icon": "assets/notica/icon.png",

@@ -9,12 +9,16 @@ Play any song created with [Open Note Block Studio](https://opennbs.org/) on a s
 Place the .nbs files in the `config/notica/songs` directory.
 Use the `/music play <song> [players]` command to play a song.
 
+![Play a song with Notica](https://i.imgur.com/ihCc1gY.gif)
+
 ## Clientside song playback
 On a vanilla client connection, each note is sent to the player with a separate packet.
 This creates huge amounts of packets being sent, which causes lag and reduced playback quality.
 
 However, if a player has the mod installed, the song notes are packed into chunks and sent in larger, but way less packets.
 This process is similar to video buffering.
+
+![Notica Server Client Architecture](https://i.imgur.com/rZMliF9.png)
 
 ## Improved playback quality
 Vanilla Minecraft has some limitations that impact the playback quality of songs.

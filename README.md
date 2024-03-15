@@ -1,7 +1,7 @@
 # Notica
 A Fabric mod for playing note block songs in the .nbs file format to your players.
 This mod is vanilla compatible on the server-side, which means that vanilla players can join without this mod installed as well.
-Player with the mod installed benefit from reduced network-usage, as well as better playback quality.
+Players with the mod installed benefit from reduced network-usage, as well as better playback quality.
 
 ## Features
 ### NBS file playback
@@ -49,18 +49,11 @@ As mentioned earlier, Minecraft imposes a limit to the note pitch, limiting the 
 Modded players do not have this limitation, but vanilla players are still impacted.
 Notes outside the vanilla range will be transposed for vanilla players by default, so that can be played.
 Vanilla clients are still able to play notes outside the vanilla range, by installing the extended notes resource pack.
-When the resource pack is installed, vanilla players can use `/music set extended_range true` to enable the extended range playback.
+The extra notes resource pack can be installed by using `/music set extended_range true` to enable the extended range playback (**vanilla players only**).
 
-## Demo
-*Coming soon...*
-
----
-
-## Similar projects / related work
+## Similar projects
 - [Nota](https://github.com/PinkGoosik/nota) by PinkGoosik (Fabric, Quilt)
 - [NoteBlockAPI](https://github.com/koca2000/NoteBlockAPI) by koca2000 (Bukkit and derivates)
-
----
 
 ## Developer API
 ### Gradle dependency

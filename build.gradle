@@ -1,7 +1,10 @@
+import work.lclpnet.build.task.GithubDeploymentTask
+
 plugins {
 	id 'fabric-loom' version '1.5-SNAPSHOT'
 	id 'maven-publish'
 	id 'gradle-build-utils' version '1.7.0'
+    id 'com.modrinth.minotaur' version '2.4.3'
 }
 
 Properties props = buildUtils.loadProperties('publish.properties')
@@ -111,6 +114,37 @@ java {
     it.from sourceSets.api.output
 }
 
+def env = System.getenv()
+
+tasks.register("github", GithubDeploymentTask) {
+    dependsOn tasks.remapJar
+
+    config {
+        token = env.get("GITHUB_TOKEN")
+        repository = env.get("GITHUB_REPOSITORY")
+    }
+
+    release {
+        title = "[$project.minecraft_version] Notica $project.version"
+        tag = buildUtils.latestTag()
+    }
+
+    assets.add(tasks.remapJar.archiveFile.get())
+}
+
+modrinth {
+    token = env.get("MODRINTH_TOKEN")
+
+    projectId = "notica"
+    versionName = "[$project.minecraft_version] Notica $project.version"
+    versionType = "release"
+    uploadFile = remapJar
+
+    dependencies {
+        required.project "fabric-api"
+    }
+}
+
 // configure the maven publication
 publishing {
     publications {
@@ -120,7 +154,7 @@ publishing {
             from components.java
 
             pom {
-                name = 'notica'
+                name = 'Notica'
                 description = 'A fabric mod for playing .nbs files'
             }
         }

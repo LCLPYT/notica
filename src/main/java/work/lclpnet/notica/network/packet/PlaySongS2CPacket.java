@@ -20,19 +20,22 @@ public class PlaySongS2CPacket implements FabricPacket {
     private final SongHeader header;
     private final boolean last;
     private final SongSlice slice;
+    private final int startTick;
 
-    public PlaySongS2CPacket(Identifier songId, float volume, byte[] checksum, SongHeader header, boolean last, SongSlice slice) {
+    public PlaySongS2CPacket(Identifier songId, float volume, int startTick, byte[] checksum, SongHeader header, boolean last, SongSlice slice) {
         this.songId = songId;
         this.volume = volume;
         this.checksum = checksum;
         this.header = header;
         this.last = last;
         this.slice = slice;
+        this.startTick = startTick;
     }
 
     public PlaySongS2CPacket(PacketByteBuf buf) {
         this.songId = buf.readIdentifier();
         this.volume = buf.readFloat();
+        this.startTick = buf.readInt();
         this.checksum = buf.readByteArray();
         this.header = new SongHeader(buf);
         this.last = buf.readBoolean();
@@ -43,6 +46,7 @@ public class PlaySongS2CPacket implements FabricPacket {
     public void write(PacketByteBuf buf) {
         buf.writeIdentifier(songId);
         buf.writeFloat(volume);
+        buf.writeInt(startTick);
         buf.writeByteArray(checksum);
         header.write(buf);
         buf.writeBoolean(last);
@@ -60,6 +64,10 @@ public class PlaySongS2CPacket implements FabricPacket {
 
     public float getVolume() {
         return volume;
+    }
+
+    public int getStartTick() {
+        return startTick;
     }
 
     public byte[] getChecksum() {

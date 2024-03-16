@@ -138,13 +138,37 @@ class SongSlicerTest {
     }
 
     @Test
-    void sliceSeconds_one_asExpected() {
+    void sliceSeconds_beginning_asExpected() {
         Song song = TestSongHelper.createSong();
 
-        SongSlice slice = SongSlicer.sliceSeconds(song, 1);
+        SongSlice slice = SongSlicer.sliceSeconds(song, 0, 1);
 
         assertEquals(0, slice.tickStart());
         assertEquals(5, slice.tickEnd());
+        assertEquals(0, slice.layerStart());
+        assertEquals(2, slice.layerEnd());
+    }
+
+    @Test
+    void sliceSeconds_withOffset_asExpected() {
+        Song song = TestSongHelper.createSong();
+
+        SongSlice slice = SongSlicer.sliceSeconds(song, 10, 1);
+
+        assertEquals(10, slice.tickStart());
+        assertEquals(15, slice.tickEnd());
+        assertEquals(0, slice.layerStart());
+        assertEquals(2, slice.layerEnd());
+    }
+
+    @Test
+    void sliceSeconds_longerThanSong_clamped() {
+        Song song = TestSongHelper.createSong();
+
+        SongSlice slice = SongSlicer.sliceSeconds(song, 0, 26);
+
+        assertEquals(0, slice.tickStart());
+        assertEquals(25, slice.tickEnd());
         assertEquals(0, slice.layerStart());
         assertEquals(2, slice.layerEnd());
     }

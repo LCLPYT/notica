@@ -20,7 +20,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
-    SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players);
+    SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players);
 
     /**
      * Get all currently playing {@link SongHandle}s.
@@ -49,6 +49,17 @@ public interface Notica {
      * @return An optional {@link SongHandle}.
      */
     Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId);
+
+    /**
+     * Play a song to a collection of players.
+     * @param song The {@link CheckedSong} to play.
+     * @param volume The playback volume of the song, ranges [0, 1].
+     * @param players The song listeners.
+     * @return A {@link SongHandle} that can be used to control the song playback.
+     */
+    default SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players) {
+        return playSong(song, volume, 0, players);
+    }
 
     /**
      * Get the {@link Notica} instance for a given server.

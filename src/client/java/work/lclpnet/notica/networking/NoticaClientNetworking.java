@@ -61,7 +61,7 @@ public class NoticaClientNetworking {
             songRepository.add(songId, checksum, song);
         }
 
-        controller.playSong(songId, packet.getVolume());
+        controller.playSong(songId, packet.getVolume(), packet.getStartTick());
     }
 
     private void onStopSong(StopSongBidiPacket packet, ClientPlayerEntity player, PacketSender sender) {

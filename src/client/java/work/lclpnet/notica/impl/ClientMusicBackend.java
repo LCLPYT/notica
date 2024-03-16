@@ -32,7 +32,7 @@ public class ClientMusicBackend {
         this.playerConfig = playerConfig;
     }
 
-    public void playSong(Identifier songId, float volume) {
+    public void playSong(Identifier songId, float volume, int startTick) {
         Song song = songRepository.get(songId);
 
         if (song == null) {
@@ -56,7 +56,7 @@ public class ClientMusicBackend {
             playing.put(songId, playback);
         }
 
-        playback.start();
+        playback.start(startTick);
     }
 
     public void stopSong(Identifier songId) {

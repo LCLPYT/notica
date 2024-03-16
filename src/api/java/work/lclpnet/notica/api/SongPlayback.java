@@ -34,10 +34,12 @@ public class SongPlayback implements Runnable {
         this.remainder = Math.max(0, period - exactTempo);
     }
 
-    public void start() {
+    public void start(int startTick) {
         synchronized (this) {
             if (started) return;
             started = true;
+
+            tick = startTick;
 
             thread = new Thread(this, "Song Player");
             thread.setDaemon(true);

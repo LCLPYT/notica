@@ -57,7 +57,7 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players) {
+    public SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players) {
         if (players.isEmpty()) {
             throw new IllegalArgumentException("Listeners are empty");
         }
@@ -65,7 +65,7 @@ public class NoticaImpl implements Notica {
         Identifier id = song.id();
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, volume);
+        ServerSongHandle handle = new ServerSongHandle(song, volume, startTick);
 
         Set<SongPlayerRef> moddedPlayers = new HashSet<>();
         Set<SongPlayerRef> vanillaPlayers = new HashSet<>();

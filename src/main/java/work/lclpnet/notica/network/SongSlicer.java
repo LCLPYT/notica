@@ -15,11 +15,11 @@ import java.util.Map;
 
 public class SongSlicer {
 
-    public static SongSlice sliceSeconds(Song song, int seconds) {
-        int tickEnd = Math.min(song.durationTicks(), (int) Math.ceil(seconds * song.ticksPerSecond()));
+    public static SongSlice sliceSeconds(Song song, int tickOffset, int seconds) {
+        int tickEnd = Math.min(song.durationTicks(), tickOffset + (int) Math.ceil(seconds * song.ticksPerSecond()));
         int maxLayerIndex = song.layers().streamKeysOrdered().max().orElse(-1);
 
-        return new ConcreteSongSlice(song, 0, tickEnd, 0, maxLayerIndex);
+        return new ConcreteSongSlice(song, tickOffset, tickEnd, 0, maxLayerIndex);
     }
 
     public static SongSlice sliceAt(Song song, int tickOffset, int layerOffset, long maxBytes) {

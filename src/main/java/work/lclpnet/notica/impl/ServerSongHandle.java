@@ -20,6 +20,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
 
     private final CheckedSong checkedSong;
     private final float volume;
+    private final int startTick;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private boolean started = false;
     @Nullable
@@ -32,9 +33,10 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         }
     });
 
-    public ServerSongHandle(CheckedSong checkedSong, float volume) {
+    public ServerSongHandle(CheckedSong checkedSong, float volume, int startTick) {
         this.checkedSong = checkedSong;
         this.volume = volume;
+        this.startTick = startTick;
     }
 
     public void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
@@ -71,7 +73,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             });
 
             serverPlayback = playback;
-            playback.start();
+            playback.start(startTick);
         }
     }
 
@@ -80,10 +82,10 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         SongHeader header = new SongHeader(song);
 
         // send the first 5 seconds along with the play packet, so that the client can start playing instantly
-        SongSlice slice = SongSlicer.sliceSeconds(song, 5);
+        SongSlice slice = SongSlicer.sliceSeconds(song, startTick, 5);
         boolean finished = SongSlicer.isFinished(song, slice);
 
-        var packet = new PlaySongS2CPacket(checkedSong.id(), volume, checkedSong.checksum(), header, finished, slice);
+        var packet = new PlaySongS2CPacket(checkedSong.id(), volume, startTick, checkedSong.checksum(), header, finished, slice);
         ServerPlayNetworking.send(player, packet);
     }
 

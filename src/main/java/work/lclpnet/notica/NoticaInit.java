@@ -26,7 +26,6 @@ public class NoticaInit implements ModInitializer {
 
 	public static final String MOD_ID = "notica";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-	private NoticaNetworking networking = null;
 	private NoticaServerPackManager serverPackManager = null;
 
 	@Override
@@ -45,9 +44,9 @@ public class NoticaInit implements ModInitializer {
 		serverPackManager = new NoticaServerPackManager(configManager, translations, LOGGER);
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				new MusicCommand(songsDir, translations,serverPackManager, LOGGER).register(dispatcher));
+				new MusicCommand(songsDir, translations, serverPackManager, LOGGER).register(dispatcher));
 
-		networking = new NoticaNetworking(LOGGER);
+		NoticaNetworking networking = new NoticaNetworking(LOGGER);
 		networking.register();
 
 		PlayerConnectionHooks.JOIN.register(this::onPlayerJoin);
@@ -64,7 +63,6 @@ public class NoticaInit implements ModInitializer {
 
 	private void onPlayerQuit(ServerPlayerEntity player) {
 		NoticaImpl.getInstance(player.getServer()).onPlayerQuit(player);
-		networking.onQuit(player);
 		serverPackManager.onPlayerQuit(player);
 	}
 

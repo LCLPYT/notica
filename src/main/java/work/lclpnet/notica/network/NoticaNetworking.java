@@ -1,36 +1,87 @@
 package work.lclpnet.notica.network;
 
-import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.mojang.authlib.GameProfile;
+import net.fabricmc.fabric.api.networking.v1.*;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
+import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
+import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.SongSlice;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.NoticaImpl;
-import work.lclpnet.notica.network.packet.*;
+import work.lclpnet.notica.mixin.ServerLoginNetworkHandlerAccessor;
+import work.lclpnet.notica.network.packet.RequestSongC2SPacket;
+import work.lclpnet.notica.network.packet.RespondSongS2CPacket;
+import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend;
-
 public class NoticaNetworking {
 
+    public static final Identifier VERSION_LOGIN_CHANNEL = NoticaInit.identifier("version");
+    public static final int PROTOCOL_VERSION = 1;
     public static final int MAX_PACKET_BYTES = 0x800000;  // packet size limit imposed by mc
     private static final int RESET_MILLIS = 20_000, MAX_REQUESTS = 40;
+    private static NoticaNetworking instance = null;
 
     private final Logger logger;
     private final Map<UUID, PlayerData> playerData = new HashMap<>();
 
     public NoticaNetworking(Logger logger) {
         this.logger = logger;
+        instance = this;
     }
 
     public void register() {
+        ServerLoginNetworking.registerGlobalReceiver(VERSION_LOGIN_CHANNEL, this::receiveLoginVersion);
         ServerPlayNetworking.registerGlobalReceiver(RequestSongC2SPacket.TYPE, this::onRequestSong);
         ServerPlayNetworking.registerGlobalReceiver(StopSongBidiPacket.TYPE, this::onSongStopped);
+
+        ServerLoginConnectionEvents.QUERY_START.register(this::onLoginStart);
+
+        ServerLoginConnectionEvents.DISCONNECT.register(this::onLoginDisconnect);
+
+        PlayerConnectionHooks.QUIT.register(this::onQuit);
+    }
+
+    private void onLoginStart(ServerLoginNetworkHandler handler, MinecraftServer server, PacketSender sender, ServerLoginNetworking.LoginSynchronizer synchronizer) {
+        // send notica protocol version query
+        sender.sendPacket(VERSION_LOGIN_CHANNEL, PacketByteBufs.empty());
+    }
+
+    private void receiveLoginVersion(MinecraftServer server, ServerLoginNetworkHandler handler, boolean understood,
+                                     PacketByteBuf buf, ServerLoginNetworking.LoginSynchronizer synchronizer, PacketSender sender) {
+        int version = 0;
+
+        if (understood) {
+            // the client understood the notica protocol version query
+            version = buf.readVarInt();
+        }
+
+        logger.debug("Received protocol version {}", version);
+
+        GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getProfile();
+
+        if (profile == null) {
+            logger.error("Game profile is not set, but should be initialized by now...");
+            return;
+        }
+
+        UUID uuid = profile.getId();
+        getData(uuid).version = version;
+    }
+
+    private void onLoginDisconnect(ServerLoginNetworkHandler handler, MinecraftServer server) {
+        GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getProfile();
+        if (profile == null) return;
+
+        onQuit(profile.getId());
     }
 
     private void onRequestSong(RequestSongC2SPacket packet, ServerPlayerEntity player, PacketSender sender) {
@@ -85,26 +136,39 @@ public class NoticaNetworking {
     }
 
     private PlayerData getData(ServerPlayerEntity player) {
+        return getData(player.getUuid());
+    }
+
+    private PlayerData getData(UUID uuid) {
         synchronized (this) {
-            return playerData.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
+            return playerData.computeIfAbsent(uuid, _uuid -> new PlayerData());
         }
     }
 
-    public void onQuit(ServerPlayerEntity player) {
+    private void onQuit(ServerPlayerEntity player) {
+        UUID uuid = player.getUuid();
+        onQuit(uuid);
+    }
+
+    private void onQuit(UUID uuid) {
         synchronized (this) {
-            playerData.remove(player.getUuid());
+            playerData.remove(uuid);
         }
     }
 
-    public static boolean canSendAll(ServerPlayerEntity player) {
-        return canSend(player, PlaySongS2CPacket.TYPE) &&
-               canSend(player, StopSongBidiPacket.TYPE) &&
-               canSend(player, MusicOptionsS2CPacket.TYPE);
+    public boolean understandsProtocol(ServerPlayerEntity player) {
+        return getData(player).understandsProtocol();
+    }
+
+    public static NoticaNetworking getInstance() {
+        if (instance == null) throw new IllegalStateException("Notica networking is not yet initialized");
+        return instance;
     }
 
     private static class PlayerData {
         private long lastRequest = 0L;
         private int count = 0;
+        private int version = 0;
 
         public boolean throttle() {
             long before = lastRequest;
@@ -116,6 +180,10 @@ public class NoticaNetworking {
             }
 
             return ++count >= MAX_REQUESTS;
+        }
+
+        public boolean understandsProtocol() {
+            return version == PROTOCOL_VERSION;
         }
     }
 }

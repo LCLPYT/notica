@@ -154,7 +154,7 @@ public class NoticaImpl implements Notica {
     }
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
-        return NoticaNetworking.canSendAll(player);
+        return NoticaNetworking.getInstance().understandsProtocol(player);
     }
 
     public PlayerConfigContainer getPlayerConfigs() {

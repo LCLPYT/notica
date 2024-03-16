@@ -15,17 +15,16 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.TranslationService;
 import work.lclpnet.kibu.translate.text.RootText;
 import work.lclpnet.notica.Notica;
-import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.SongHandle;
 import work.lclpnet.notica.impl.NoticaImpl;
 import work.lclpnet.notica.util.NoticaServerPackManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
 import work.lclpnet.notica.util.ServerSongLoader;
+import work.lclpnet.notica.util.SongUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,7 +32,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
@@ -141,7 +139,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         return playSong(source, List.of(player), path, id);
     }
@@ -151,7 +149,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         return playSong(ctx.getSource(), listeners, path, id);
     }
@@ -331,23 +329,6 @@ public class MusicCommand {
         }
 
         return s;
-    }
-
-    @NotNull
-    private static Identifier createSongId(Path path) {
-        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-
-        // remove file extension
-        int idx = name.lastIndexOf('.');
-
-        if (idx >= 0) {
-            name = name.substring(0, idx);
-        }
-
-        // remove invalid characters
-        name = name.replaceAll("[^a-z0-9/._-]", "");
-
-        return NoticaInit.identifier(name);
     }
 
     private boolean extendedRangePredicate(ServerCommandSource source) {

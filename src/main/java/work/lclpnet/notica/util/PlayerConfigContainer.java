@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -20,7 +21,7 @@ public class PlayerConfigContainer {
 
     private final Path directory;
     private final Logger logger;
-    private final Map<UUID, PlayerConfigEntry> entries = new HashMap<>();
+    private final Map<UUID, PlayerConfigEntry> entries = Collections.synchronizedMap(new HashMap<>());
 
     public PlayerConfigContainer(Path directory, Logger logger) {
         this.directory = directory;

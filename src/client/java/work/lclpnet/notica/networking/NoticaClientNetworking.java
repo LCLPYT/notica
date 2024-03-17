@@ -59,29 +59,53 @@ public class NoticaClientNetworking {
     private void onPlaySong(PlaySongS2CPacket packet, ClientPlayerEntity player, PacketSender sender) {
         Identifier songId = packet.getSongId();
         byte[] checksum = packet.getChecksum();
+        int startTick = packet.getStartTick();
 
         PendingSong song = songRepository.get(checksum);
 
         if (song == null) {
-            logger.debug("Song {} ({}) is not cached, requesting it", songId, ByteHelper.toHexString(checksum, 32));
-
-            // song is not cached, create a new instance
-            song = new PendingSong(packet.getHeader());
-
-            SongSlice slice = packet.getSlice();
-
-            logger.debug("Got initial slice {} for song {}", slice, songId);
-
-            song.accept(slice);
-
-            if (!packet.isLast()) {
-                requestNext(songId, slice);
-            }
-
-            songRepository.add(songId, checksum, song);
+            acceptUnknownSong(packet, songId, checksum, startTick);
+        } else if (startTick < song.getStartTick()) {
+            // the cached song is missing parts before its old start
+            acceptUnknownRegion(packet, song, songId);
         }
 
-        controller.playSong(songId, packet.getVolume(), packet.getStartTick());
+        controller.playSong(songId, packet.getVolume(), startTick);
+    }
+
+    private void acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
+        logger.debug("Song {} ({}) is not cached, requesting it...", songId, ByteHelper.toHexString(checksum, 32));
+
+        // song is not cached, create a new instance
+        PendingSong song = new PendingSong(packet.getHeader(), startTick);
+
+        SongSlice slice = packet.getSlice();
+
+        logger.debug("Got initial slice {} for song {}", slice, songId);
+
+        song.accept(slice);
+
+        if (song.loopConfig().enabled() && startTick > 0) {
+            // songs with looping enabled that start with an offset need to be fetched completely
+            request(songId, 0, 0);
+        } else if (!packet.isLast()) {
+            // request next song part
+            requestNext(songId, slice);
+        }
+
+        songRepository.add(songId, checksum, song);
+    }
+
+    private void acceptUnknownRegion(PlaySongS2CPacket packet, PendingSong song, Identifier songId) {
+        SongSlice slice = packet.getSlice();
+
+        song.accept(slice);
+
+        if (packet.isLast()) return;
+
+        logger.debug("Cached song is missing parts, requesting the song from the beginning...");
+
+        request(songId, 0, 0);
     }
 
     private void onStopSong(StopSongBidiPacket packet, ClientPlayerEntity player, PacketSender sender) {

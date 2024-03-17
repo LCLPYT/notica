@@ -18,14 +18,20 @@ public class PendingSong implements Song {
     private final Instruments instruments;
     private final boolean stereo;
     private final byte signature;
+    private int startTick;
 
     public PendingSong(SongHeader header) {
+        this(header, 0);
+    }
+
+    public PendingSong(SongHeader header, int startTick) {
         this.durationTicks = header.durationTicks();
         this.ticksPerSecond = header.ticksPerSecond();
         this.loopConfig = header.loopConfig();
         this.instruments = header.instruments();
         this.stereo = header.stereo();
         this.signature = header.signature();
+        this.startTick = startTick;
 
         var layerInfo = header.layerInfo();
         var layers = new HashMap<Integer, MutableLayer>(layerInfo.size());
@@ -86,6 +92,8 @@ public class PendingSong implements Song {
      * @param slice The song slice.
      */
     public void accept(SongSlice slice) {
+        startTick = Math.max(0, Math.min(slice.tickStart(), startTick));
+
         for (NoteEvent noteEvent : slice) {
             MutableLayer layer = layers.get(noteEvent.layer());
 
@@ -93,5 +101,9 @@ public class PendingSong implements Song {
 
             layer.accept(noteEvent);
         }
+    }
+
+    public int getStartTick() {
+        return startTick;
     }
 }

@@ -1,7 +1,7 @@
 import work.lclpnet.build.task.GithubDeploymentTask
 
 plugins {
-	id 'fabric-loom' version '1.9-SNAPSHOT'
+	id 'fabric-loom' version '1.10-SNAPSHOT'
 	id 'maven-publish'
 	id 'gradle-build-utils' version '1.7.0'
     id 'com.modrinth.minotaur' version '2.4.3'
@@ -9,7 +9,7 @@ plugins {
 
 Properties props = buildUtils.loadProperties('publish.properties')
 
-version = buildUtils.gitVersion()
+version = project.mod_version
 group = project.maven_group
 
 base {
@@ -128,7 +128,7 @@ tasks.register("github", GithubDeploymentTask) {
 
     release {
         title = "[$project.minecraft_version] Notica $project.version"
-        tag = buildUtils.latestTag()
+        tag = project.mod_version
     }
 
     assets.add(tasks.remapJar.archiveFile.get())

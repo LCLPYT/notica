@@ -54,7 +54,7 @@ public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
 
     public void readNbt(NbtCompound nbt) {
         if (nbt.contains(VOLUME_KEY)) {
-            this.volume = nbt.getFloat(VOLUME_KEY);
+            this.volume = nbt.getFloat(VOLUME_KEY).orElse(1.f);
         }
     }
 

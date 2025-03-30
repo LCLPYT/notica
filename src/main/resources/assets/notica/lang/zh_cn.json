@@ -1,0 +1,21 @@
+{
+  "notica.music.extended_octaves.mod": "您的客户端已经支持扩展八度范围。",
+  "notica.music.extended_octaves.enabled": "已启用扩展八度范围支持。",
+  "notica.music.extended_octaves.disabled": "已禁用扩展八度范围支持。",
+  "notica.music.volume.changed": "将音乐音量更改为 %s",
+  "notica.music.play": "正在播放 %s",
+  "notica.music.play.not_found": "未找到歌曲 %s",
+  "notica.music.play.error": "播放此歌曲时发生意外错误，请查看日志以获取更多详细信息",
+  "notica.music.play.no_permission_other": "您没有权限为其他玩家播放音乐",
+  "notica.music.stopped": "已停止歌曲 %s",
+  "notica.music.stopped.all": "已停止所有歌曲",
+  "notica.music.stop.no_permission_other": "您没有权限为其他玩家停止音乐",
+  "notica.music.not_playing": "当前未播放歌曲 %s ",
+  "notica.music.none_playing": "当前未播放任何歌曲",
+  "notica.music.server_pack_requesting": "扩展八度范围支持需要额外的音符资源包，正在请求安装……",
+  "notica.music.server_pack_prompt": "扩展八度范围支持需要额外的音符资源包",
+  "notica.music.server_pack_failed": "额外音符资源包安装失败，请确保在服务器列表中启用此服务器的服务器资源包。正在禁用扩展八度范围支持...",
+  "notica.music.server_pack_success": "额外音符资源包安装成功，已启用扩展八度范围支持。",
+  "kibu.proto.notica.version.too_old": "您的客户端使用了旧于服务器的 Notica 版本，更新以确保模组能够正常工作。",
+  "kibu.proto.notica.version.too_new": "您的客户端使用了新于服务器的 Notica 版本，某些功能可能无法正常工作。"
+}

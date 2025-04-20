@@ -45,7 +45,7 @@ public class SongDecoder {
         DataInputStream in = new DataInputStream(input);
 
         // HEADER
-        short durationTicks = readShortLE(in);
+        int durationTicks = readUnsignedShortLE(in);
 
         final byte songVanillaInstrumentCount, version, customInstrumentOffset;
 
@@ -58,7 +58,7 @@ public class SongDecoder {
 
             // in version 3, length was re-added
             if (version >= 3) {
-                durationTicks = readShortLE(in);
+                durationTicks = readUnsignedShortLE(in);
             }
         } else {
             version = 0;
@@ -66,11 +66,11 @@ public class SongDecoder {
             customInstrumentOffset = 0;
         }
 
-        final short layerCount = readShortLE(in);
+        final int layerCount = readUnsignedShortLE(in);
 
         ImmutableSongMeta meta = readMetaData(in);
 
-        float ticksPerSecond = readShortLE(in) / 100f;
+        float ticksPerSecond = readUnsignedShortLE(in) / 100f;
 
         in.readBoolean();   // auto save
         in.readByte();      // auto save interval
@@ -89,22 +89,22 @@ public class SongDecoder {
         // NOTE BLOCKS
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
         boolean stereo = false;
-        short tick = -1;
+        int tick = -1;
 
         // iterate ticks
         while (true) {
             // determine next tick
-            short jump = readShortLE(in);
+            int jump = readUnsignedShortLE(in);
             if (jump == 0) break;  // ticks end
 
             tick += jump;
 
-            short layer = -1;
+            int layer = -1;
 
             // iterate layers
             while (true) {
                 // determine layer
-                jump = readShortLE(in);
+                jump = readUnsignedShortLE(in);
                 if (jump == 0) break;  // layers end
 
                 layer += jump;
@@ -139,9 +139,9 @@ public class SongDecoder {
                     pitch = 0;
                 }
 
-                var notes = layerNotes.computeIfAbsent((int) layer, i -> new HashMap<>());
+                var notes = layerNotes.computeIfAbsent(layer, i -> new HashMap<>());
                 var note = new ImmutableNote(instrument, key, velocity, panning, pitch);
-                notes.put((int) tick, note);
+                notes.put(tick, note);
             }
         }
 
@@ -165,7 +165,7 @@ public class SongDecoder {
     }
 
     @NotNull
-    private static LayerResult readLayers(short layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
+    private static LayerResult readLayers(int layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
         Map<Integer, Layer> layers = new HashMap<>(layerCount);
         boolean stereo = false;
 
@@ -234,7 +234,7 @@ public class SongDecoder {
 
         boolean loopEnabled = in.readByte() == 1;
         byte loopCount = in.readByte();
-        short loopStartTick = readShortLE(in);
+        int loopStartTick = readUnsignedShortLE(in);
 
         return new ImmutableLoopConfig(loopEnabled, loopCount, loopStartTick);
     }

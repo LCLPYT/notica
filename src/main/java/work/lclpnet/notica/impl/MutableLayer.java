@@ -1,10 +1,8 @@
 package work.lclpnet.notica.impl;
 
-import work.lclpnet.notica.api.Index;
 import work.lclpnet.notica.api.NoteEvent;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.impl.MutableIndex;
 
 public class MutableLayer implements Layer {
 
@@ -37,7 +35,7 @@ public class MutableLayer implements Layer {
     }
 
     @Override
-    public Index<Note> notes() {
+    public MutableIndex<Note> notes() {
         return notes;
     }
 

@@ -10,9 +10,9 @@ public interface Song {
     int durationTicks();
 
     /**
-     * @return The amount of ticks per second. If this is 10, there will be a note every 0.1 seconds or 2 vanilla game ticks.
+     * @return The {@link SongTempo}, describing the tempo of the song sections.
      */
-    float ticksPerSecond();
+    SongTempo tempo();
 
     /**
      * @return Metadata of this song, includes author, title etc.
@@ -48,7 +48,7 @@ public interface Song {
      * @return The amount of seconds this song is long
      */
     default float durationSeconds() {
-        return durationTicks() / ticksPerSecond();
+        return tempo().durationSeconds(0, durationTicks());
     }
 
     default int paddedDurationTicks() {
@@ -58,6 +58,6 @@ public interface Song {
     }
 
     default float paddedDurationSeconds() {
-        return paddedDurationTicks() / ticksPerSecond();
+        return tempo().durationSeconds(0, paddedDurationTicks());
     }
 }

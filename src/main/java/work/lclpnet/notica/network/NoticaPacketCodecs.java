@@ -6,21 +6,22 @@ import net.minecraft.network.codec.PacketCodecs;
 import work.lclpnet.notica.api.Index;
 import work.lclpnet.notica.api.PlayerConfig;
 import work.lclpnet.notica.api.SongSlice;
-import work.lclpnet.notica.api.data.CustomInstrument;
-import work.lclpnet.notica.api.data.Instruments;
-import work.lclpnet.notica.api.data.LayerInfo;
-import work.lclpnet.notica.api.data.LoopConfig;
+import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
 import work.lclpnet.notica.impl.data.ImmutableCustomInstrument;
 import work.lclpnet.notica.impl.data.ImmutableInstruments;
 import work.lclpnet.notica.impl.data.ImmutableLoopConfig;
+import work.lclpnet.notica.impl.data.ImmutableSongTempo;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class NoticaPacketCodecs {
 
     private NoticaPacketCodecs() {}
+
 
     public static final PacketCodec<PacketByteBuf, PlayerConfig> PLAYER_CONFIG_PACKET_CODEC = PacketCodec.tuple(
             PacketCodecs.FLOAT, PlayerConfig::getVolume,
@@ -95,4 +96,26 @@ public class NoticaPacketCodecs {
 
     public static final PacketCodec<PacketByteBuf, SongSlice> SONG_SLICE_PACKET_CODEC = PacketCodec.ofStatic(
             SongSlicer::writeSlice, SongSlicer::readSlice);
+
+    public static final PacketCodec<PacketByteBuf, SongTempo> SONG_TEMPO = PacketCodec.of((tempo, buf) -> {
+        List<TempoChange> sections = tempo.changes();
+        buf.writeInt(sections.size());
+
+        for (TempoChange change : sections) {
+            buf.writeInt(change.timeTick());
+            buf.writeFloat(change.ticksPerSecond());
+        }
+    }, buf -> {
+        int count = buf.readInt();
+        List<TempoChange> changes = new ArrayList<>(count);
+
+        for (int i = 0; i < count; i++) {
+            int timeTick = buf.readInt();
+            float ticksPerSecond = buf.readFloat();
+
+            changes.add(new TempoChange(timeTick, ticksPerSecond));
+        }
+
+        return new ImmutableSongTempo(changes);
+    });
 }

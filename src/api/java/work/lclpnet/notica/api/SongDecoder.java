@@ -1,23 +1,23 @@
 package work.lclpnet.notica.api;
 
 import org.jetbrains.annotations.NotNull;
-import work.lclpnet.notica.api.data.Layer;
-import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
 import work.lclpnet.notica.impl.data.*;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.IntStream;
 
+import static java.lang.Math.abs;
 import static work.lclpnet.notica.api.IoHelper.*;
 
 public class SongDecoder {
 
     public static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
+    public static final String TEMPO_CHANGER_NAME = "Tempo Changer";
 
     private SongDecoder() {}
 
@@ -158,7 +158,10 @@ public class SongDecoder {
         // CUSTOM INSTRUMENTS
         ImmutableInstruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
 
-        return new ImmutableSong(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
+        // TEMPO
+        SongTempo tempo = buildSongTempo(ticksPerSecond, instruments, layerResult.layers());
+
+        return new ImmutableSong(durationTicks, tempo, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
     }
 
     @NotNull
@@ -243,6 +246,42 @@ public class SongDecoder {
         String originalAuthor = readString(in);
         String description = readString(in);
         return new ImmutableSongMeta(name, author, originalAuthor, description);
+    }
+
+    private static SongTempo buildSongTempo(float ticksPerSecond, Instruments instruments, Index<Layer> layers) {
+        CustomInstrument[] customInstruments = instruments.custom();
+
+        // use base ticksPerSecond as initial tempo (at t=0)
+        List<TempoChange> tempoChanges = new ArrayList<>();
+        tempoChanges.add(new TempoChange(0, ticksPerSecond));
+
+        // check if the song has a custom instrument "Tempo Changer" (semi-official feature of OpenNBS)
+        OptionalInt tempoChangerIndex = IntStream.range(0, customInstruments.length)
+                .filter(i -> TEMPO_CHANGER_NAME.equals(customInstruments[i].name()))
+                .findAny();
+
+        if (tempoChangerIndex.isEmpty()) {
+            return new ImmutableSongTempo(tempoChanges);
+        }
+
+        // now search for notes of the custom instrument type; the pitch will be the new bpm
+        byte tempoChangerInstrument = (byte) (tempoChangerIndex.getAsInt() + instruments.customBegin());
+
+        layers.stream()
+                .flatMap(layer -> layer.notes().stream()
+                        .filter(note -> note.instrument() == tempoChangerInstrument)
+                        .flatMap(note -> Optional.of(layer.notes().index(note))
+                                .filter(OptionalInt::isPresent)
+                                .map(OptionalInt::getAsInt)
+                                .map(time -> new TempoChange(time, bpm2tps(note.pitch())))
+                                .stream()))
+                .forEachOrdered(tempoChanges::add);
+
+        return new ImmutableSongTempo(tempoChanges);
+    }
+
+    private static float bpm2tps(short bpm) {
+        return abs(bpm) / 15.f;
     }
 
     private record LayerResult(Index<Layer> layers, boolean stereo) {}

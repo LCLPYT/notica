@@ -18,8 +18,8 @@ public class SongPlayback implements Runnable {
     private final Song song;
     private final NotePlayer notePlayer;
     private final int durationTicks;
-    private final int periodMs;
-    private final double remainderMs;
+    private int periodMs;
+    private double remainderMs;
     private boolean started = false;
     private int tick = 0;
     private double extraMs = 0f;
@@ -33,7 +33,12 @@ public class SongPlayback implements Runnable {
 
         this.durationTicks = song.durationTicks();
 
-        double exactTempoMs = 1000f / song.ticksPerSecond();
+        updateTempo(song.tempo().tempoAt(0));
+    }
+
+    private void updateTempo(float ticksPerSecond) {
+        double exactTempoMs = 1000f / ticksPerSecond;
+
         this.periodMs = (int) ceil(exactTempoMs);
         this.remainderMs = max(0, periodMs - exactTempoMs);
     }
@@ -96,6 +101,10 @@ public class SongPlayback implements Runnable {
 
                     tick = loopConfig.loopStartTick();
                 }
+            }
+
+            if (song.tempo().changeAt(t)) {
+                updateTempo(song.tempo().tempoAt(t));
             }
 
             long elapsed = currentTimeMillis() - before;

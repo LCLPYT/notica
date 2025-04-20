@@ -1,7 +1,9 @@
 package work.lclpnet.notica.network;
 
 import com.mojang.authlib.GameProfile;
-import net.fabricmc.fabric.api.networking.v1.*;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerLoginConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerLoginNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -24,7 +26,7 @@ import java.util.UUID;
 
 public class NoticaNetworking {
 
-    public static final Protocol PROTOCOL = new Protocol(NoticaInit.identifier("version"), 1);
+    public static final Protocol PROTOCOL = new Protocol(NoticaInit.identifier("version"), 2);
     public static final int MAX_PACKET_BYTES = 0x800000;  // packet size limit imposed by mc
     private static final int RESET_MILLIS = 20_000, MAX_REQUESTS = 40;
     private static NoticaNetworking instance = null;

@@ -1,20 +1,16 @@
 package work.lclpnet.notica.api;
 
-import it.unimi.dsi.fastutil.ints.IntShortPair;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
-import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.api.data.SongMeta;
+import work.lclpnet.notica.api.data.TempoChange;
 import work.lclpnet.notica.impl.data.ImmutableLoopConfig;
 import work.lclpnet.notica.impl.data.ImmutableSongMeta;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,7 +21,7 @@ class SongDecoderTest {
         Song song = parseSong("megalovania");
 
         assertEquals(2302, song.durationTicks());
-        assertEquals(16.0f, song.ticksPerSecond(), 10e-6f);
+        assertEquals(List.of(new TempoChange(0, 16.0f)), song.tempo().changes());
         assertEquals(143.875f, song.durationSeconds(), 1e-6f);
         assertEquals(4, song.signature());
         assertEquals(2304, song.paddedDurationTicks());
@@ -56,25 +52,6 @@ class SongDecoderTest {
     void parse_withTempoChanges() throws IOException {
         Song song = parseSong("tempo_change_test");
 
-        CustomInstrument[] customInstruments = song.instruments().custom();
-
-        int tempoChangerIndex = IntStream.range(0, customInstruments.length)
-                .filter(i -> "Tempo Changer".equals(customInstruments[i].name()))
-                .findAny()
-                .orElseThrow(() -> new IllegalStateException("Tempo Changer not found in song"));
-
-        byte tempoChangerInstrument = (byte) (tempoChangerIndex + song.instruments().customBegin());
-
-        List<IntShortPair> tempoChanges = song.layers().stream()
-                .flatMap(layer -> layer.notes().stream()
-                        .filter(note -> note.instrument() == tempoChangerInstrument)
-                        .flatMap(note -> Optional.of(layer.notes().index(note))
-                                .filter(OptionalInt::isPresent)
-                                .map(OptionalInt::getAsInt)
-                                .map(time -> IntShortPair.of(time, note.pitch()))
-                                .stream()))
-                .toList();
-
         assertEquals(List.of(
                 tempoChange(0, 233),
                 tempoChange(8, 201),
@@ -83,11 +60,11 @@ class SongDecoderTest {
                 tempoChange(24, 150),
                 tempoChange(48, 110),
                 tempoChange(56, 308)
-        ), tempoChanges);
+        ), song.tempo().changes());
     }
 
-    private static IntShortPair tempoChange(int time, int bpm) {
-        return IntShortPair.of(time, (short) bpm);
+    private static TempoChange tempoChange(int time, int bpm) {
+        return new TempoChange(time, Math.abs(bpm) / 15.f);
     }
 
     private @NotNull Song parseSong(String name) throws IOException {

@@ -6,13 +6,14 @@ import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.FixedIndex;
 import work.lclpnet.notica.impl.data.*;
-import work.lclpnet.notica.impl.data.*;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
+
+import static work.lclpnet.notica.api.IoHelper.*;
 
 public class SongDecoder {
 
@@ -44,7 +45,7 @@ public class SongDecoder {
         DataInputStream in = new DataInputStream(input);
 
         // HEADER
-        short durationTicks = IoHelper.readShortLE(in);
+        short durationTicks = readShortLE(in);
 
         final byte songVanillaInstrumentCount, version, customInstrumentOffset;
 
@@ -57,7 +58,7 @@ public class SongDecoder {
 
             // in version 3, length was re-added
             if (version >= 3) {
-                durationTicks = IoHelper.readShortLE(in);
+                durationTicks = readShortLE(in);
             }
         } else {
             version = 0;
@@ -65,23 +66,23 @@ public class SongDecoder {
             customInstrumentOffset = 0;
         }
 
-        final short layerCount = IoHelper.readShortLE(in);
+        final short layerCount = readShortLE(in);
 
         ImmutableSongMeta meta = readMetaData(in);
 
-        float ticksPerSecond = IoHelper.readShortLE(in) / 100f;
+        float ticksPerSecond = readShortLE(in) / 100f;
 
         in.readBoolean();   // auto save
         in.readByte();      // auto save interval
 
         byte timeSignature = in.readByte();      // time signature
 
-        IoHelper.readIntLE(in);      // minutes spent
-        IoHelper.readIntLE(in);      // left clicks
-        IoHelper.readIntLE(in);      // right clicks
-        IoHelper.readIntLE(in);      // note blocks added
-        IoHelper.readIntLE(in);      // note blocks removed
-        IoHelper.readString(in);     // midi/schematic file name
+        readIntLE(in);      // minutes spent
+        readIntLE(in);      // left clicks
+        readIntLE(in);      // right clicks
+        readIntLE(in);      // note blocks added
+        readIntLE(in);      // note blocks removed
+        readString(in);     // midi/schematic file name
 
         ImmutableLoopConfig loopConfig = readLoopConfig(version, in);
 
@@ -93,7 +94,7 @@ public class SongDecoder {
         // iterate ticks
         while (true) {
             // determine next tick
-            short jump = IoHelper.readShortLE(in);
+            short jump = readShortLE(in);
             if (jump == 0) break;  // ticks end
 
             tick += jump;
@@ -103,7 +104,7 @@ public class SongDecoder {
             // iterate layers
             while (true) {
                 // determine layer
-                jump = IoHelper.readShortLE(in);
+                jump = readShortLE(in);
                 if (jump == 0) break;  // layers end
 
                 layer += jump;
@@ -131,7 +132,7 @@ public class SongDecoder {
                         stereo = true;
                     }
 
-                    pitch = IoHelper.readShortLE(in);
+                    pitch = readShortLE(in);
                 } else {
                     velocity = 100;
                     panning = 100;
@@ -139,7 +140,7 @@ public class SongDecoder {
                 }
 
                 var notes = layerNotes.computeIfAbsent((int) layer, i -> new HashMap<>());
-                ImmutableNote note = new ImmutableNote(instrument, key, velocity, panning, pitch);
+                var note = new ImmutableNote(instrument, key, velocity, panning, pitch);
                 notes.put((int) tick, note);
             }
         }
@@ -168,7 +169,7 @@ public class SongDecoder {
         for (int i = 0; i < layerCount; i++) {
             var notes = layerNotes.get(i);
 
-            String name = IoHelper.readString(in);
+            String name = readString(in);
 
             if (version >= 4) {
                 in.readByte();  // locked (unused)
@@ -203,8 +204,8 @@ public class SongDecoder {
         ImmutableCustomInstrument[] customInstruments = new ImmutableCustomInstrument[customInstrumentCount];
 
         for (int i = 0; i < customInstrumentCount; i++) {
-            String name = IoHelper.readString(in);
-            String file = IoHelper.readString(in);
+            String name = readString(in);
+            String file = readString(in);
             byte key = in.readByte();
 
             customInstruments[i] = new ImmutableCustomInstrument(name, file, key);
@@ -230,17 +231,17 @@ public class SongDecoder {
 
         boolean loopEnabled = in.readByte() == 1;
         byte loopCount = in.readByte();
-        short loopStartTick = IoHelper.readShortLE(in);
+        short loopStartTick = readShortLE(in);
 
         return new ImmutableLoopConfig(loopEnabled, loopCount, loopStartTick);
     }
 
     @NotNull
     private static ImmutableSongMeta readMetaData(DataInputStream in) throws IOException {
-        String name = IoHelper.readString(in);
-        String author = IoHelper.readString(in);
-        String originalAuthor = IoHelper.readString(in);
-        String description = IoHelper.readString(in);
+        String name = readString(in);
+        String author = readString(in);
+        String originalAuthor = readString(in);
+        String description = readString(in);
         return new ImmutableSongMeta(name, author, originalAuthor, description);
     }
 

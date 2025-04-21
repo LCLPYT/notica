@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.lang.Math.abs;
 import static work.lclpnet.notica.api.IoHelper.*;
@@ -19,11 +20,13 @@ public class SongDecoder {
     public static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
     public static final String TEMPO_CHANGER_NAME = "Tempo Changer";
 
-    private SongDecoder() {}
+    private SongDecoder() {
+    }
 
     /**
      * Parse a song from an {@link InputStream}.
      * Assumes game version 1.14 or higher.
+     *
      * @param input Any {@link InputStream}.
      * @return The parsed song.
      * @throws IOException If there was an IO error.
@@ -35,7 +38,8 @@ public class SongDecoder {
 
     /**
      * Parse a song from an {@link InputStream}.
-     * @param input Any {@link InputStream}.
+     *
+     * @param input                  Any {@link InputStream}.
      * @param vanillaInstrumentCount The amount of instruments in the current game version.
      * @return The parsed song.
      * @throws IOException If there was an IO error.
@@ -268,13 +272,17 @@ public class SongDecoder {
         byte tempoChangerInstrument = (byte) (tempoChangerIndex.getAsInt() + instruments.customBegin());
 
         layers.stream()
-                .flatMap(layer -> layer.notes().stream()
-                        .filter(note -> note.instrument() == tempoChangerInstrument)
-                        .flatMap(note -> Optional.of(layer.notes().index(note))
-                                .filter(OptionalInt::isPresent)
-                                .map(OptionalInt::getAsInt)
-                                .map(time -> new TempoChange(time, bpm2tps(note.pitch())))
-                                .stream()))
+                .flatMap(layer -> layer.notes().streamKeysOrdered()
+                        .boxed()
+                        .flatMap(time -> {
+                            Note note = layer.notes().get(time);
+
+                            if (note == null || note.instrument() != tempoChangerInstrument) {
+                                return Stream.empty();
+                            }
+
+                            return Stream.of(new TempoChange(time, bpm2tps(note.pitch())));
+                        }))
                 .forEachOrdered(tempoChanges::add);
 
         return new ImmutableSongTempo(tempoChanges);
@@ -284,5 +292,6 @@ public class SongDecoder {
         return abs(bpm) / 15.f;
     }
 
-    private record LayerResult(Index<Layer> layers, boolean stereo) {}
+    private record LayerResult(Index<Layer> layers, boolean stereo) {
+    }
 }

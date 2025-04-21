@@ -1,6 +1,7 @@
 package work.lclpnet.notica.cmd;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -362,7 +363,18 @@ public class MusicCommand {
     private static String transformString(String s) {
         s = s.replace('\\', '/');
 
-        if (s.indexOf(' ') >= 0 || s.indexOf('/') >= 0) {
+        boolean needsQuoting = false;
+
+        for (int i = 0, len = s.length(); i < len; i++) {
+            char c = s.charAt(i);
+
+            if (!StringReader.isAllowedInUnquotedString(c)) {
+                needsQuoting = true;
+                break;
+            }
+        }
+
+        if (needsQuoting) {
             s = '"' + s + '"';
         }
 

@@ -4,6 +4,11 @@ import java.io.DataInputStream;
 import java.io.IOException;
 
 class IoHelper {
+
+    static int readUnsignedShortLE(DataInputStream in) throws IOException {
+        return readShortLE(in) & 0xFFFF;
+    }
+
     static short readShortLE(DataInputStream in) throws IOException {
         int lsb = in.readUnsignedByte();
         int msb = in.readUnsignedByte();

@@ -4,10 +4,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import work.lclpnet.notica.api.Index;
-import work.lclpnet.notica.api.data.Instruments;
-import work.lclpnet.notica.api.data.LayerInfo;
-import work.lclpnet.notica.api.data.LoopConfig;
-import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.api.data.*;
 
 public record SongHeader(Info info, LoopConfig loopConfig, Index<? extends LayerInfo> layerInfo, Instruments instruments) {
 
@@ -26,8 +23,8 @@ public record SongHeader(Info info, LoopConfig loopConfig, Index<? extends Layer
         return info.durationTicks;
     }
 
-    public float ticksPerSecond() {
-        return info.ticksPerSecond;
+    public SongTempo tempo() {
+        return info.tempo;
     }
 
     public boolean stereo() {
@@ -38,17 +35,17 @@ public record SongHeader(Info info, LoopConfig loopConfig, Index<? extends Layer
         return info.signature;
     }
 
-    public record Info(int durationTicks, float ticksPerSecond, boolean stereo, byte signature) {
+    public record Info(int durationTicks, SongTempo tempo, boolean stereo, byte signature) {
 
         public static final PacketCodec<PacketByteBuf, Info> PACKET_CODEC = PacketCodec.tuple(
                 PacketCodecs.INTEGER, Info::durationTicks,
-                PacketCodecs.FLOAT, Info::ticksPerSecond,
+                NoticaPacketCodecs.SONG_TEMPO, Info::tempo,
                 PacketCodecs.BOOLEAN, Info::stereo,
                 PacketCodecs.BYTE, Info::signature,
                 Info::new);
 
         public Info(Song song) {
-            this(song.durationTicks(), song.ticksPerSecond(), song.stereo(), song.signature());
+            this(song.durationTicks(), song.tempo(), song.stereo(), song.signature());
         }
     }
 }

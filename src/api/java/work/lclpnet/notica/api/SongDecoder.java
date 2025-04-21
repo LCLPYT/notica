@@ -1,28 +1,32 @@
 package work.lclpnet.notica.api;
 
 import org.jetbrains.annotations.NotNull;
-import work.lclpnet.notica.api.data.Layer;
-import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
-import work.lclpnet.notica.impl.data.*;
 import work.lclpnet.notica.impl.data.*;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+import static java.lang.Math.abs;
+import static work.lclpnet.notica.api.IoHelper.*;
 
 public class SongDecoder {
 
     public static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
+    public static final String TEMPO_CHANGER_NAME = "Tempo Changer";
 
-    private SongDecoder() {}
+    private SongDecoder() {
+    }
 
     /**
      * Parse a song from an {@link InputStream}.
      * Assumes game version 1.14 or higher.
+     *
      * @param input Any {@link InputStream}.
      * @return The parsed song.
      * @throws IOException If there was an IO error.
@@ -34,7 +38,8 @@ public class SongDecoder {
 
     /**
      * Parse a song from an {@link InputStream}.
-     * @param input Any {@link InputStream}.
+     *
+     * @param input                  Any {@link InputStream}.
      * @param vanillaInstrumentCount The amount of instruments in the current game version.
      * @return The parsed song.
      * @throws IOException If there was an IO error.
@@ -44,7 +49,7 @@ public class SongDecoder {
         DataInputStream in = new DataInputStream(input);
 
         // HEADER
-        short durationTicks = IoHelper.readShortLE(in);
+        int durationTicks = readUnsignedShortLE(in);
 
         final byte songVanillaInstrumentCount, version, customInstrumentOffset;
 
@@ -57,7 +62,7 @@ public class SongDecoder {
 
             // in version 3, length was re-added
             if (version >= 3) {
-                durationTicks = IoHelper.readShortLE(in);
+                durationTicks = readUnsignedShortLE(in);
             }
         } else {
             version = 0;
@@ -65,45 +70,45 @@ public class SongDecoder {
             customInstrumentOffset = 0;
         }
 
-        final short layerCount = IoHelper.readShortLE(in);
+        final int layerCount = readUnsignedShortLE(in);
 
         ImmutableSongMeta meta = readMetaData(in);
 
-        float ticksPerSecond = IoHelper.readShortLE(in) / 100f;
+        float ticksPerSecond = readUnsignedShortLE(in) / 100f;
 
         in.readBoolean();   // auto save
         in.readByte();      // auto save interval
 
         byte timeSignature = in.readByte();      // time signature
 
-        IoHelper.readIntLE(in);      // minutes spent
-        IoHelper.readIntLE(in);      // left clicks
-        IoHelper.readIntLE(in);      // right clicks
-        IoHelper.readIntLE(in);      // note blocks added
-        IoHelper.readIntLE(in);      // note blocks removed
-        IoHelper.readString(in);     // midi/schematic file name
+        readIntLE(in);      // minutes spent
+        readIntLE(in);      // left clicks
+        readIntLE(in);      // right clicks
+        readIntLE(in);      // note blocks added
+        readIntLE(in);      // note blocks removed
+        readString(in);     // midi/schematic file name
 
         ImmutableLoopConfig loopConfig = readLoopConfig(version, in);
 
         // NOTE BLOCKS
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
         boolean stereo = false;
-        short tick = -1;
+        int tick = -1;
 
         // iterate ticks
         while (true) {
             // determine next tick
-            short jump = IoHelper.readShortLE(in);
+            int jump = readUnsignedShortLE(in);
             if (jump == 0) break;  // ticks end
 
             tick += jump;
 
-            short layer = -1;
+            int layer = -1;
 
             // iterate layers
             while (true) {
                 // determine layer
-                jump = IoHelper.readShortLE(in);
+                jump = readUnsignedShortLE(in);
                 if (jump == 0) break;  // layers end
 
                 layer += jump;
@@ -131,16 +136,16 @@ public class SongDecoder {
                         stereo = true;
                     }
 
-                    pitch = IoHelper.readShortLE(in);
+                    pitch = readShortLE(in);
                 } else {
                     velocity = 100;
                     panning = 100;
                     pitch = 0;
                 }
 
-                var notes = layerNotes.computeIfAbsent((int) layer, i -> new HashMap<>());
-                ImmutableNote note = new ImmutableNote(instrument, key, velocity, panning, pitch);
-                notes.put((int) tick, note);
+                var notes = layerNotes.computeIfAbsent(layer, i -> new HashMap<>());
+                var note = new ImmutableNote(instrument, key, velocity, panning, pitch);
+                notes.put(tick, note);
             }
         }
 
@@ -157,18 +162,21 @@ public class SongDecoder {
         // CUSTOM INSTRUMENTS
         ImmutableInstruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
 
-        return new ImmutableSong(durationTicks, ticksPerSecond, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
+        // TEMPO
+        SongTempo tempo = buildSongTempo(ticksPerSecond, instruments, layerResult.layers());
+
+        return new ImmutableSong(durationTicks, tempo, meta, loopConfig, layerResult.layers(), instruments, stereo, timeSignature);
     }
 
     @NotNull
-    private static LayerResult readLayers(short layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
+    private static LayerResult readLayers(int layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
         Map<Integer, Layer> layers = new HashMap<>(layerCount);
         boolean stereo = false;
 
         for (int i = 0; i < layerCount; i++) {
             var notes = layerNotes.get(i);
 
-            String name = IoHelper.readString(in);
+            String name = readString(in);
 
             if (version >= 4) {
                 in.readByte();  // locked (unused)
@@ -203,8 +211,8 @@ public class SongDecoder {
         ImmutableCustomInstrument[] customInstruments = new ImmutableCustomInstrument[customInstrumentCount];
 
         for (int i = 0; i < customInstrumentCount; i++) {
-            String name = IoHelper.readString(in);
-            String file = IoHelper.readString(in);
+            String name = readString(in);
+            String file = readString(in);
             byte key = in.readByte();
 
             customInstruments[i] = new ImmutableCustomInstrument(name, file, key);
@@ -230,19 +238,60 @@ public class SongDecoder {
 
         boolean loopEnabled = in.readByte() == 1;
         byte loopCount = in.readByte();
-        short loopStartTick = IoHelper.readShortLE(in);
+        int loopStartTick = readUnsignedShortLE(in);
 
         return new ImmutableLoopConfig(loopEnabled, loopCount, loopStartTick);
     }
 
     @NotNull
     private static ImmutableSongMeta readMetaData(DataInputStream in) throws IOException {
-        String name = IoHelper.readString(in);
-        String author = IoHelper.readString(in);
-        String originalAuthor = IoHelper.readString(in);
-        String description = IoHelper.readString(in);
+        String name = readString(in);
+        String author = readString(in);
+        String originalAuthor = readString(in);
+        String description = readString(in);
         return new ImmutableSongMeta(name, author, originalAuthor, description);
     }
 
-    private record LayerResult(Index<Layer> layers, boolean stereo) {}
+    private static SongTempo buildSongTempo(float ticksPerSecond, Instruments instruments, Index<Layer> layers) {
+        CustomInstrument[] customInstruments = instruments.custom();
+
+        // use base ticksPerSecond as initial tempo (at t=0)
+        List<TempoChange> tempoChanges = new ArrayList<>();
+        tempoChanges.add(new TempoChange(0, ticksPerSecond));
+
+        // check if the song has a custom instrument "Tempo Changer" (semi-official feature of OpenNBS)
+        OptionalInt tempoChangerIndex = IntStream.range(0, customInstruments.length)
+                .filter(i -> TEMPO_CHANGER_NAME.equals(customInstruments[i].name()))
+                .findAny();
+
+        if (tempoChangerIndex.isEmpty()) {
+            return new ImmutableSongTempo(tempoChanges);
+        }
+
+        // now search for notes of the custom instrument type; the pitch will be the new bpm
+        byte tempoChangerInstrument = (byte) (tempoChangerIndex.getAsInt() + instruments.customBegin());
+
+        layers.stream()
+                .flatMap(layer -> layer.notes().streamKeysOrdered()
+                        .boxed()
+                        .flatMap(time -> {
+                            Note note = layer.notes().get(time);
+
+                            if (note == null || note.instrument() != tempoChangerInstrument) {
+                                return Stream.empty();
+                            }
+
+                            return Stream.of(new TempoChange(time, bpm2tps(note.pitch())));
+                        }))
+                .forEachOrdered(tempoChanges::add);
+
+        return new ImmutableSongTempo(tempoChanges);
+    }
+
+    private static float bpm2tps(short bpm) {
+        return abs(bpm) / 15.f;
+    }
+
+    private record LayerResult(Index<Layer> layers, boolean stereo) {
+    }
 }

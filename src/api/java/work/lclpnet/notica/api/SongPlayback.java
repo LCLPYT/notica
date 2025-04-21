@@ -9,13 +9,17 @@ import work.lclpnet.notica.api.data.Song;
 
 import java.util.Objects;
 
+import static java.lang.Math.*;
+import static java.lang.System.currentTimeMillis;
+import static java.lang.Thread.sleep;
+
 public class SongPlayback implements Runnable {
 
     private final Song song;
     private final NotePlayer notePlayer;
-    private final int ticks;
-    private final int period;
-    private final double remainder;
+    private final int durationTicks;
+    private int periodMs;
+    private double remainderMs;
     private boolean started = false;
     private int tick = 0;
     private double extraMs = 0f;
@@ -27,36 +31,37 @@ public class SongPlayback implements Runnable {
         this.song = Objects.requireNonNull(song, "Song must not be null");
         this.notePlayer = Objects.requireNonNull(notePlayer, "NotePlayer must not be null");
 
-        this.ticks = song.durationTicks();
+        this.durationTicks = song.durationTicks();
 
-        double exactTempo = 1000f / song.ticksPerSecond();
-        this.period = (int) Math.ceil(exactTempo);
-        this.remainder = Math.max(0, period - exactTempo);
+        updateTempo(song.tempo().tempoAt(0));
     }
 
-    public void start(int startTick) {
-        synchronized (this) {
-            if (started) return;
-            started = true;
+    private void updateTempo(float ticksPerSecond) {
+        double exactTempoMs = 1000f / ticksPerSecond;
 
-            tick = startTick;
-
-            thread = new Thread(this, "Song Player");
-            thread.setDaemon(true);
-            thread.start();
-        }
+        this.periodMs = (int) ceil(exactTempoMs);
+        this.remainderMs = max(0, periodMs - exactTempoMs);
     }
 
-    public void stop() {
-        synchronized (this) {
-            if (!started) return;
-            started = false;
-            stopped = true;
+    public synchronized void start(int startTick) {
+        if (started) return;
+        started = true;
 
-            if (thread != null && thread.isAlive()) {
-                thread.interrupt();
-                thread = null;
-            }
+        tick = startTick;
+
+        thread = new Thread(this, "Song Player");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    public synchronized void stop() {
+        if (!started) return;
+        started = false;
+        stopped = true;
+
+        if (thread != null && thread.isAlive()) {
+            thread.interrupt();
+            thread = null;
         }
     }
 
@@ -70,14 +75,14 @@ public class SongPlayback implements Runnable {
         final int endTick;
 
         if (shouldLoop) {
-            int interval = Math.max(2, Math.min(song.signature(), 8)) * 4;
-            endTick = ticks + interval - (ticks % interval);
+            int interval = max(2, Math.min(song.signature(), 8)) * 4;
+            endTick = durationTicks + interval - (durationTicks % interval);
         } else {
-            endTick = ticks + 1;
+            endTick = durationTicks + 1;
         }
 
         while (started && tick < endTick) {
-            final long before = System.currentTimeMillis();
+            final long before = currentTimeMillis();
             final int t = tick++;
 
             for (Layer layer : song.layers()) {
@@ -98,21 +103,25 @@ public class SongPlayback implements Runnable {
                 }
             }
 
-            long elapsed = System.currentTimeMillis() - before;
+            if (song.tempo().changeAt(t)) {
+                updateTempo(song.tempo().tempoAt(t));
+            }
+
+            long elapsed = currentTimeMillis() - before;
 
             if (extraMs >= 1.0) {
-                int w = (int) Math.floor(extraMs);
+                int w = (int) floor(extraMs);
                 elapsed += w;
                 extraMs -= w;
             }
 
-            long waitMs = period - elapsed;
-            extraMs += remainder;
+            long waitMs = periodMs - elapsed;
+            extraMs += remainderMs;
 
             if (waitMs <= 0) continue;
 
             try {
-                Thread.sleep(period);
+                sleep(periodMs);
             } catch (InterruptedException ignored) {}
         }
 
@@ -131,9 +140,9 @@ public class SongPlayback implements Runnable {
         synchronized (this) {
             if (onComplete != null) return onComplete;
 
-            onComplete = HookFactory.createArrayBacked(Runnable.class, callbacks -> () -> {
-                for (var callback : callbacks) {
-                    callback.run();
+            onComplete = HookFactory.createArrayBacked(Runnable.class, hooks -> () -> {
+                for (var hook : hooks) {
+                    hook.run();
                 }
             });
         }
@@ -141,9 +150,7 @@ public class SongPlayback implements Runnable {
         return onComplete;
     }
 
-    public boolean isStopped() {
-        synchronized (this) {
-            return stopped;
-        }
+    public synchronized boolean isStopped() {
+        return stopped;
     }
 }

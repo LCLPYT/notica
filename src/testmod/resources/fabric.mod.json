@@ -1,0 +1,20 @@
+{
+	"schemaVersion": 1,
+	"id": "notica-test",
+	"version": "${version}",
+	"name": "notica-test",
+	"description": "[Test Mod] Play Note Block songs in-game! Vanilla and modded players are supported. Extends the note octave range.",
+	"authors": [
+		"LCLP"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"work.lclpnet.notica.NoticaTestInit"
+		]
+	},
+	"depends": {
+		"notica": "*"
+	}
+}

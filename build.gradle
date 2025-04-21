@@ -31,6 +31,16 @@ loom {
             sourceSet sourceSets.client
         }
     }
+
+    runs {
+        named('server') {
+            source 'testmod'
+        }
+
+        named('client') {
+            source 'testmod'
+        }
+    }
 }
 
 sourceSets {
@@ -49,6 +59,11 @@ sourceSets {
     test {
         compileClasspath += client.getOutput() + api.getOutput()
         runtimeClasspath += client.getOutput() + api.getOutput()
+    }
+
+    testmod {
+        compileClasspath += main.compileClasspath + main.getOutput() + client.compileClasspath + client.getOutput()
+        runtimeClasspath += main.runtimeClasspath + main.getOutput() + client.runtimeClasspath + client.getOutput()
     }
 }
 
@@ -88,12 +103,12 @@ afterEvaluate {
     }
 }
 
-processResources {
-	inputs.property "version", project.version
+[processResources, processTestmodResources].each {
+    it.inputs.property "version", project.version
 
-	filesMatching("fabric.mod.json") {
-		expand "version": project.version
-	}
+    it.filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

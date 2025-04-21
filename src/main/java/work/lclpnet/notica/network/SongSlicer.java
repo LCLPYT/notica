@@ -13,10 +13,13 @@ import work.lclpnet.notica.impl.data.ImmutableNote;
 
 import java.util.Map;
 
+import static java.lang.Math.min;
+
 public class SongSlicer {
 
     public static SongSlice sliceSeconds(Song song, int tickOffset, int seconds) {
-        int tickEnd = Math.min(song.durationTicks(), tickOffset + (int) Math.ceil(seconds * song.ticksPerSecond()));
+        int ticks = song.tempo().durationTicks(tickOffset, seconds);
+        int tickEnd = min(song.durationTicks(), tickOffset + ticks);
         int maxLayerIndex = song.layers().streamKeysOrdered().max().orElse(-1);
 
         return new ConcreteSongSlice(song, tickOffset, tickEnd, 0, maxLayerIndex);

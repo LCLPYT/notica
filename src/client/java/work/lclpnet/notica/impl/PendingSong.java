@@ -12,7 +12,7 @@ import java.util.HashMap;
 public class PendingSong implements Song {
 
     private final int durationTicks;
-    private final float ticksPerSecond;
+    private final SongTempo tempo;
     private final LoopConfig loopConfig;
     private final Index<MutableLayer> layers;
     private final Instruments instruments;
@@ -26,7 +26,7 @@ public class PendingSong implements Song {
 
     public PendingSong(SongHeader header, int startTick) {
         this.durationTicks = header.durationTicks();
-        this.ticksPerSecond = header.ticksPerSecond();
+        this.tempo = header.tempo();
         this.loopConfig = header.loopConfig();
         this.instruments = header.instruments();
         this.stereo = header.stereo();
@@ -53,8 +53,8 @@ public class PendingSong implements Song {
     }
 
     @Override
-    public float ticksPerSecond() {
-        return ticksPerSecond;
+    public SongTempo tempo() {
+        return tempo;
     }
 
     @Override

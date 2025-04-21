@@ -150,6 +150,9 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), List.of(player));
+
         return playSong(source, List.of(player), path, id);
     }
 
@@ -159,6 +162,9 @@ public class MusicCommand {
 
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), listeners);
 
         return playSong(ctx.getSource(), listeners, path, id);
     }
@@ -228,18 +234,11 @@ public class MusicCommand {
 
     private int stopAllSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
-
-        Notica api = Notica.getInstance(player.getServer());
-        var handles = api.getPlayingSongs(player);
-        boolean empty = handles.isEmpty();
-
-        for (SongHandle handle : handles) {
-            handle.remove(player);
-        }
+        int stopped = stopAllSongs(ctx.getSource(), List.of(player));
 
         RootText msg;
 
-        if (empty) {
+        if (stopped == 0) {
             msg = translations.translateText(player, "notica.music.none_playing").formatted(RED);
         } else {
             msg = translations.translateText(player, "notica.music.stopped.all").formatted(GREEN);
@@ -247,7 +246,7 @@ public class MusicCommand {
 
         player.sendMessage(msg);
 
-        return empty ? 0 : 1;
+        return stopped;
     }
 
     private int stopAll(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -259,17 +258,7 @@ public class MusicCommand {
             throw errorNoPermissionStopOther.create();
         }
 
-        Notica api = Notica.getInstance(source.getServer());
-
-        int stopped = 0;
-
-        for (ServerPlayerEntity listener : listeners) {
-            for (SongHandle handle : api.getPlayingSongs(listener)) {
-                stopped++;
-
-                handle.remove(listener);
-            }
-        }
+        int stopped = stopAllSongs(source, listeners);
 
         RootText msg;
 
@@ -283,6 +272,22 @@ public class MusicCommand {
         source.sendMessage(msg);
 
         return empty ? 0 : 1;
+    }
+
+    private int stopAllSongs(ServerCommandSource source, Collection<ServerPlayerEntity> listeners) {
+        Notica api = Notica.getInstance(source.getServer());
+
+        int stopped = 0;
+
+        for (ServerPlayerEntity listener : listeners) {
+            for (SongHandle handle : api.getPlayingSongs(listener)) {
+                stopped++;
+
+                handle.remove(listener);
+            }
+        }
+
+        return stopped;
     }
 
     private int stopSong(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {

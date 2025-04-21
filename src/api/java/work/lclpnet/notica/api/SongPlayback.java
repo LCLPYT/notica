@@ -75,7 +75,7 @@ public class SongPlayback implements Runnable {
         final int endTick;
 
         if (shouldLoop) {
-            int interval = max(2, Math.min(song.signature(), 8)) * 4;
+            int interval = max(2, min(song.signature(), 8)) * 4;
             endTick = durationTicks + interval - (durationTicks % interval);
         } else {
             endTick = durationTicks + 1;

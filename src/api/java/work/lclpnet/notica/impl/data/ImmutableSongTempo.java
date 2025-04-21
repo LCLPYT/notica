@@ -125,12 +125,18 @@ public class ImmutableSongTempo implements SongTempo {
             int section = sectionAt(offsetTicks);
 
             if (section < sectionStarts.length - 1) {
-                // there is a next section, return remaining ticks as seconds, capped by seconds until next section
+                // there is a next section, get section length in ticks, then convert to seconds
                 int sectionTicks = sectionStarts[section + 1] - offsetTicks;
-                float sectionSeconds = min(remainingSeconds, sectionTicks / sectionTempo[section]);
+                float sectionSeconds = sectionTicks / sectionTempo[section];
+                float seconds = min(remainingSeconds, sectionSeconds);
+
+                // adjust ticks in case the remaining seconds cap was reached
+                if (seconds < sectionSeconds) {
+                    sectionTicks = (int) ceil(seconds * sectionTempo[section]);
+                }
 
                 durationTicks += sectionTicks;
-                remainingSeconds -= sectionSeconds;
+                remainingSeconds -= seconds;
                 offsetTicks += sectionTicks;
             } else {
                 // this is the last section, return remaining seconds as ticks

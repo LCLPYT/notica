@@ -94,4 +94,15 @@ class ImmutableSongTempoTest {
 
         assertEquals(expectedTicks, tempo.durationTicks(7, targetSeconds));
     }
+
+    @Test
+    void durationTicks_shorterDurationThanSegmentLength_correct() {
+        var tempo = new ImmutableSongTempo(List.of(
+                new TempoChange(0, 10),
+                new TempoChange(1, 20),
+                new TempoChange(32_000, 40)
+        ));
+
+        assertEquals(99, tempo.durationTicks(0, 5.f));
+    }
 }

@@ -75,7 +75,7 @@ public class ImmutableSongTempo implements SongTempo {
             return i;
         }
 
-        // exact time is not in the sectionStarts array, use to the previous section (similar to floor())
+        // exact time is not in the sectionStarts array, use the previous section (similar to floor())
         return max(0, -(i + 1) - 1);
 
     }
@@ -111,7 +111,7 @@ public class ImmutableSongTempo implements SongTempo {
         // end section
         if (endSection != startTicks) {
             sectionTicks = getSectionTicks(endSection, offsetTicks, durationTicks);
-            timeSeconds += sectionTicks / sectionTempo[endTicks];
+            timeSeconds += sectionTicks / sectionTempo[endSection];
         }
 
         return timeSeconds;

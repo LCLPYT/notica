@@ -19,11 +19,13 @@ public class ClientBasicNotePlayer implements NotePlayer {
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
     private final PlayerConfig playerConfig;
+    private final DirectSoundManager directSoundManager;
 
-    public ClientBasicNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig) {
+    public ClientBasicNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig, DirectSoundManager directSoundManager) {
         this.soundProvider = soundProvider;
         this.volume = volume;
         this.playerConfig = playerConfig;
+        this.directSoundManager = directSoundManager;
     }
 
     @Override
@@ -52,8 +54,11 @@ public class ClientBasicNotePlayer implements NotePlayer {
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
 
+        // for custom sounds, find out if there is a Sound for the id (only if there is none)
+        // then mixin into SoundSystem.play and allow it through
         var instance = new NbsSoundInstance(sound.id(), SoundCategory.RECORDS, volume, openAlPitch,
-                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true);
+                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true,
+                directSoundManager);
 
         client.executeSync(() -> client.getSoundManager().play(instance));
     }

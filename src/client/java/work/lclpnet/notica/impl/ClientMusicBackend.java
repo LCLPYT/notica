@@ -23,6 +23,7 @@ public class ClientMusicBackend {
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfigEntry playerConfig;
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
+    private final DirectSoundManager directSoundManager = new DirectSoundManager();
 
     public ClientMusicBackend(ClientSongRepository songRepository, Logger logger, InstrumentSoundProvider soundProvider,
                               PlayerConfigEntry playerConfig) {
@@ -42,7 +43,7 @@ public class ClientMusicBackend {
 
         stopSong(songId);
 
-        NotePlayer notePlayer = new ClientBasicNotePlayer(soundProvider, volume, playerConfig);
+        NotePlayer notePlayer = new ClientBasicNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
         SongPlayback playback = new SongPlayback(song, notePlayer);
 
         playback.whenDone(() -> {

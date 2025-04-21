@@ -10,6 +10,7 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
+import work.lclpnet.notica.api.SongDecoder;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.util.NoteHelper;
 
@@ -100,6 +101,12 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
 
     @Nullable
     private SoundEvent fetchCustomSound(CustomInstrument instrument) {
+        String name = instrument.name();
+
+        if (SongDecoder.TEMPO_CHANGER_NAME.equals(name)) {
+            return null;
+        }
+
         String file = instrument.soundFile();
 
         if (file.endsWith(".ogg")) {
@@ -123,7 +130,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // try the sound name instead
-        Identifier idFromName = Identifier.tryParse(instrument.name());
+        Identifier idFromName = Identifier.tryParse(name);
 
         if (idFromName != null) {
             SoundEvent sound = soundRegistry.get(idFromName);

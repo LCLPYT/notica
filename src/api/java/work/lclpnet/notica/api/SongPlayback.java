@@ -93,6 +93,10 @@ public class SongPlayback implements Runnable {
                 notePlayer.playNote(song, layer, note);
             }
 
+            if (notePlayer instanceof AggregatingPlayer aggregatingPlayer) {
+                aggregatingPlayer.finishAggregation();
+            }
+
             if (shouldLoop && tick == endTick) {
                 boolean infinite = loopConfig.infinite();
 

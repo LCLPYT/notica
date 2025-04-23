@@ -43,7 +43,7 @@ public class ClientMusicBackend {
 
         stopSong(songId);
 
-        NotePlayer notePlayer = new ClientBasicNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
         SongPlayback playback = new SongPlayback(song, notePlayer);
 
         playback.whenDone(() -> {

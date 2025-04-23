@@ -3,8 +3,10 @@ package work.lclpnet.notica.impl;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.sound.SoundManager;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
+import work.lclpnet.notica.api.AggregatingPlayer;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -14,14 +16,24 @@ import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.util.NoteHelper;
 
-public class ClientBasicNotePlayer implements NotePlayer {
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.lang.Math.max;
+
+public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlayer {
+
+    private static final int MAX_QUEUED_NOTES = 1024;
 
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
     private final PlayerConfig playerConfig;
     private final DirectSoundManager directSoundManager;
+    private final List<NbsSoundInstance> notes = new ArrayList<>(16);
+    private int deSyncedNotes = 0;
 
-    public ClientBasicNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig, DirectSoundManager directSoundManager) {
+    public ClientAggregatingNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig,
+                                       DirectSoundManager directSoundManager) {
         this.soundProvider = soundProvider;
         this.volume = volume;
         this.playerConfig = playerConfig;
@@ -60,6 +72,34 @@ public class ClientBasicNotePlayer implements NotePlayer {
                 player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true,
                 directSoundManager);
 
-        client.executeSync(() -> client.getSoundManager().play(instance));
+        synchronized (this) {
+            if (notes.size() < MAX_QUEUED_NOTES) {
+                notes.add(instance);
+            }
+        }
+    }
+
+    @Override
+    public void finishAggregation() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        SoundManager soundManager = client.getSoundManager();
+
+        int count;
+
+        synchronized (this) {
+            count = max(0, notes.size() - deSyncedNotes);
+            deSyncedNotes += count;
+        }
+
+        client.executeSync(() -> {
+            synchronized (this) {
+                List<NbsSoundInstance> range = notes.subList(0, count);
+
+                range.forEach(soundManager::play);
+                range.clear();
+
+                deSyncedNotes -= count;
+            }
+        });
     }
 }

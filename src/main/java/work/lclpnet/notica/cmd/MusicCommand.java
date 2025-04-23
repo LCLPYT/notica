@@ -16,6 +16,7 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
@@ -23,7 +24,9 @@ import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
 import work.lclpnet.kibu.translate.text.RootText;
 import work.lclpnet.notica.Notica;
+import work.lclpnet.notica.api.CheckedSong;
 import work.lclpnet.notica.api.SongHandle;
+import work.lclpnet.notica.api.data.SongMeta;
 import work.lclpnet.notica.impl.NoticaImpl;
 import work.lclpnet.notica.util.NoticaServerPackManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
@@ -221,8 +224,7 @@ public class MusicCommand {
         }).thenAccept(song -> {
             if (song == null) return;
 
-            var msg = translations.translateText(source, "notica.music.play", styled(relativePath, YELLOW))
-                    .formatted(GREEN);
+            Text msg = getPlayingMessage(source, relativePath, song);
 
             source.sendMessage(msg);
 
@@ -231,6 +233,38 @@ public class MusicCommand {
         });
 
         return 1;
+    }
+
+    private Text getPlayingMessage(ServerCommandSource source, Path relativePath, CheckedSong checkedSong) {
+        SongMeta meta = checkedSong.song().metaData();
+        String name = meta.name().isBlank() ? relativePath.toString() : meta.name();
+
+        var nameText = Text.literal(name).formatted(YELLOW);
+
+        if (!meta.description().isBlank()) {
+            var hoverText = Text.literal(meta.description()).formatted(GREEN);
+
+            nameText.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(hoverText)));
+        }
+
+        if (meta.author().isBlank() && meta.originalAuthor().isBlank()) {
+            return translations.translateText(source, "notica.music.play", nameText).formatted(GREEN);
+        }
+
+        if (!meta.author().isBlank() && !meta.originalAuthor().isBlank()) {
+            return translations.translateText(
+                    source,
+                    "notica.music.play_author_original",
+                    nameText,
+                    styled(meta.author(), AQUA),
+                    translations.translateText(source, "notica.music.original_author", meta.originalAuthor()).formatted(GRAY)
+            ).formatted(GREEN);
+        }
+
+        String author = meta.author().isBlank() ? meta.originalAuthor() : meta.author();
+
+        return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA))
+                .formatted(GREEN);
     }
 
     private int stopAllSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -332,7 +366,7 @@ public class MusicCommand {
 
     private CompletableFuture<Suggestions> availableSongFiles(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
         return CompletableFuture.supplyAsync(() -> {
-            try (var files = Files.walk(songDirectory, 8)){
+            try (var files = Files.walk(songDirectory, 8)) {
                 files.filter(path -> path.getFileName().toString().endsWith(".nbs") && Files.isRegularFile(path))
                         .map(songDirectory::relativize)
                         .map(Path::toString)

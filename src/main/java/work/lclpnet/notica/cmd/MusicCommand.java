@@ -11,21 +11,27 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import it.unimi.dsi.fastutil.ints.IntObjectPair;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
+import work.lclpnet.kibu.translate.text.FormatWrapper;
 import work.lclpnet.kibu.translate.text.RootText;
+import work.lclpnet.kibu.translate.text.TextTranslatable;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.api.CheckedSong;
 import work.lclpnet.notica.api.SongHandle;
+import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.api.data.SongMeta;
 import work.lclpnet.notica.impl.NoticaImpl;
 import work.lclpnet.notica.util.NoticaServerPackManager;
@@ -37,11 +43,19 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import static java.lang.Integer.parseInt;
+import static java.lang.Integer.signum;
+import static java.lang.Math.abs;
+import static java.util.stream.Collectors.toSet;
 import static me.lucko.fabric.api.permissions.v0.Permissions.require;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -50,6 +64,10 @@ import static work.lclpnet.kibu.translate.text.FormatWrapper.styled;
 import static work.lclpnet.notica.NoticaInit.permission;
 
 public class MusicCommand {
+
+    public static final Pattern
+            TIME_SEGMENT = Pattern.compile("((?:[+-]\\s*)?\\d+)\\s*(sec|min|ticks|[smt])"),
+            TIME_PATTERN = Pattern.compile("^(?:%s)+$".formatted(TIME_SEGMENT.pattern()));
 
     private final Path songDirectory;
     private final Translations translations;
@@ -97,7 +115,17 @@ public class MusicCommand {
                                         .executes(this::changeExtendedRange)))
                         .then(literal("volume")
                                 .then(argument("percent", FloatArgumentType.floatArg(0f, 100f))
-                                        .executes(this::changeVolume))));
+                                        .executes(this::changeVolume))))
+                .then(literal("seek")
+                        .requires(require(permission("command.music.seek"), 2))
+                        .then(argument("time", StringArgumentType.string())
+                                .suggests(this::suggestTimes)
+                                .executes(this::seekAutoSelf)
+                                .then(argument("listeners", EntityArgumentType.players())
+                                        .executes(this::seekAuto)
+                                        .then(argument("id", IdentifierArgumentType.identifier())
+                                                .suggests(this::commonPlayingSongIds)
+                                                .executes(this::seekId)))));
     }
 
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -364,6 +392,164 @@ public class MusicCommand {
         return 1;
     }
 
+    private int seekAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+        String time = StringArgumentType.getString(ctx, "time");
+        
+        ServerCommandSource source = ctx.getSource();
+
+        TimeOffsets timeOffsets = parseOffsets(time, source);
+
+        if (timeOffsets == null) {
+            return 0;
+        }
+        
+        Set<SongHandle> songHandles = Notica.getInstance(player.getServer()).getPlayingSongs(player);
+
+        return seekAllWithOffsets(source, songHandles, timeOffsets);
+    }
+
+    private int seekAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        String time = StringArgumentType.getString(ctx, "time");
+        var players = EntityArgumentType.getPlayers(ctx, "listeners");
+
+        ServerCommandSource source = ctx.getSource();
+
+        TimeOffsets timeOffsets = parseOffsets(time, source);
+
+        if (timeOffsets == null) {
+            return 0;
+        }
+
+        Notica api = Notica.getInstance(source.getServer());
+
+        Set<SongHandle> songHandles = players.stream()
+                .flatMap(player -> api.getPlayingSongs(player).stream())
+                .collect(toSet());
+
+        return seekAllWithOffsets(source, songHandles, timeOffsets);
+    }
+
+    private int seekId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        String time = StringArgumentType.getString(ctx, "time");
+        var players = EntityArgumentType.getPlayers(ctx, "listeners");
+        Identifier songId = IdentifierArgumentType.getIdentifier(ctx, "id");
+
+        ServerCommandSource source = ctx.getSource();
+
+        TimeOffsets timeOffsets = parseOffsets(time, source);
+
+        if (timeOffsets == null) {
+            return 0;
+        }
+
+        Notica api = Notica.getInstance(source.getServer());
+
+        Set<SongHandle> songHandles = players.stream()
+                .flatMap(player -> api.getPlayingSong(player, songId).stream())
+                .collect(toSet());
+
+        return seekAllWithOffsets(source, songHandles, timeOffsets);
+    }
+
+    private int seekAllWithOffsets(ServerCommandSource source, Set<SongHandle> songHandles, TimeOffsets timeOffsets) {
+        if (songHandles.isEmpty()) {
+            source.sendMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            return 0;
+        }
+
+        for (SongHandle handle : songHandles) {
+            seekWithOffsets(handle, timeOffsets);
+        }
+
+        ServerPlayerEntity player = source.getPlayer();
+        String language = player != null ? translations.getLanguage(player) : "en_us";
+
+        FormatWrapper offsetsWrapped = styled(timeOffsets.translatedText(translations).translateTo(language), YELLOW);
+        String translationKey = timeOffsets.absolute ? "notica.music.seek.absolute" : "notica.music.seek.relative";
+
+        source.sendMessage(translations.translateText(source, translationKey, offsetsWrapped).formatted(GREEN));
+
+        return 1;
+    }
+
+    private @Nullable TimeOffsets parseOffsets(String time, ServerCommandSource source) {
+        if (!TIME_PATTERN.matcher(time).matches()) {
+            source.sendMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).formatted(RED));
+            return null;
+        }
+
+        Matcher matcher = TIME_SEGMENT.matcher(time);
+        List<IntObjectPair<TimeUnit>> offsets = new ArrayList<>();
+        boolean firstMatch = true;
+        boolean absolute = true;
+
+        while (matcher.find()) {
+            String amountStr = matcher.group(1);
+            String unitStr = matcher.group(2);
+
+            if (firstMatch) {
+                firstMatch = false;
+
+                if (!amountStr.isEmpty() && (amountStr.charAt(0) == '+' || amountStr.charAt(0) == '-')) {
+                    absolute = false;
+                }
+            }
+
+            int amount;
+
+            try {
+                amount = parseInt(amountStr);
+            } catch (NumberFormatException e) {
+                source.sendMessage(translations.translateText(source, "notica.music.seek.error_time", styled(amountStr, YELLOW)).formatted(RED));
+                logger.error("Failed to parse as integer: {}", amountStr, e);
+                continue;
+            }
+
+            TimeUnit unit = switch (unitStr) {
+                case "sec", "s" -> TimeUnit.SECONDS;
+                case "min", "m" -> TimeUnit.MINUTES;
+                case "ticks", "t" -> TimeUnit.TICKS;
+                default -> null;
+            };
+
+            if (unit == null) {
+                logger.error("Unknown time unit: {}", unitStr);
+                continue;
+            }
+
+            if (amount == 0) continue;
+
+            offsets.add(IntObjectPair.of(amount, unit));
+        }
+
+        if (offsets.isEmpty()) {
+            return null;
+        }
+
+        return new TimeOffsets(offsets, absolute);
+    }
+
+    private void seekWithOffsets(SongHandle handle, TimeOffsets timeOffsets) {
+        Song song = handle.getSong();
+
+        int ticks = 0;
+
+        for (IntObjectPair<TimeUnit> offset : timeOffsets.offsets()) {
+            int amount = offset.keyInt();
+
+            int offsetTicks = switch (offset.value()) {
+                case TICKS -> abs(amount);
+                case SECONDS -> song.tempo().durationTicks(ticks, amount);
+                case MINUTES -> song.tempo().durationTicks(ticks, amount * 60);
+            };
+
+            ticks += signum(amount) * offsetTicks;
+        }
+
+        handle.seekTo(ticks, timeOffsets.absolute());
+    }
+
     private CompletableFuture<Suggestions> availableSongFiles(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
         return CompletableFuture.supplyAsync(() -> {
             try (var files = Files.walk(songDirectory, 8)) {
@@ -428,4 +614,48 @@ public class MusicCommand {
 
         return !instance.hasModInstalled(player);
     }
+
+    private CompletableFuture<Suggestions> suggestTimes(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+        builder.suggest("+10s");
+        builder.suggest("-10s");
+        builder.suggest("15s");
+        builder.suggest("1m5s");
+        builder.suggest("50sec+3ticks");
+        builder.suggest("1min-50ticks");
+
+        return builder.buildFuture();
+    }
+    
+    private record TimeOffsets(List<IntObjectPair<TimeUnit>> offsets, boolean absolute) {
+
+        public TextTranslatable translatedText(Translations translations) {
+            return lang -> {
+                MutableText acc = Text.empty();
+                boolean first = true;
+
+                for (IntObjectPair<TimeUnit> timeUnitIntObjectPair : offsets) {
+                    int num = timeUnitIntObjectPair.keyInt();
+                    char sign = num >= 0 ? '+' : '-';
+
+                    String translationKey = switch (timeUnitIntObjectPair.value()) {
+                        case TICKS -> "notica.time.ticks";
+                        case SECONDS -> "notica.time.seconds";
+                        case MINUTES -> "notica.time.minutes";
+                    };
+
+                    String msg = first ? "" : " ";
+                    msg += !absolute || !first ? sign + " " : "";
+                    msg += translations.translateText(lang, translationKey, abs(num)).getString();
+
+                    acc = acc.append(msg);
+
+                    first = false;
+                }
+
+                return acc;
+            };
+        }
+    }
+
+    private enum TimeUnit { TICKS, SECONDS, MINUTES;}
 }

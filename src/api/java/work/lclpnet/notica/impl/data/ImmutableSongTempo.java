@@ -119,14 +119,31 @@ public class ImmutableSongTempo implements SongTempo {
 
     @Override
     public int durationTicks(int offsetTicks, float remainingSeconds) {
+        // whether the seconds should be calculated forwards (> 0) or backwards (< 0)
+        int direction = (int) signum(remainingSeconds);
+
+        if (direction == 0) {
+            return 0;
+        }
+
+        remainingSeconds = abs(remainingSeconds);
+
         int durationTicks = 0;
 
         while (remainingSeconds > 0) {
             int section = sectionAt(offsetTicks);
 
-            if (section < sectionStarts.length - 1) {
-                // there is a next section, get section length in ticks, then convert to seconds
-                int sectionTicks = sectionStarts[section + 1] - offsetTicks;
+            if ((direction > 0 && section < sectionStarts.length - 1) || (direction < 0 && section > 0)) {
+                int sectionTicks;
+
+                if (direction > 0) {
+                    // there is a next section, get section length in ticks, then convert to seconds
+                    sectionTicks = sectionStarts[section + 1] - offsetTicks;
+                } else {
+                    // there is a section before
+                    sectionTicks = offsetTicks - sectionStarts[section] + 1;
+                }
+
                 float sectionSeconds = sectionTicks / sectionTempo[section];
                 float seconds = min(remainingSeconds, sectionSeconds);
 
@@ -137,10 +154,10 @@ public class ImmutableSongTempo implements SongTempo {
 
                 durationTicks += sectionTicks;
                 remainingSeconds -= seconds;
-                offsetTicks += sectionTicks;
+                offsetTicks = offsetTicks + direction * sectionTicks;
             } else {
-                // this is the last section, return remaining seconds as ticks
-                durationTicks += (int) ceil(remainingSeconds * sectionTempo[0]);
+                // this is the last section in the given direction, return remaining seconds as ticks
+                durationTicks += (int) ceil(remainingSeconds * sectionTempo[section]);
                 remainingSeconds = 0;
             }
         }

@@ -69,10 +69,8 @@ public class ClientMusicBackend {
     }
 
     @Nullable
-    private SongPlayback removePlaying(Identifier songId) {
-        synchronized (this) {
-            return playing.remove(songId);
-        }
+    private synchronized SongPlayback removePlaying(Identifier songId) {
+        return playing.remove(songId);
     }
 
     private void notifySongStopped(Identifier songId) {
@@ -90,5 +88,13 @@ public class ClientMusicBackend {
         for (Identifier songId : getPlayingSongs()) {
             stopSong(songId);
         }
+    }
+
+    public synchronized void seekSongTo(Identifier songId, int ticks, boolean absolute) {
+        SongPlayback playback = playing.get(songId);
+
+        if (playback == null) return;
+
+        playback.seekTo(ticks, absolute);
     }
 }

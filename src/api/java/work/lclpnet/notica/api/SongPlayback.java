@@ -157,4 +157,13 @@ public class SongPlayback implements Runnable {
     public synchronized boolean isStopped() {
         return stopped;
     }
+
+    public synchronized void seekTo(int ticks, boolean absolute) {
+        ticks = max(0, absolute ? ticks : this.tick + ticks);
+
+        this.tick = ticks;
+        this.extraMs = 0;
+
+        updateTempo(song.tempo().tempoAt(ticks));
+    }
 }

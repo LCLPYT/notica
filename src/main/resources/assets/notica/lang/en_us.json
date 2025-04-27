@@ -19,6 +19,12 @@
   "notica.music.server_pack_prompt": "The extra notes resource pack is required for extended octave range support",
   "notica.music.server_pack_failed": "Failed to install the extra notes resource pack. Make sure to enable server resource packs for this server in the server list. Disabling extended octave range support...",
   "notica.music.server_pack_success": "Successfully installed the extra notes resource pack. Enabling extended octave range support.",
+  "notica.music.seek.error_time": "Cannot parse time '%s'",
+  "notica.music.seek.absolute": "Playback time modified to %s",
+  "notica.music.seek.relative": "Playback time modified by %s",
+  "notica.time.seconds": "%s sec",
+  "notica.time.minutes": "%s min",
+  "notica.time.ticks": "%s ticks",
   "kibu.proto.notica.version.too_old": "Your client uses an older version of Notica than the server. Please update, so that everything works properly.",
   "kibu.proto.notica.version.too_new": "Your client uses a newer version of Notica than the server. Some things may not work properly."
 }

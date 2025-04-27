@@ -2,6 +2,7 @@ package work.lclpnet.notica.api;
 
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import work.lclpnet.notica.api.data.Song;
 
 import java.util.Set;
 
@@ -12,6 +13,8 @@ import java.util.Set;
 public interface SongHandle {
 
     Identifier getSongId();
+
+    Song getSong();
 
     /**
      * Stops the song for all listeners of this song instance.
@@ -29,4 +32,11 @@ public interface SongHandle {
     void remove(ServerPlayerEntity player);
 
     void onDestroy(Runnable action);
+
+    /**
+     * Sets the playback position in ticks.
+     * @param ticks The playback position (time), in ticks.
+     * @param absolute Whether the playback position is absolute or relative.
+     */
+    void seekTo(int ticks, boolean absolute);
 }

@@ -14,6 +14,8 @@ import work.lclpnet.notica.network.packet.*;
 import work.lclpnet.notica.util.ByteHelper;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
+import static net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver;
+
 public class NoticaClientNetworking {
 
     private final ClientSongRepository songRepository;
@@ -32,10 +34,11 @@ public class NoticaClientNetworking {
     public void register() {
         new ClientProtocolHandler(NoticaNetworking.PROTOCOL, logger).register();
 
-        ClientPlayNetworking.registerGlobalReceiver(PlaySongS2CPacket.ID, this::onPlaySong);
-        ClientPlayNetworking.registerGlobalReceiver(RespondSongS2CPacket.ID, this::onRespondSong);
-        ClientPlayNetworking.registerGlobalReceiver(StopSongBidiPacket.ID, this::onStopSong);
-        ClientPlayNetworking.registerGlobalReceiver(MusicOptionsS2CPacket.ID, this::onMusicOptionsSync);
+        registerGlobalReceiver(PlaySongS2CPacket.ID, this::onPlaySong);
+        registerGlobalReceiver(RespondSongS2CPacket.ID, this::onRespondSong);
+        registerGlobalReceiver(StopSongBidiPacket.ID, this::onStopSong);
+        registerGlobalReceiver(MusicOptionsS2CPacket.ID, this::onMusicOptionsSync);
+        registerGlobalReceiver(SongSeekS2CPacket.ID, this::onSongSeek);
     }
 
     private void onPlaySong(PlaySongS2CPacket payload, ClientPlayNetworking.Context context) {
@@ -98,6 +101,10 @@ public class NoticaClientNetworking {
     private void onMusicOptionsSync(MusicOptionsS2CPacket payload, ClientPlayNetworking.Context context) {
         PlayerConfig config = payload.config();
         playerConfig.copyClient(config);
+    }
+
+    private void onSongSeek(SongSeekS2CPacket payload, ClientPlayNetworking.Context context) {
+        controller.seekSongTo(payload.songId(), payload.ticks(), payload.absolute());
     }
 
     private void onRespondSong(RespondSongS2CPacket payload, ClientPlayNetworking.Context context) {

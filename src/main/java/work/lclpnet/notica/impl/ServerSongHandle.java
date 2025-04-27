@@ -7,12 +7,12 @@ import org.jetbrains.annotations.Nullable;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.kibu.hook.HookFactory;
 import work.lclpnet.notica.api.*;
-import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.network.SongHeader;
 import work.lclpnet.notica.network.SongPlayOptions;
 import work.lclpnet.notica.network.SongSlicer;
 import work.lclpnet.notica.network.packet.PlaySongS2CPacket;
+import work.lclpnet.notica.network.packet.SongSeekS2CPacket;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 
 import java.util.*;
@@ -23,7 +23,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final float volume;
     private final int startTick;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
-    private boolean started = false;
+    private volatile boolean started = false;
     @Nullable
     private SongPlayback serverPlayback = null;
     @Nullable
@@ -40,42 +40,40 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         this.startTick = startTick;
     }
 
-    public void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
-        synchronized (this) {
-            if (started) return;
-            started = true;
+    public synchronized void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
+        if (started) return;
+        started = true;
 
-            this.moddedRefs.clear();
+        this.moddedRefs.clear();
 
-            for (SongPlayerRef playerRef : moddedPlayers) {
-                ServerPlayerEntity player = playerRef.getPlayer();
-                sendPlayPacket(player);
-                this.moddedRefs.put(player.getUuid(), playerRef);
-            }
+        for (SongPlayerRef playerRef : moddedPlayers) {
+            ServerPlayerEntity player = playerRef.getPlayer();
+            sendPlayPacket(player);
+            this.moddedRefs.put(player.getUuid(), playerRef);
+        }
 
+        this.vanillaRefs.clear();
+
+        for (SongPlayerRef playerRef : vanillaPlayers) {
+            UUID uuid = playerRef.getPlayer().getUuid();
+            this.vanillaRefs.put(uuid, playerRef);
+        }
+
+        if (vanillaPlayers.isEmpty()) return;
+
+        // there are vanilla players, a server playback is needed
+        serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, volume);
+
+        final SongPlayback playback = new SongPlayback(checkedSong.song(), serverNotePlayer);
+
+        playback.whenDone(() -> {
             this.vanillaRefs.clear();
 
-            for (SongPlayerRef playerRef : vanillaPlayers) {
-                UUID uuid = playerRef.getPlayer().getUuid();
-                this.vanillaRefs.put(uuid, playerRef);
-            }
+            checkDestroyed();
+        });
 
-            if (vanillaPlayers.isEmpty()) return;
-
-            // there are vanilla players, a server playback is needed
-            serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, volume);
-
-            final SongPlayback playback = new SongPlayback(checkedSong.song(), serverNotePlayer);
-
-            playback.whenDone(() -> {
-                this.vanillaRefs.clear();
-
-                checkDestroyed();
-            });
-
-            serverPlayback = playback;
-            playback.start(startTick);
-        }
+        serverPlayback = playback;
+        playback.start(startTick);
     }
 
     private void sendPlayPacket(ServerPlayerEntity player) {
@@ -96,109 +94,107 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         ServerPlayNetworking.send(player, packet);
     }
 
+    private void sendSeekPacket(ServerPlayerEntity player, int ticks, boolean absolute) {
+        var packet = new SongSeekS2CPacket(checkedSong.id(), ticks, absolute);
+        ServerPlayNetworking.send(player, packet);
+    }
+
     @Override
     public Identifier getSongId() {
         return checkedSong.id();
     }
 
     @Override
-    public void stop() {
-        synchronized (this) {
-            if (!started) return;
-
-            for (SongPlayerRef playerRef : moddedRefs.values()) {
-                sendStopPacket(playerRef.getPlayer());
-            }
-
-            moddedRefs.clear();
-
-            if (serverPlayback != null) {
-                serverPlayback.stop();
-                serverPlayback = null;
-            }
-
-            vanillaRefs.clear();
-
-            serverNotePlayer = null;
-
-            onDestroy.invoker().run();
-        }
+    public Song getSong() {
+        return checkedSong.song();
     }
 
     @Override
-    public Set<ServerPlayerEntity> getListeners() {
+    public synchronized void stop() {
+        if (!started) return;
+
+        for (SongPlayerRef playerRef : moddedRefs.values()) {
+            sendStopPacket(playerRef.getPlayer());
+        }
+
+        moddedRefs.clear();
+
+        if (serverPlayback != null) {
+            serverPlayback.stop();
+            serverPlayback = null;
+        }
+
+        vanillaRefs.clear();
+
+        serverNotePlayer = null;
+
+        onDestroy.invoker().run();
+    }
+
+    @Override
+    public synchronized Set<ServerPlayerEntity> getListeners() {
         Set<ServerPlayerEntity> listeners = new HashSet<>();
 
-        synchronized (this) {
-            for (SongPlayerRef playerRef : moddedRefs.values()) {
-                listeners.add(playerRef.getPlayer());
-            }
+        for (SongPlayerRef playerRef : moddedRefs.values()) {
+            listeners.add(playerRef.getPlayer());
+        }
 
-            for (SongPlayerRef playerRef : vanillaRefs.values()) {
-                listeners.add(playerRef.getPlayer());
-            }
+        for (SongPlayerRef playerRef : vanillaRefs.values()) {
+            listeners.add(playerRef.getPlayer());
         }
 
         return listeners;
     }
 
     @Override
-    public boolean isListener(ServerPlayerEntity player) {
+    public synchronized boolean isListener(ServerPlayerEntity player) {
         UUID uuid = player.getUuid();
 
-        synchronized (this) {
-            return moddedRefs.containsKey(uuid) || vanillaRefs.containsKey(uuid);
-        }
+        return moddedRefs.containsKey(uuid) || vanillaRefs.containsKey(uuid);
     }
 
     @Override
-    public void remove(ServerPlayerEntity player) {
+    public synchronized void remove(ServerPlayerEntity player) {
         UUID uuid = player.getUuid();
 
-        synchronized (this) {
-            if (moddedRefs.remove(uuid) != null) {
-                sendStopPacket(player);
-                checkDestroyed();
-                return;
-            }
-
-            SongPlayerRef playerRef = vanillaRefs.remove(uuid);
-
-            if (playerRef == null) return;
-
-            // player was added to the server players
-
-            if (serverNotePlayer != null) {
-                serverNotePlayer.removePlayer(playerRef);
-            }
-
-            if (vanillaRefs.isEmpty() && serverPlayback != null) {
-                // no server players remaining, stop server playback
-
-                serverPlayback.stop();
-                serverPlayback = null;
-
-                serverNotePlayer = null;
-            }
-
+        if (moddedRefs.remove(uuid) != null) {
+            sendStopPacket(player);
             checkDestroyed();
+            return;
         }
+
+        SongPlayerRef playerRef = vanillaRefs.remove(uuid);
+
+        if (playerRef == null) return;
+
+        // player was added to the server players
+
+        if (serverNotePlayer != null) {
+            serverNotePlayer.removePlayer(playerRef);
+        }
+
+        if (vanillaRefs.isEmpty() && serverPlayback != null) {
+            // no server players remaining, stop server playback
+
+            serverPlayback.stop();
+            serverPlayback = null;
+
+            serverNotePlayer = null;
+        }
+
+        checkDestroyed();
     }
 
     @Override
-    public void onDestroy(Runnable action) {
-        synchronized (this) {
-            onDestroy.register(action);
-        }
+    public synchronized void onDestroy(Runnable action) {
+        onDestroy.register(action);
     }
 
     @Override
-    public void onStoppedPlayback(ServerPlayerEntity player) {
-        synchronized (this) {
-            moddedRefs.remove(player.getUuid());
+    public synchronized void onStoppedPlayback(ServerPlayerEntity player) {
+        moddedRefs.remove(player.getUuid());
 
-            checkDestroyed();
-        }
+        checkDestroyed();
     }
 
     private void checkDestroyed() {
@@ -209,12 +205,22 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
 
     @Override
     public String toString() {
-        return "ServerSongHandle{" +
-               "checkedSong=" + checkedSong +
-               ", volume=" + volume +
-               ", vanillaPlayers=" + vanillaRefs +
-               ", moddedPlayers=" + moddedRefs +
-               ", started=" + started +
-               '}';
+        return "ServerSongHandle{checkedSong=%s, volume=%s, vanillaPlayers=%s, moddedPlayers=%s, started=%s}"
+                .formatted(checkedSong, volume, vanillaRefs, moddedRefs, started);
+    }
+
+    @Override
+    public synchronized void seekTo(int ticks, boolean absolute) {
+        // if there are vanilla listeners, seek for them using serverPlayback
+
+        if (serverPlayback != null) {
+            serverPlayback.seekTo(ticks, absolute);
+        }
+
+        // all modded players receive a seek packet
+
+        for (SongPlayerRef ref : moddedRefs.values()) {
+            sendSeekPacket(ref.getPlayer(), ticks, absolute);
+        }
     }
 }

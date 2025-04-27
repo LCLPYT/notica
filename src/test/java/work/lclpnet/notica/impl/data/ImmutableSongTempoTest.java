@@ -7,6 +7,7 @@ import work.lclpnet.notica.api.data.TempoChange;
 import java.util.List;
 
 import static java.lang.Math.ceil;
+import static java.lang.Math.floor;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ImmutableSongTempoTest {
@@ -83,6 +84,17 @@ class ImmutableSongTempoTest {
     }
 
     @Test
+    void durationTicks_offset19_backwardsDuration20ticks() {
+        float durationSeconds = 1 / 10f * 5
+                + 1 / 20f * 3
+                + 1 / 30f * 1
+                + 1 / 20f * 6
+                + 1 / 10f * 5;
+
+        assertEquals(20, tempo.durationTicks(19, -durationSeconds));
+    }
+
+    @Test
     void durationTicks_offset7_duration1sec() {
         float secondsWithoutLastSegment = 1 / 20f * 1
                 + 1 / 30f * 1
@@ -96,6 +108,19 @@ class ImmutableSongTempoTest {
     }
 
     @Test
+    void durationTicks_offset20_backwardsDuration1sec() {
+        float secondsWithoutLastSegment = 1 / 20f * 1
+                + 1 / 30f * 1
+                + 1 / 20f * 6;
+
+        float targetSeconds = 1.f;
+        float lastSegmentTicks = (targetSeconds - secondsWithoutLastSegment) * 10f;
+        float expectedTicks = 8 + lastSegmentTicks;
+
+        assertEquals((int) ceil(expectedTicks), tempo.durationTicks(7 + (int) floor(expectedTicks) - 1, -targetSeconds));
+    }
+
+    @Test
     void durationTicks_shorterDurationThanSegmentLength_correct() {
         var tempo = new ImmutableSongTempo(List.of(
                 new TempoChange(0, 10),
@@ -103,6 +128,6 @@ class ImmutableSongTempoTest {
                 new TempoChange(32_000, 40)
         ));
 
-        assertEquals(99, tempo.durationTicks(0, 5.f));
+        assertEquals(100, tempo.durationTicks(15_000, -5.f));
     }
 }

@@ -19,6 +19,12 @@
   "notica.music.server_pack_prompt": "Das Extra-Noten Ressourcenpaket wird für die erweiterte Oktavbereich-Unterstützung benötigt.",
   "notica.music.server_pack_failed": "Das Extra-Noten Ressourcenpaket konnte nicht installiert werden. Stelle sicher, dass in der Server-Liste die Option \"Server-Ressourcenpakete\" für diesen Server aktiviert ist. Erweiterter Oktavbereich wird deaktiviert...",
   "notica.music.server_pack_success": "Das Extra-Noten Ressourcenpaket wurde erfolgreich installiert. Erweiterter Oktavbereich wird aktiviert.",
+  "notica.music.seek.error_time": "'%s' ist keine gültige Zeitangabe",
+  "notica.music.seek.absolute": "Wiedergabezeit auf %s gesetzt",
+  "notica.music.seek.relative": "Wiedergabezeit um %s geändert",
+  "notica.time.seconds": "%s sek",
+  "notica.time.minutes": "%s min",
+  "notica.time.ticks": "%s ticks",
   "kibu.proto.notica.version.too_old": "Dein Client nutzt eine ältere Version von Notica als der Server. Bitte aktualisiere Notica, damit alles funktioniert.",
   "kibu.proto.notica.version.too_new": "Dein Client nutzt eine neuere Version von Notica als der Server. Manche Dinge werden nicht funktionieren."
 }

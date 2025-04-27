@@ -49,6 +49,7 @@ public class NoticaNetworking {
         playS2C.register(PlaySongS2CPacket.ID, PlaySongS2CPacket.CODEC);
         playS2C.register(RespondSongS2CPacket.ID, RespondSongS2CPacket.CODEC);
         playS2C.register(StopSongBidiPacket.ID, StopSongBidiPacket.CODEC);
+        playS2C.register(SongSeekS2CPacket.ID, SongSeekS2CPacket.CODEC);
 
         var playC2S = PayloadTypeRegistry.playC2S();
         playC2S.register(RequestSongC2SPacket.ID, RequestSongC2SPacket.CODEC);

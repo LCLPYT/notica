@@ -11,4 +11,9 @@ public interface LayerInfo {
      * @return Panning of this layer, ranging [0, 200], where 100=center.
      */
     short panning();
+
+    /**
+     * @return Whether the layer is marked as locked.
+     */
+    boolean locked();
 }

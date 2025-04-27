@@ -47,9 +47,10 @@ public class NoticaPacketCodecs {
 
             buf.writeByte(layer.volume());
             buf.writeShort(layer.panning());
+            buf.writeBoolean(layer.locked());
         }
     }, buf -> {
-        record LayerProto(byte volume, short panning) implements LayerInfo {}
+        record LayerProto(byte volume, short panning, boolean locked) implements LayerInfo {}
 
         int layerCount = buf.readInt();
         var layerInfo = new HashMap<Integer, LayerInfo>(layerCount);
@@ -59,8 +60,9 @@ public class NoticaPacketCodecs {
 
             byte volume = buf.readByte();
             short panning = buf.readShort();
+            boolean locked = buf.readBoolean();
 
-            layerInfo.put(key, new LayerProto(volume, panning));
+            layerInfo.put(key, new LayerProto(volume, panning, locked));
         }
 
         return new FixedIndex<>(layerInfo);

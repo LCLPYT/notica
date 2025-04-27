@@ -39,7 +39,7 @@ public class PendingSong implements Song {
         for (var entry : layerInfo.iterateOrdered()) {
             LayerInfo info = entry.value();
 
-            MutableLayer layer = new MutableLayer(info.volume(), info.panning());
+            MutableLayer layer = new MutableLayer(info.volume(), info.panning(), info.locked());
 
             layers.put(entry.index(), layer);
         }

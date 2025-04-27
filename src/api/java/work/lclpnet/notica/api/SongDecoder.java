@@ -177,9 +177,10 @@ public class SongDecoder {
             var notes = layerNotes.get(i);
 
             String name = readString(in);
+            boolean locked = false;
 
             if (version >= 4) {
-                in.readByte();  // locked (unused)
+                locked = in.readByte() == 1;
             }
 
             byte volume = in.readByte();
@@ -198,7 +199,7 @@ public class SongDecoder {
 
             if (notes == null) continue;
 
-            layers.put(i, new ImmutableLayer(name, volume, panning, new FixedIndex<>(notes)));
+            layers.put(i, new ImmutableLayer(name, volume, panning, locked, new FixedIndex<>(notes)));
         }
 
         return new LayerResult(new FixedIndex<>(layers), stereo);

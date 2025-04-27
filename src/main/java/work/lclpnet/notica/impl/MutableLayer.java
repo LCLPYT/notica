@@ -8,15 +8,17 @@ public class MutableLayer implements Layer {
 
     private final byte volume;
     private final short panning;
+    private final boolean locked;
     private final MutableIndex<Note> notes = new MutableIndex<>();
 
-    public MutableLayer(byte volume, short panning) {
+    public MutableLayer(byte volume, short panning, boolean locked) {
         this.volume = volume;
         this.panning = panning;
+        this.locked = locked;
     }
 
     public MutableLayer() {
-        this((byte) 100, (short) 100);
+        this((byte) 100, (short) 100, false);
     }
 
     @Override
@@ -32,6 +34,11 @@ public class MutableLayer implements Layer {
     @Override
     public short panning() {
         return panning;
+    }
+
+    @Override
+    public boolean locked() {
+        return locked;
     }
 
     @Override

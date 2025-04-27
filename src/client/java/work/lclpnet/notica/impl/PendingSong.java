@@ -18,19 +18,21 @@ public class PendingSong implements Song {
     private final Instruments instruments;
     private final boolean stereo;
     private final byte signature;
+    private final byte[] checksum;
     private int startTick;
 
     public PendingSong(SongHeader header) {
-        this(header, 0);
+        this(header, new byte[0], 0);
     }
 
-    public PendingSong(SongHeader header, int startTick) {
+    public PendingSong(SongHeader header, byte[] checksum, int startTick) {
         this.durationTicks = header.durationTicks();
         this.tempo = header.tempo();
         this.loopConfig = header.loopConfig();
         this.instruments = header.instruments();
         this.stereo = header.stereo();
         this.signature = header.signature();
+        this.checksum = checksum;
         this.startTick = startTick;
 
         var layerInfo = header.layerInfo();
@@ -85,6 +87,10 @@ public class PendingSong implements Song {
     @Override
     public byte signature() {
         return signature;
+    }
+
+    public byte[] checksum() {
+        return checksum;
     }
 
     /**

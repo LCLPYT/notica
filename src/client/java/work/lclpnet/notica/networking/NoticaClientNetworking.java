@@ -2,6 +2,7 @@ package work.lclpnet.notica.networking;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.networking.protocol.ClientProtocolHandler;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -49,20 +50,20 @@ public class NoticaClientNetworking {
         PendingSong song = songRepository.get(checksum);
 
         if (song == null) {
-            acceptUnknownSong(payload, songId, checksum, startTick);
+            song = acceptUnknownSong(payload, songId, checksum, startTick);
         } else if (startTick < song.getStartTick()) {
             // the cached song is missing parts before its old start
             acceptUnknownRegion(payload, song, songId);
         }
 
-        controller.playSong(songId, payload.getVolume(), startTick);
+        controller.playSong(song, songId, payload.getVolume(), startTick);
     }
 
-    private void acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
+    private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
         logger.debug("Song {} ({}) is not cached, requesting it...", songId, ByteHelper.toHexString(checksum, 32));
 
         // song is not cached, create a new instance
-        PendingSong song = new PendingSong(packet.header(), startTick);
+        PendingSong song = new PendingSong(packet.header(), checksum, startTick);
 
         SongSlice slice = packet.slice();
 
@@ -78,7 +79,9 @@ public class NoticaClientNetworking {
             requestNext(songId, slice);
         }
 
-        songRepository.add(songId, checksum, song);
+        songRepository.add(song);
+
+        return song;
     }
 
     private void acceptUnknownRegion(PlaySongS2CPacket packet, PendingSong song, Identifier songId) {

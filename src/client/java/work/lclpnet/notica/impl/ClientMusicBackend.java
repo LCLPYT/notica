@@ -3,11 +3,9 @@ package work.lclpnet.notica.impl;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
-import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
@@ -19,27 +17,20 @@ import java.util.Set;
 public class ClientMusicBackend {
 
     private final ClientSongRepository songRepository;
-    private final Logger logger;
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfigEntry playerConfig;
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
 
-    public ClientMusicBackend(ClientSongRepository songRepository, Logger logger, InstrumentSoundProvider soundProvider,
+    public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,
                               PlayerConfigEntry playerConfig) {
         this.songRepository = songRepository;
-        this.logger = logger;
         this.soundProvider = soundProvider;
         this.playerConfig = playerConfig;
     }
 
-    public void playSong(Identifier songId, float volume, int startTick) {
-        Song song = songRepository.get(songId);
-
-        if (song == null) {
-            logger.error("Unknown song {}", songId);
-            return;
-        }
+    public void playSong(PendingSong song, Identifier songId, float volume, int startTick) {
+        songRepository.bind(song, songId);
 
         stopSong(songId);
 
@@ -47,6 +38,8 @@ public class ClientMusicBackend {
         SongPlayback playback = new SongPlayback(song, notePlayer);
 
         playback.whenDone(() -> {
+            songRepository.unbind(song, songId);
+
             if (playback.isStopped()) return;
 
             removePlaying(songId);

@@ -8,6 +8,9 @@
   "client": [
     "ClientPlayNetworkHandlerMixin",
     "MinecraftClientMixin",
-    "SoundSystemMixin"
+    "SoundManagerAccessor",
+    "SoundSystemAccessor",
+    "SoundSystemMixin",
+    "StaticSoundAccessor"
   ]
 }

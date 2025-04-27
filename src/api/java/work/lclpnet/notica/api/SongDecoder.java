@@ -46,6 +46,20 @@ public class SongDecoder {
      * @see <a href="https://opennbs.org/nbs">OpenNBS Specification</a>
      */
     public static Song parse(InputStream input, final int vanillaInstrumentCount) throws IOException {
+        return parse(input, vanillaInstrumentCount, true);
+    }
+
+    /**
+     * Parse a song from an {@link InputStream}.
+     *
+     * @param input                  Any {@link InputStream}.
+     * @param vanillaInstrumentCount The amount of instruments in the current game version.
+     * @param optimize               Optimizes the decoded song by skipping muted layers and notes.
+     * @return The parsed song.
+     * @throws IOException If there was an IO error.
+     * @see <a href="https://opennbs.org/nbs">OpenNBS Specification</a>
+     */
+    public static Song parse(InputStream input, final int vanillaInstrumentCount, boolean optimize) throws IOException {
         DataInputStream in = new DataInputStream(input);
 
         // HEADER
@@ -143,6 +157,8 @@ public class SongDecoder {
                     pitch = 0;
                 }
 
+                if (optimize && velocity <= 0) continue;
+
                 var notes = layerNotes.computeIfAbsent(layer, i -> new HashMap<>());
                 var note = new ImmutableNote(instrument, key, velocity, panning, pitch);
                 notes.put(tick, note);
@@ -156,7 +172,7 @@ public class SongDecoder {
         };
 
         // LAYERS
-        var layerResult = readLayers(layerCount, layerNotes, in, version);
+        var layerResult = readLayers(layerCount, layerNotes, in, version, optimize);
         stereo |= layerResult.stereo();
 
         // CUSTOM INSTRUMENTS
@@ -169,7 +185,8 @@ public class SongDecoder {
     }
 
     @NotNull
-    private static LayerResult readLayers(int layerCount, Map<Integer, Map<Integer, Note>> layerNotes, DataInputStream in, byte version) throws IOException {
+    private static LayerResult readLayers(int layerCount, Map<Integer, Map<Integer, Note>> layerNotes,
+                                          DataInputStream in, byte version, boolean optimize) throws IOException {
         Map<Integer, Layer> layers = new HashMap<>(layerCount);
         boolean stereo = false;
 
@@ -197,7 +214,7 @@ public class SongDecoder {
                 panning = 100;
             }
 
-            if (notes == null) continue;
+            if (notes == null || (optimize && (locked || volume <= 0))) continue;
 
             layers.put(i, new ImmutableLayer(name, volume, panning, locked, new FixedIndex<>(notes)));
         }

@@ -66,6 +66,8 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
 
+        if (volume <= 0) return;
+
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through
         var instance = new NbsSoundInstance(sound.id(), SoundCategory.RECORDS, volume, openAlPitch,

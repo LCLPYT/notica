@@ -52,6 +52,8 @@ public class ServerBasicNotePlayer implements NotePlayer {
         float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
         short pitch = note.pitch();
 
+        if (volume <= 0) return;
+
         synchronized (this) {
             for (SongPlayerRef playerRef : players) {
                 playSoundFor(playerRef, panning, sound, volume, key, pitch);
@@ -74,6 +76,8 @@ public class ServerBasicNotePlayer implements NotePlayer {
         }
 
         volume *= config.getVolume();
+
+        if (volume <= 0) return;
 
         double x = player.getX();
         double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers

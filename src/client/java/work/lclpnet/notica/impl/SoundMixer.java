@@ -18,6 +18,7 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -52,6 +53,8 @@ public class SoundMixer {
         plingBuf.position(0);
         ironXyloBuf.position(0);
 
+        ByteBuffer pitchedPlingBuf = changePitch(plingBuf, 0.12f);
+
         ByteBuffer mixed = mix(plingBuf, ironXyloBuf);
 
         mixed.position(0);
@@ -61,7 +64,7 @@ public class SoundMixer {
         sourceManager.run(source -> {
             source.setRelative(true);
             source.setPosition(Vec3d.ZERO);
-            source.setBuffer(new StaticSound(mixed, targetFormat));
+            source.setBuffer(new StaticSound(pitchedPlingBuf, targetFormat));
             source.play();
         });
     }
@@ -76,10 +79,18 @@ public class SoundMixer {
         future = soundLoader.loadStatic(soundId).thenApply(sound -> {
             var soundAccessor = (StaticSoundAccessor) sound;
 
+            ByteBuffer sample = soundAccessor.getSample();
+
+            if (sample == null) {
+                return null;
+            }
+
             try {
-                return recode(soundAccessor.getSample(), soundAccessor.getFormat());
+                return recode(sample, soundAccessor.getFormat());
             } catch (UnsupportedAudioFileException | IOException e) {
                 throw new RuntimeException("Failed to recode sound", e);
+            } finally {
+                sample.flip();
             }
         }).exceptionally(err -> {
             logger.error("Failed to get unified sample", err);
@@ -110,6 +121,40 @@ public class SoundMixer {
         buf.put(bytes);
 
         return buf;
+    }
+
+    private ByteBuffer changePitch(ByteBuffer input, float pitch) {
+        int channels = targetFormat.getChannels();
+        int frameSize = targetFormat.getFrameSize();
+        int sampleBytes = targetFormat.getSampleSizeInBits() / 8;  // support non-multiples of 8?
+
+        int frameIn = input.limit() / frameSize;
+        int frameOut = (int) (frameIn / pitch);
+
+        var output = ByteBuffer.allocateDirect(frameOut * frameSize).order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int frame = 0; frame < frameOut; frame++) {
+            double exactIdx = frame * pitch;
+            int idx = (int) exactIdx;
+            double delta = exactIdx - idx;
+
+            if (idx + 1 >= frameIn) break;
+
+            for (int channel = 0; channel < channels; channel++) {
+                int leftIdx = (idx * channels + channel) * sampleBytes;
+                int rightIdx = ((idx + 1) * channels + channel) * sampleBytes;
+
+                short leftSample = input.getShort(leftIdx);
+                short rightSample = input.getShort(rightIdx);
+
+                short interpolatedSample = (short) ((1.d - delta) * leftSample + delta * rightSample);
+                output.putShort(interpolatedSample);
+            }
+        }
+
+        output.flip();
+
+        return output;
     }
 
     private ByteBuffer mix(ByteBuffer x, ByteBuffer y) {

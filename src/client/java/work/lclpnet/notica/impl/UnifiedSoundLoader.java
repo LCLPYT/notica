@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl;
 
 import net.minecraft.client.sound.NonRepeatingAudioStream;
 import net.minecraft.client.sound.OggAudioStream;
+import net.minecraft.client.sound.Sound;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
@@ -42,23 +43,25 @@ public class UnifiedSoundLoader {
      * @return A future of the optional unified sample as {@link ByteBuffer} (buffer will be null if something went wrong).
      */
     public synchronized CompletableFuture<@Nullable ByteBuffer> getUnifiedSample(Identifier soundId) {
-        CompletableFuture<ByteBuffer> future = unifiedSamples.get(soundId);
+        Identifier resourceId = Sound.FINDER.toResourcePath(soundId);
+
+        CompletableFuture<ByteBuffer> future = unifiedSamples.get(resourceId);
 
         if (future != null) {
             return future;
         }
 
-        future = loadSound(soundId).exceptionally(err -> {
-            logger.error("Failed to get unified sample for sound id {}", soundId, err);
+        future = loadSound(resourceId).exceptionally(err -> {
+            logger.error("Failed to get unified sample for sound id {}", resourceId, err);
 
             synchronized (this) {
-                unifiedSamples.remove(soundId);
+                unifiedSamples.remove(resourceId);
             }
 
             return null;
         });
 
-        unifiedSamples.put(soundId, future);
+        unifiedSamples.put(resourceId, future);
 
         return future;
     }

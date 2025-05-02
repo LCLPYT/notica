@@ -8,6 +8,7 @@ import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
@@ -68,7 +69,8 @@ public class ClientMusicBackend {
 
         stopSong(songId);
 
-        playMixedSamples(song, volume, startTick);
+        playMixedSamples(song, startTick, volume);
+        if (true) return;
 
         NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
         SongPlayback playback = new SongPlayback(song, notePlayer);
@@ -89,7 +91,7 @@ public class ClientMusicBackend {
         playback.start(startTick);
     }
 
-    private void playMixedSamples(PendingSong song, float volume, int startTick) {
+    private void playMixedSamples(PendingSong song, int startTick, float volume) {
         SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
@@ -98,8 +100,10 @@ public class ClientMusicBackend {
 
         UnifiedSoundLoader soundLoader = unifiedSoundLoader();
 
-        var soundMixer = new SoundMixer(song, channel, unifiedAudioFormat, soundLoader, soundProvider, soundManager, directSoundManager);
-        soundMixer.start(startTick, volume);
+        var sampleManager = new SoundSampleManager(song.instruments(), soundProvider, Random.create(42), soundManager, directSoundManager, soundLoader);
+        var mixer = new SoundMixer(song, unifiedAudioFormat, sampleManager);
+        var playback = new MixedSongPlayback(song, mixer, channel);
+        playback.start(startTick, volume);
     }
 
     public void stopSong(Identifier songId) {

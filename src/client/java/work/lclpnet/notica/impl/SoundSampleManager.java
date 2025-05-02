@@ -42,7 +42,7 @@ public class SoundSampleManager {
     }
 
     public @Nullable ByteBuffer getSample(byte instrument) {
-        return samples[instrument & 0xF];
+        return samples[instrument & 0xFF];
     }
 
     public void loadAll() {
@@ -53,7 +53,8 @@ public class SoundSampleManager {
 
             if (soundId == null || EMPTY_ID.equals(soundId)) continue;
 
-            int idx = i & 0xF;
+            final int idx = i & 0xFF;
+            System.out.println(idx + " -> " + soundId);
 
             var future = soundLoader.getUnifiedSample(soundId)
                     .thenAccept(sample -> samples[idx] = sample);

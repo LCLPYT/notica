@@ -65,6 +65,31 @@ public class NoteHelper {
     }
 
     /**
+     * Converts a panning value [0, 200] to [-1, 1]
+     * @param panning The unnormalized panning [0, 200].
+     * @return The normalized panning [-1, 1]
+     */
+    public static float normalizePanning(float panning) {
+        return (panning - 100) * 1e-2f;
+    }
+
+    /**
+     * Calculates the normalized panning depending on the layer panning and note panning.
+     * According to the NBS documentation, if layer panning is at the center (=100), only note panning is used.
+     * Otherwise, the panning is averaged.
+     * @param layerPanning The unnormalized layer panning [0, 200].
+     * @param notePanning The unnormalized note panning [0, 200].
+     * @return The normalized resulting panning [-1, 1].
+     */
+    public static float normalizePanning(short layerPanning, short notePanning) {
+        if (layerPanning == 100) {
+            return normalizePanning(notePanning);
+        }
+
+        return normalizePanning((layerPanning + notePanning) * 0.5f);
+    }
+
+    /**
      * Check if a given note key and pitch (detune) is within the vanilla key range [33, 57].
      * @param key The note key, from [0, 87]. 0 is A0 and 87 is C8.
      * @param pitch The fine pitch of the note. Most of the time within [-1200, 1200]. 0 is no fine-tuning, 100 cents is one semitone difference.

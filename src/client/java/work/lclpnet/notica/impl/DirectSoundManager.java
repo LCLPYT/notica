@@ -23,6 +23,7 @@ public class DirectSoundManager {
     private static final FloatProvider ONE = ConstantFloatProvider.create(1.0F);
     private final Map<Identifier, WeightedSoundSet> soundSetOverrides = new HashMap<>();
 
+    @Nullable
     public synchronized WeightedSoundSet getSoundSet(Identifier id) {
         return soundSetOverrides.computeIfAbsent(id, this::tryParseDirect);
     }

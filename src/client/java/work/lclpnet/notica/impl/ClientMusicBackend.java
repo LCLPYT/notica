@@ -1,14 +1,25 @@
 package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.Channel;
+import net.minecraft.client.sound.SoundLoader;
+import net.minecraft.client.sound.SoundManager;
+import net.minecraft.client.sound.SoundSystem;
+import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
+import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
+import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
+import work.lclpnet.notica.mixin.client.SoundSystemAccessor;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
+import javax.sound.sampled.AudioFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -21,6 +32,9 @@ public class ClientMusicBackend {
     private final PlayerConfigEntry playerConfig;
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
+    private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
+            48_000, 16, 2, 4, 48_000, false);
+    private @Nullable volatile UnifiedSoundLoader soundLoader = null;
 
     public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,
                               PlayerConfigEntry playerConfig) {
@@ -29,10 +43,32 @@ public class ClientMusicBackend {
         this.playerConfig = playerConfig;
     }
 
+    private UnifiedSoundLoader unifiedSoundLoader() {
+        if (soundLoader != null) {
+            return soundLoader;
+        }
+
+        synchronized (this) {
+            if (soundLoader != null) {
+                return soundLoader;
+            }
+
+            SoundSystem soundSystem = ((SoundManagerAccessor) MinecraftClient.getInstance().getSoundManager()).getSoundSystem();
+            SoundLoader soundLoader = ((SoundSystemAccessor) soundSystem).getSoundLoader();
+            ResourceFactory resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceFactory();
+
+            this.soundLoader = new UnifiedSoundLoader(resourceFactory, unifiedAudioFormat, NoticaInit.LOGGER);
+        }
+
+        return soundLoader;
+    }
+
     public void playSong(PendingSong song, Identifier songId, float volume, int startTick) {
         songRepository.bind(song, songId);
 
         stopSong(songId);
+
+        playMixedSamples(song, volume, startTick);
 
         NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
         SongPlayback playback = new SongPlayback(song, notePlayer);
@@ -51,6 +87,19 @@ public class ClientMusicBackend {
         }
 
         playback.start(startTick);
+    }
+
+    private void playMixedSamples(PendingSong song, float volume, int startTick) {
+        SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
+        SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
+        var soundSystemAccess = (SoundSystemAccessor) soundSystem;
+
+        Channel channel = soundSystemAccess.getChannel();
+
+        UnifiedSoundLoader soundLoader = unifiedSoundLoader();
+
+        var soundMixer = new SoundMixer(song, channel, unifiedAudioFormat, soundLoader, soundProvider, soundManager, directSoundManager);
+        soundMixer.start(startTick, volume);
     }
 
     public void stopSong(Identifier songId) {

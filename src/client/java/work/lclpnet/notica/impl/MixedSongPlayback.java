@@ -7,9 +7,16 @@ import net.minecraft.util.math.Vec3d;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.util.ByteBufferInputStream;
 
+import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static java.lang.Math.ceil;
 import static java.lang.Math.min;
@@ -99,5 +106,13 @@ public class MixedSongPlayback {
         });
 
         // TODO close sound
+
+        // TODO remove test code
+        try (var out = Files.newOutputStream(Path.of("test.wav"))) {
+            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buffer), format, buffer.limit());
+            AudioSystem.write(in, AudioFileFormat.Type.WAVE, out);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

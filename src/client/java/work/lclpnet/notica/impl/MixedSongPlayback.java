@@ -88,7 +88,7 @@ public class MixedSongPlayback {
     private void runPlayback() {
         Channel.SourceManager sourceManager = channel.createSource(SoundEngine.RunMode.STATIC).join();
         AudioFormat format = mixer.getFormat();
-        ByteBuffer buffer = mixer.getBuffer(currentBuffer);
+        ByteBuffer buffer = mixer.processBuffer(currentBuffer);
         StaticSound sound = new StaticSound(buffer, format);
 
         sourceManager.run(source -> {

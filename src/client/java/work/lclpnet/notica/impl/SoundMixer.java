@@ -22,7 +22,9 @@ public class SoundMixer {
     private final Song song;
     private final AudioFormat format;
     private final SoundSampleManager sampleManager;
+    private final Compressor compressor;
     private final ByteBuffer[] buffers = new ByteBuffer[RESERVE_BUFFERS + 2];  // current + upNext + reserve
+    private final float[][] internalBuffers = new float[buffers.length][0];
 
     public SoundMixer(Song song, AudioFormat format, SoundSampleManager sampleManager) {
         this.format = format;
@@ -33,11 +35,17 @@ public class SoundMixer {
             throw new IllegalArgumentException("Implementation expects stereo audio format");
         }
 
-        int sectionSampleCount = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getFrameSize());
+        var compressorSettings = new Compressor.Settings((int) format.getSampleRate());
+        compressor = new Compressor(compressorSettings);
+
+        int sectionSampleCount = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
+        int sampleBytes = format.getSampleSizeInBits() / 8;
+        int sectionSampleBytes = sectionSampleCount * sampleBytes;
         ByteOrder order = format.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
         for (int i = 0; i < buffers.length; i++) {
-            buffers[i] = BufferUtils.createByteBuffer(sectionSampleCount).order(order);
+            buffers[i] = BufferUtils.createByteBuffer(sectionSampleBytes).order(order);
+            internalBuffers[i] = new float[sectionSampleCount];
         }
     }
 
@@ -82,8 +90,8 @@ public class SoundMixer {
         int sampleFrameCount = (int) (baseFrameCount / pitch);
 
         // check if sample can fit into the buffer
-        int bufferFrameCapacity = buffers[currentBuffer].limit() / frameSize;
-        int availableBuffers = buffers.length - 1;
+        int bufferFrameCapacity = internalBuffers[currentBuffer].length / frameSize * sampleBytes;
+        int availableBuffers = internalBuffers.length - 1;
         int currentFrameCapacity = bufferFrameCapacity - frameOffset;
         int totalFrameCapacity = currentFrameCapacity + availableBuffers * bufferFrameCapacity;
 
@@ -92,30 +100,28 @@ public class SoundMixer {
         }
 
         // equal-power panning for stereo panning
-        double leftPanning = cos((panning + 1) * PI / 4);
-        double rightPanning = sin((panning + 1) * PI / 4);
+        float leftPanning = (float) cos((panning + 1) * PI / 4);
+        float rightPanning = (float) sin((panning + 1) * PI / 4);
 
         // now write transformed sample to the ring buffer
         int frame = 0;
         int frameCapacity = currentFrameCapacity;
         int bufferIndex = currentBuffer;
-        int bufferOffset = frameOffset * frameSize;
+        int bufferOffset = frameOffset * frameSize / sampleBytes;
 
         while (frame < sampleFrameCount) {
             int framesToWrite = min(frameCapacity, sampleFrameCount - frame);
 
-            ByteBuffer output = buffers[bufferIndex];
-            output.mark();
-            output.position(bufferOffset);
+            float[] output = internalBuffers[bufferIndex];
 
             // calculate endFrame index (exclusive)
             int endFrame = min(sampleFrameCount, frame + framesToWrite);
 
             // write the transformed sample section into the target buffer
             for (; frame < endFrame; frame++) {
-                double exactIdx = frame * pitch;
+                float exactIdx = frame * pitch;
                 int idx = (int) exactIdx;
-                double delta = exactIdx - idx;
+                float delta = exactIdx - idx;
 
                 if (idx + 1 >= baseFrameCount) {
                     frame = endFrame;
@@ -127,10 +133,11 @@ public class SoundMixer {
                     int leftIdx = (idx * channels + channel) * sampleBytes;
                     int rightIdx = ((idx + 1) * channels + channel) * sampleBytes;
 
-                    short leftSample = sample.getShort(leftIdx);
-                    short rightSample = sample.getShort(rightIdx);
+                    final float threshold = abs((float) Short.MIN_VALUE);
+                    float leftSample = sample.getShort(leftIdx) / threshold;
+                    float rightSample = sample.getShort(rightIdx) / threshold;
 
-                    double interpolatedSample = (1.d - delta) * leftSample + delta * rightSample;
+                    float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
 
                     // apply volume
                     interpolatedSample *= volume;
@@ -139,16 +146,12 @@ public class SoundMixer {
                     interpolatedSample *= (channel == 0 ? leftPanning : rightPanning);
 
                     // mix with other sample
-                    short prevSample = output.getShort(output.position());
-                    short mixedSample = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, prevSample + (short) round(interpolatedSample)));
-
-                    output.putShort(mixedSample);
+                    output[bufferOffset] += interpolatedSample;
+                    bufferOffset++;
                 }
             }
 
-            output.reset();
-
-            bufferIndex = (bufferIndex + 1) % buffers.length;
+            bufferIndex = (bufferIndex + 1) % internalBuffers.length;
             frameCapacity = bufferFrameCapacity;
             bufferOffset = 0;
         }
@@ -225,29 +228,12 @@ public class SoundMixer {
         }
     }
 
-    private ByteBuffer mix(ByteBuffer x, ByteBuffer y) {
-        int channels = format.getChannels();
-        int frameSize = format.getFrameSize();
-        int frameX = x.remaining() / frameSize;
-        int frameY = y.remaining() / frameSize;
+    public ByteBuffer processBuffer(int idx) {
+        float[] samples = internalBuffers[idx];
+        ByteBuffer output = buffers[idx];
 
-        int frames = max(frameX, frameY);
-        var dst = BufferUtils.createByteBuffer(frames * frameSize);
+        compressor.process(samples, output);
 
-        for (int frame = 0; frame < frames; frame++) {
-            for (int channel = 0; channel < channels; channel++) {
-                short sx = frame < frameX ? x.getShort() : 0;
-                short sy = frame < frameY ? y.getShort() : 0;
-                short mixed = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, sx + sy));
-
-                dst.putShort(mixed);
-            }
-        }
-
-        return dst;
-    }
-
-    public ByteBuffer getBuffer(int idx) {
-        return buffers[idx];
+        return output;
     }
 }

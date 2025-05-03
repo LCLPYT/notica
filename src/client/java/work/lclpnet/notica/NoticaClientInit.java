@@ -19,7 +19,7 @@ public class NoticaClientInit implements ClientModInitializer {
         var playerConfig = new PlayerConfigEntry();
 		playerConfig.setExtendedRangeSupported(true);
 
-        var controller = new ClientMusicBackend(songRepo, soundProvider, playerConfig);
+        var controller = new ClientMusicBackend(songRepo, soundProvider, playerConfig, NoticaInit.LOGGER);
 
 		new NoticaClientNetworking(songRepo, controller, playerConfig, NoticaInit.LOGGER).register();
 

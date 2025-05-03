@@ -38,11 +38,10 @@ public class MixedSongPlayback {
 
         this.songVolume = volume;
 
-
         mixer.preloadSounds().thenRun(() -> {
             processSection();
             runPlayback();
-//
+
 //            int code = this.hashCode();
 //
 //            Thread.ofVirtual().name("NBS preprocessor @ " + code).start(this::processSection);

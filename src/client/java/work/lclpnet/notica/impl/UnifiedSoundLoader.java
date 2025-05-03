@@ -5,6 +5,7 @@ import net.minecraft.client.sound.OggAudioStream;
 import net.minecraft.client.sound.Sound;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.notica.util.ByteBufferInputStream;
@@ -39,11 +40,11 @@ public class UnifiedSoundLoader {
     /**
      * Gets the sound sample for a given sound identifier, loaded in a unified format.
      * If there is no sample yet, the sound will be loaded using the resource factory.
-     * @param soundId The sound identifier.
+     * @param sound The sound instance.
      * @return A future of the optional unified sample as {@link ByteBuffer} (buffer will be null if something went wrong).
      */
-    public synchronized CompletableFuture<@Nullable ByteBuffer> getUnifiedSample(Identifier soundId) {
-        Identifier resourceId = Sound.FINDER.toResourcePath(soundId);
+    public synchronized CompletableFuture<@Nullable ByteBuffer> getUnifiedSample(Sound sound) {
+        Identifier resourceId = sound.getLocation();
 
         CompletableFuture<ByteBuffer> future = unifiedSamples.get(resourceId);
 
@@ -51,32 +52,34 @@ public class UnifiedSoundLoader {
             return future;
         }
 
-        future = loadSound(resourceId).exceptionally(err -> {
-            logger.error("Failed to get unified sample for sound id {}", resourceId, err);
+        future = loadUnifiedSound(resourceId)
+                .thenApply(sample -> transformSample(sample, sound))
+                .exceptionally(err -> {
+                    logger.error("Failed to get unified sample for sound id {}", resourceId, err);
 
-            synchronized (this) {
-                unifiedSamples.remove(resourceId);
-            }
+                    synchronized (this) {
+                        unifiedSamples.remove(resourceId);
+                    }
 
-            return null;
-        });
+                    return null;
+                });
 
         unifiedSamples.put(resourceId, future);
 
         return future;
     }
 
-    private CompletableFuture<ByteBuffer> loadSound(Identifier id) {
+    private CompletableFuture<ByteBuffer> loadUnifiedSound(Identifier id) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return loadSoundSync(id);
+                return loadUnifiedSoundSync(id);
             } catch (IOException | UnsupportedAudioFileException e) {
                 throw new RuntimeException("Failed to load unified sound", e);
             }
         });
     }
 
-    private ByteBuffer loadSoundSync(Identifier id) throws IOException, UnsupportedAudioFileException {
+    private ByteBuffer loadUnifiedSoundSync(Identifier id) throws IOException, UnsupportedAudioFileException {
         try (NonRepeatingAudioStream audioIn = new OggAudioStream(resourceFactory.open(id))) {
             ByteBuffer sample = audioIn.readAll();
 
@@ -84,7 +87,7 @@ public class UnifiedSoundLoader {
         }
     }
 
-    private ByteBuffer recode(ByteBuffer source, AudioFormat srcFormat) throws UnsupportedAudioFileException, IOException {
+    private ByteBuffer recode(ByteBuffer source, AudioFormat srcFormat) throws IOException {
         ByteOrder order = targetFormat.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
         if (targetFormat.matches(srcFormat)) {
@@ -97,5 +100,23 @@ public class UnifiedSoundLoader {
         byte[] convertedBytes = convertedIn.readAllBytes();
 
         return ByteBuffer.wrap(convertedBytes).order(order);
+    }
+
+    /**
+     * Applies static sound transformation for volume and pitch, according to the definition in sounds.json.
+     * @param sample The sound samples, in the unified format.
+     * @param sound The sound configuration from sounds.json.
+     * @return The transformed sample.
+     */
+    private ByteBuffer transformSample(ByteBuffer sample, Sound sound) {
+        Random random = Random.create(42L);
+        float volume = sound.getVolume().get(random);
+        float pitch = sound.getPitch().get(random);
+
+        sample = SoundMixer.changePitch(sample, pitch, targetFormat, ByteBuffer::allocate);
+
+        SoundMixer.changeVolume(sample, volume);
+
+        return sample;
     }
 }

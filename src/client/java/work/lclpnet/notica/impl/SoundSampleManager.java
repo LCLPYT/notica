@@ -4,9 +4,9 @@ import net.minecraft.client.sound.Sound;
 import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.WeightedSoundSet;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
@@ -16,8 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.client.sound.SoundManager.EMPTY_ID;
-
 public class SoundSampleManager {
 
     private final Instruments instruments;
@@ -26,17 +24,19 @@ public class SoundSampleManager {
     private final SoundManager soundManager;
     private final DirectSoundManager directSoundManager;
     private final UnifiedSoundLoader soundLoader;
+    private final Logger logger;
     private final ByteBuffer[] samples;
 
     public SoundSampleManager(Instruments instruments, InstrumentSoundProvider soundProvider, Random random,
                               SoundManager soundManager, DirectSoundManager directSoundManager,
-                              UnifiedSoundLoader soundLoader) {
+                              UnifiedSoundLoader soundLoader, Logger logger) {
         this.instruments = instruments;
         this.soundProvider = soundProvider;
         this.random = random;
         this.soundManager = soundManager;
         this.directSoundManager = directSoundManager;
         this.soundLoader = soundLoader;
+        this.logger = logger;
 
         this.samples = new ByteBuffer[instruments.customBegin() + instruments.custom().length];
     }
@@ -49,14 +49,18 @@ public class SoundSampleManager {
         List<CompletableFuture<?>> futures = new ArrayList<>(samples.length);
 
         for (byte i = 0; i < samples.length; i++) {
-            Identifier soundId = getSoundResourceId(i);
+            Sound sound = getSound(i);
 
-            if (soundId == null || EMPTY_ID.equals(soundId)) continue;
+            if (sound == null || sound == SoundManager.INTENTIONALLY_EMPTY_SOUND) continue;
+
+            if (sound.isStreamed()) {
+                logger.warn("Instrument sound {} is a streamed sound and will not be loaded into memory", sound.getLocation());
+                continue;
+            }
 
             final int idx = i & 0xFF;
-            System.out.println(idx + " -> " + soundId);
 
-            var future = soundLoader.getUnifiedSample(soundId)
+            var future = soundLoader.getUnifiedSample(sound)
                     .thenAccept(sample -> samples[idx] = sample);
 
             futures.add(future);
@@ -65,7 +69,7 @@ public class SoundSampleManager {
         futures.forEach(CompletableFuture::join);
     }
 
-    private @Nullable Identifier getSoundResourceId(byte instrument) {
+    private @Nullable Sound getSound(byte instrument) {
         CustomInstrument custom = instruments.custom(instrument);
         SoundEvent soundEvent;
 
@@ -89,8 +93,6 @@ public class SoundSampleManager {
             return null;
         }
 
-        Sound sound = soundSet.getSound(random);
-
-        return sound.getIdentifier();
+        return soundSet.getSound(random);
     }
 }

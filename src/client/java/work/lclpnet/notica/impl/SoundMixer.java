@@ -10,13 +10,14 @@ import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntFunction;
 
 import static java.lang.Math.*;
 
 public class SoundMixer {
 
-    private static int RESERVE_BUFFERS = 2;
-    public static int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
+    private static final int RESERVE_BUFFERS = 2;
+    public static final int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
 
     private final Song song;
     private final AudioFormat format;
@@ -170,7 +171,11 @@ public class SoundMixer {
         return NoteHelper.openAlPitch((short) (key * 100 + note.pitch()));  // (0.0, any]
     }
 
-    private ByteBuffer changePitch(ByteBuffer input, float pitch) {
+    public static ByteBuffer changePitch(ByteBuffer input, float pitch, AudioFormat format, IntFunction<ByteBuffer> outputFactory) {
+        if (pitch == 1.0) {
+            return input;
+        }
+
         int channels = format.getChannels();
         int frameSize = format.getFrameSize();
         int sampleBytes = format.getSampleSizeInBits() / 8;  // support non-multiples of 8?
@@ -178,7 +183,7 @@ public class SoundMixer {
         int baseFrameCount = input.limit() / frameSize;
         int sampleFrameCount = (int) (baseFrameCount / pitch);
 
-        var output = ByteBuffer.allocateDirect(sampleFrameCount * frameSize).order(ByteOrder.LITTLE_ENDIAN);
+        ByteBuffer output = outputFactory.apply(sampleFrameCount).order(ByteOrder.LITTLE_ENDIAN);
 
         for (int frame = 0; frame < sampleFrameCount; frame++) {
             double exactIdx = frame * pitch;
@@ -202,6 +207,22 @@ public class SoundMixer {
         output.flip();
 
         return output;
+    }
+
+    public static void changeVolume(ByteBuffer samples, float volume) {
+        if (volume == 1.0) return;
+
+        int len = samples.limit();
+
+        samples.position(0);
+
+        for (int i = 0; i < len; i++) {
+            short sample = samples.getShort();
+
+            sample = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, round(sample * volume)));
+
+            samples.putShort(sample);
+        }
     }
 
     private ByteBuffer mix(ByteBuffer x, ByteBuffer y) {

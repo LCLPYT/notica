@@ -59,7 +59,7 @@ public class SoundMixer {
         float lookaheadSec = 0.002f;
         float thresholdDb = (float) (log10(Short.MAX_VALUE / (Short.MAX_VALUE + 1f)) * 20f);
         float kneeDb = 0;
-        float attackSec = 0.001f;
+        float attackSec = 0.0005f;
         float releaseSec = 0.2f;
         float holdSec = 0.002f;
         float ratio = Float.POSITIVE_INFINITY;

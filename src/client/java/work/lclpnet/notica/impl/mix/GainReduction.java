@@ -5,33 +5,36 @@ import static java.lang.Math.*;
 public class GainReduction {
 
     private final int sampleRate;
-    private final float lookaheadMs;
+    private final float lookaheadSec;
     private final float thresholdDb;
     private final float kneeDb;
     private final float slope;
     private final float kneeHalfDb;
     private final float alphaAttack;
     private final float alphaRelease;
+    private final int holdSamples;
 
     private float maxInputLevel = Float.NEGATIVE_INFINITY;
     private float maxGainReduction = 0.f;
     private float state = 0.f;
+    private int holdCounter = 0;
 
-    public GainReduction(int sampleRate, float lookaheadMs, float thresholdDb, float kneeDb,
-                         float attackSec, float releaseSec, float ratio) {
+    public GainReduction(int sampleRate, float lookaheadSec, float thresholdDb, float kneeDb,
+                         float attackSec, float releaseSec, float holdSec, float ratio) {
         this.sampleRate = sampleRate;
-        this.lookaheadMs = lookaheadMs;
+        this.lookaheadSec = lookaheadSec;
         this.thresholdDb = thresholdDb;
         this.kneeDb = kneeDb;
 
         this.kneeHalfDb = kneeDb * 0.5f;
         this.alphaAttack = 1.f - timeToGain(attackSec);
         this.alphaRelease = 1.f - timeToGain(releaseSec);
+        this.holdSamples = round(holdSec * sampleRate);
         this.slope = 1.f / ratio - 1.f;
     }
 
     public void lookAheadGainReduction(float[] samples, float[] reduction) {
-        int lookaheadSamples = round(lookaheadMs / 1000.0f * sampleRate);
+        int lookaheadSamples = round(lookaheadSec * sampleRate);
 
         maxInputLevel = Float.NEGATIVE_INFINITY;
         maxGainReduction = 0f;
@@ -53,6 +56,9 @@ public class GainReduction {
 
             if (diff < 0.f) {
                 state += alphaAttack * diff;
+                holdCounter = holdSamples;
+            } else if (holdCounter > 0) {
+                holdCounter--;
             } else {
                 state += alphaRelease * diff;
             }

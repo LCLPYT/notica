@@ -15,18 +15,20 @@ public class Compressor {
         this.gainReduction = gainReduction;
     }
 
-    public void process(float[] samples, ByteBuffer output) {
-        float[] reduction = new float[samples.length / 2];
+    public void process(float[] interleavedSamples, ByteBuffer output) {
+        // assume stereo
+        int channels = 2;
+        float[] reduction = new float[interleavedSamples.length / channels];
 
-        gainReduction.lookAheadGainReduction(samples, reduction);
+        gainReduction.lookAheadGainReduction(interleavedSamples, reduction);
 
-        for (int i = 0; i < samples.length; i++) {
-            samples[i] *= reduction[i / 2];
+        for (int i = 0; i < interleavedSamples.length; i++) {
+            interleavedSamples[i] *= reduction[i / channels];
         }
 
         output.position(0);
 
-        for (float sample : samples) {
+        for (float sample : interleavedSamples) {
             int quantized = clamp(round(sample * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
 
             output.putShort((short) quantized);

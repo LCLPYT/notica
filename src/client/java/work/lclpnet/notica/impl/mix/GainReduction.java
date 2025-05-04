@@ -14,8 +14,6 @@ public class GainReduction {
     private final float alphaRelease;
     private final int holdSamples;
 
-    private float maxInputLevel = Float.NEGATIVE_INFINITY;
-    private float maxGainReduction = 0.f;
     private float state = 0.f;
     private int holdCounter = 0;
 
@@ -27,32 +25,28 @@ public class GainReduction {
         this.kneeDb = kneeDb;
 
         this.kneeHalfDb = kneeDb * 0.5f;
-        this.alphaAttack = 1.f - timeToGain(attackSec);
-        this.alphaRelease = 1.f - timeToGain(releaseSec);
+        this.alphaAttack = 1.f - gainSeconds(attackSec);
+        this.alphaRelease = 1.f - gainSeconds(releaseSec);
         this.holdSamples = round(holdSec * sampleRate);
         this.slope = 1.f / ratio - 1.f;
     }
 
-    public void lookAheadGainReduction(float[] samples, float[] reduction) {
+    public void lookAheadGainReduction(float[] interleavedSamples, float[] reduction) {
         int lookaheadSamples = round(lookaheadSec * sampleRate);
 
-        maxInputLevel = Float.NEGATIVE_INFINITY;
-        maxGainReduction = 0f;
-
         for (int i = 0; i < reduction.length; i++) {
+            // find max gain at future sample
             int lookaheadIndex = min(i + lookaheadSamples, reduction.length - 1);
 
             // find max lookahead sample from all channels
-            float sideChainSample = max(abs(samples[2 * lookaheadIndex]), abs(samples[2 * lookaheadIndex + 1]));
-            float levelDb = 20.f * (float) log10(abs(sideChainSample));
+            float sideChainSample = max(abs(interleavedSamples[2 * lookaheadIndex]), abs(interleavedSamples[2 * lookaheadIndex + 1]));
+            float levelDb = 20.f * (float) log10(sideChainSample);
 
-            if (levelDb > maxInputLevel) {
-                maxInputLevel = levelDb;
-            }
-
+            // calculate how much the gain should be reduced
             float overShoot = levelDb - thresholdDb;
             float gainReduction = calcGainReduction(overShoot);
 
+            // adjust reduction depending on current attack/hold/release phase
             float diff = gainReduction - state;
 
             if (diff < 0.f) {
@@ -64,12 +58,9 @@ public class GainReduction {
                 state += alphaRelease * diff;
             }
 
+            // convert to scalar with which the sample can be scaled (log-domain to sample-domain)
             float factor = (float) pow(10.d, state * 0.05d);
             reduction[i] = factor;
-
-            if (state < maxGainReduction) {
-                maxGainReduction = state;
-            }
         }
     }
 
@@ -85,19 +76,7 @@ public class GainReduction {
         return slope * overShootDb;
     }
 
-    private float timeToGain(float seconds) {
+    private float gainSeconds(float seconds) {
         return (float) exp(-1.f / (seconds * (float) sampleRate));
-    }
-
-    public float getMaxGainReduction() {
-        return maxGainReduction;
-    }
-
-    public float getMaxInputLevel() {
-        return maxInputLevel;
-    }
-
-    public void reset() {
-        state = 0f;
     }
 }

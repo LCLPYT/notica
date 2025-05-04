@@ -269,6 +269,9 @@ public class SoundMixer {
         float[] samples = internalBuffers[idx];
         ByteBuffer output = buffers[idx];
 
+        // floating point samples might be outside the playable 16-bit range
+        // apply dynamic-range-compression in order to make everything playable
+        // this reduces audio over-amplification and clipping significantly
         compressor.process(samples, output);
 
         return output;

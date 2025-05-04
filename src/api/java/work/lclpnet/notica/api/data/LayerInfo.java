@@ -8,7 +8,7 @@ public interface LayerInfo {
     byte volume();
 
     /**
-     * @return Panning of this layer, ranging [0, 200], where 100=center.
+     * @return Panning of this layer, ranging [0, 200], where 100=center, 0 is 2 blocks right and 200 is 2 blocks left.
      */
     short panning();
 

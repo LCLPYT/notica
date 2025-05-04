@@ -113,7 +113,7 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), soundProvider, Random.create(42), soundManager,
                 directSoundManager, soundLoader, logger);
 
-        var mixer = new SoundMixer(song, unifiedAudioFormat, sampleManager);
+        var mixer = new SoundMixer(song, unifiedAudioFormat, sampleManager, SoundMixer.StereoMode.SPATIAL);
         var playback = new MixedSongPlayback(song, mixer, channel);
         playback.start(startTick, volume);
     }

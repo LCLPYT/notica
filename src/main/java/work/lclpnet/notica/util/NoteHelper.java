@@ -70,7 +70,7 @@ public class NoteHelper {
      * @return The normalized panning [-1, 1]
      */
     public static float normalizePanning(float panning) {
-        return (panning - 100) * 1e-2f;
+        return -(panning - 100) * 1e-2f;
     }
 
     /**

@@ -72,7 +72,7 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through
         var instance = new NbsSoundInstance(sound.id(), SoundCategory.RECORDS, volume, openAlPitch,
-                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true,
+                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, 2 * panning, 0, 0, true,
                 directSoundManager);
 
         synchronized (this) {

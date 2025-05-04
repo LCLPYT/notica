@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
+import org.jetbrains.annotations.NotNull;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Note;
@@ -23,28 +24,22 @@ public class SoundMixer {
     private final Song song;
     private final AudioFormat format;
     private final SoundSampleManager sampleManager;
+    private final StereoMode stereoMode;
     private final Compressor compressor;
     private final ByteBuffer[] buffers = new ByteBuffer[RESERVE_BUFFERS + 2];  // current + upNext + reserve
     private final float[][] internalBuffers = new float[buffers.length][0];
 
-    public SoundMixer(Song song, AudioFormat format, SoundSampleManager sampleManager) {
+    public SoundMixer(Song song, AudioFormat format, SoundSampleManager sampleManager, StereoMode stereoMode) {
         this.format = format;
         this.song = song;
         this.sampleManager = sampleManager;
+        this.stereoMode = stereoMode;
 
         if (format.getChannels() != 2) {
             throw new IllegalArgumentException("Implementation expects stereo audio format");
         }
 
-        int sampleRate = (int) format.getSampleRate();
-        float lookaheadMs = 2;
-        float thresholdDb = (float) (log10(Short.MAX_VALUE / (Short.MAX_VALUE + 1f)) * 20f);
-        float kneeDb = 0;
-        float attackSec = 0.001f;
-        float releaseSec = 0.2f;
-        float ratio = Float.POSITIVE_INFINITY;
-
-        var gainReduction = new GainReduction(sampleRate, lookaheadMs, thresholdDb, kneeDb, attackSec, releaseSec, ratio);
+        GainReduction gainReduction = createGainReduction(format);
 
         compressor = new Compressor(gainReduction);
 
@@ -57,6 +52,18 @@ public class SoundMixer {
             buffers[i] = BufferUtils.createByteBuffer(sectionSampleBytes).order(order);
             internalBuffers[i] = new float[sectionSampleCount];
         }
+    }
+
+    private @NotNull GainReduction createGainReduction(AudioFormat format) {
+        int sampleRate = (int) format.getSampleRate();
+        float lookaheadMs = 2;
+        float thresholdDb = (float) (log10(Short.MAX_VALUE / (Short.MAX_VALUE + 1f)) * 20f);
+        float kneeDb = 0;
+        float attackSec = 0.001f;
+        float releaseSec = 0.2f;
+        float ratio = Float.POSITIVE_INFINITY;
+
+        return new GainReduction(sampleRate, lookaheadMs, thresholdDb, kneeDb, attackSec, releaseSec, ratio);
     }
 
     public AudioFormat getFormat() {
@@ -109,9 +116,28 @@ public class SoundMixer {
             return false;
         }
 
-        // equal-power panning for stereo panning
-        float leftPanning = (float) cos((panning + 1) * PI / 4);
-        float rightPanning = (float) sin((panning + 1) * PI / 4);
+        // calculate panning
+        float leftPanning;
+        float rightPanning;
+
+        if (stereoMode == StereoMode.SPATIAL) {
+            // mimic vanilla behavior:
+            // if there is panning, mute the other channel and apply linear attenuation with 16 block range.
+            // a panning of 1 means 2 blocks from the nbs specification
+            if (panning < 0) {
+                leftPanning = 1.f - (-panning / 8f);
+                rightPanning = 0;
+            } else if (panning > 0) {
+                leftPanning = 0;
+                rightPanning = 1.f - (panning / 8f);
+            } else {
+                leftPanning = 1;
+                rightPanning = 1;
+            }
+        } else {
+            leftPanning = (float) cos((panning + 1) * PI / 4);
+            rightPanning = (float) sin((panning + 1) * PI / 4);
+        }
 
         // now write transformed sample to the ring buffer
         int frame = 0;
@@ -245,5 +271,10 @@ public class SoundMixer {
         compressor.process(samples, output);
 
         return output;
+    }
+    
+    public enum StereoMode {
+        EQUAL_POWER,
+        SPATIAL
     }
 }

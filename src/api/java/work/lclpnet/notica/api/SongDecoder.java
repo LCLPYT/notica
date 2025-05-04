@@ -143,7 +143,7 @@ public class SongDecoder {
                 if (version >= 4) {
                     velocity = in.readByte();
 
-                    // panning: [0..200] 0=left, 100=center, 200=right
+                    // panning: [0..200] 0=2 blocks right, 100=center, 200=2 blocks left
                     panning = (short) (200 - in.readUnsignedByte());
 
                     if (panning != 100) {
@@ -204,7 +204,7 @@ public class SongDecoder {
             short panning;
 
             if (version >= 2) {
-                // panning: [0..200] 0=left, 100=center, 200=right
+                // panning: [0..200] 0=2 blocks right, 100=center, 200=2 blocks left
                 panning = (short) (200 - in.readUnsignedByte());
 
                 if (panning != 100) {

@@ -39,11 +39,12 @@ public class GainReduction {
         maxInputLevel = Float.NEGATIVE_INFINITY;
         maxGainReduction = 0f;
 
-        for (int i = 0; i < samples.length; i++) {
-            int lookaheadIndex = min(i + lookaheadSamples, samples.length - 1);
+        for (int i = 0; i < reduction.length; i++) {
+            int lookaheadIndex = min(i + lookaheadSamples, reduction.length - 1);
 
-            float lookaheadSample = samples[lookaheadIndex];
-            float levelDb = 20.f * (float) log10(abs(lookaheadSample));
+            // find max lookahead sample from all channels
+            float sideChainSample = max(abs(samples[2 * lookaheadIndex]), abs(samples[2 * lookaheadIndex + 1]));
+            float levelDb = 20.f * (float) log10(abs(sideChainSample));
 
             if (levelDb > maxInputLevel) {
                 maxInputLevel = levelDb;

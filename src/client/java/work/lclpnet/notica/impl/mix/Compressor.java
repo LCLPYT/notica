@@ -5,8 +5,8 @@ import java.nio.ByteBuffer;
 import static java.lang.Math.round;
 import static net.minecraft.util.math.MathHelper.clamp;
 
-/// A feed-forward audio compressor.
-/// Inspired by [openal-soft](https://github.com/kcat/openal-soft/blob/master/core/mastering.cpp).
+/// A feed-forward audio compressor inspired by the [openal-soft compressor](https://github.com/kcat/openal-soft/blob/master/core/mastering.cpp)
+/// and [Daniel Rudrich's compressor](https://github.com/DanielRudrich/SimpleCompressor/blob/master/src/SimpleCompressor.h).
 public class Compressor {
 
     private final GainReduction gainReduction;
@@ -16,12 +16,12 @@ public class Compressor {
     }
 
     public void process(float[] samples, ByteBuffer output) {
-        float[] reduction = new float[samples.length];
+        float[] reduction = new float[samples.length / 2];
 
         gainReduction.lookAheadGainReduction(samples, reduction);
 
         for (int i = 0; i < samples.length; i++) {
-            samples[i] *= reduction[i];
+            samples[i] *= reduction[i / 2];
         }
 
         output.position(0);

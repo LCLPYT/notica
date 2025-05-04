@@ -105,16 +105,15 @@ public class Compressor {
 
     public static class Settings {
         public final int sampleRate;
-        public float lookaheadTimeMs = 1.0f;
+        public float lookaheadTimeMs = 2.0f;
         public float holdTimeMs = 2.0f;
-        public float attackTimeMs = 10.0f;
-        public float releaseTimeMs = 100.0f;
+        public float attackTimeMs = 1.0f;
+        public float releaseTimeMs = 200.0f;
         public float preGainDb = 0.0f;
         public float postGainDb = 0.0f;
-        public float thresholdDb = -1.0f;
+        public float thresholdDb = (float) (log10(32767.0f / 32768.0f) * 20.f);
         public float ratio = Float.POSITIVE_INFINITY;
         public float kneeDb = 0.0f;
-        public float slope = 1.0f;
 
         public Settings(int sampleRate) {
             this.sampleRate = sampleRate;

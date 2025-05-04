@@ -1,9 +1,10 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.util.NoteHelper;
 
 import javax.sound.sampled.AudioFormat;
@@ -35,8 +36,17 @@ public class SoundMixer {
             throw new IllegalArgumentException("Implementation expects stereo audio format");
         }
 
-        var compressorSettings = new Compressor.Settings((int) format.getSampleRate());
-        compressor = new Compressor(compressorSettings);
+        int sampleRate = (int) format.getSampleRate();
+        float lookaheadMs = 2;
+        float thresholdDb = (float) (log10(Short.MAX_VALUE / (Short.MAX_VALUE + 1f)) * 20f);
+        float kneeDb = 0;
+        float attackSec = 0.001f;
+        float releaseSec = 0.2f;
+        float ratio = Float.POSITIVE_INFINITY;
+
+        var gainReduction = new GainReduction(sampleRate, lookaheadMs, thresholdDb, kneeDb, attackSec, releaseSec, ratio);
+
+        compressor = new Compressor(gainReduction);
 
         int sectionSampleCount = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
         int sampleBytes = format.getSampleSizeInBits() / 8;

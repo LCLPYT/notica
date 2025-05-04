@@ -8,6 +8,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
 
 import javax.sound.sampled.AudioFormat;

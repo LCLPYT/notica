@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
 import work.lclpnet.notica.mixin.client.SoundSystemAccessor;

@@ -7,6 +7,7 @@ import net.minecraft.util.math.Vec3d;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
 
 import javax.sound.sampled.AudioFileFormat;
@@ -20,7 +21,7 @@ import java.nio.file.Path;
 
 import static java.lang.Math.ceil;
 import static java.lang.Math.min;
-import static work.lclpnet.notica.impl.SoundMixer.SECTION_LENGTH_MS;
+import static work.lclpnet.notica.impl.mix.SoundMixer.SECTION_LENGTH_MS;
 
 public class MixedSongPlayback {
 

@@ -56,15 +56,16 @@ public class SoundMixer {
 
     private @NotNull GainReduction createGainReduction(AudioFormat format) {
         int sampleRate = (int) format.getSampleRate();
-        float lookaheadSec = 0.002f;
+        float lookaheadSec = 0.001f;
         float thresholdDb = (float) (log10(Short.MAX_VALUE / (Short.MAX_VALUE + 1f)) * 20f);
-        float kneeDb = 0;
-        float attackSec = 0.0005f;
+        float attackSec = 0.02f;
         float releaseSec = 0.2f;
         float holdSec = 0.002f;
         float ratio = Float.POSITIVE_INFINITY;
+        float crestReleaseSec = 0.2f;
+        float adaptationSec = 2f;
 
-        return new GainReduction(sampleRate, lookaheadSec, thresholdDb, kneeDb, attackSec, releaseSec, holdSec, ratio);
+        return new GainReduction(sampleRate, lookaheadSec, thresholdDb, attackSec, releaseSec, ratio, crestReleaseSec, adaptationSec);
     }
 
     public AudioFormat getFormat() {
@@ -155,7 +156,7 @@ public class SoundMixer {
             int endFrame = min(sampleFrameCount, frame + framesToWrite);
 
             // write the transformed sample section into the target buffer
-            for (; frame < endFrame; frame++) {
+            for (; frame < endFrame; frame++) {  // TODO optimize
                 float exactIdx = frame * pitch;
                 int idx = (int) exactIdx;
                 float delta = exactIdx - idx;

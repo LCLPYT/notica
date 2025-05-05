@@ -18,12 +18,13 @@ public class Compressor {
     public void process(float[] interleavedSamples, ByteBuffer output) {
         // assume stereo
         int channels = 2;
-        float[] reduction = new float[interleavedSamples.length / channels];
+        float[] sideChain = new float[interleavedSamples.length / channels];
 
-        gainReduction.lookAheadGainReduction(interleavedSamples, reduction);
+        // linear gain reduction factor will be put into sideChain
+        gainReduction.lookAheadGainReduction(interleavedSamples, sideChain);
 
         for (int i = 0; i < interleavedSamples.length; i++) {
-            interleavedSamples[i] *= reduction[i / channels];
+            interleavedSamples[i] *= sideChain[i / channels];
         }
 
         output.position(0);

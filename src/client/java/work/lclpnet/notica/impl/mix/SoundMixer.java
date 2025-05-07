@@ -65,7 +65,7 @@ public class SoundMixer {
         float crestReleaseSec = 0.2f;
         float adaptationSec = 2f;
 
-        return new GainReduction(sampleRate, lookaheadSec, thresholdDb, attackSec, releaseSec, ratio, crestReleaseSec, adaptationSec);
+        return new GainReduction(sampleRate, lookaheadSec, thresholdDb, attackSec, releaseSec, holdSec, ratio, crestReleaseSec, adaptationSec);
     }
 
     public AudioFormat getFormat() {

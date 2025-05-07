@@ -1,5 +1,7 @@
 package work.lclpnet.notica.impl.mix;
 
+import org.jetbrains.annotations.Nullable;
+
 import static java.lang.Math.*;
 import static net.minecraft.util.math.MathHelper.lerp;
 
@@ -14,6 +16,7 @@ public class GainReduction {
     private final float attackSamples;
     private final float releaseSamples;
     private final int lookaheadSamples;
+    private final @Nullable Condensator condensator;
 
     private float lastPeak = 0f;
     private float lastRms = 0f;
@@ -22,7 +25,7 @@ public class GainReduction {
     private float lastGainDev = 0f;
 
     public GainReduction(int sampleRate, float lookaheadSec, float thresholdDb, float attackSec, float releaseSec,
-                         float ratio, float crestReleaseSec, float adaptationSec) {
+                         float holdSec, float ratio, float crestReleaseSec, float adaptationSec) {
 
         this.threshold = (float) log(10f) * 0.05f * thresholdDb;
         this.attackSamples = max(1.f, attackSec * sampleRate);
@@ -33,10 +36,22 @@ public class GainReduction {
         this.crestCoeff = (float) exp(-1.f / (crestReleaseSec * (float) sampleRate));
         this.adaptCoeff = (float) exp(-1.f / (adaptationSec * (float) sampleRate));
         this.gainEstimate = thresholdDb * -0.5f * slope;
+
+        int holdSamples = max(0, round(holdSec * sampleRate));
+
+        if (lookaheadSamples > 0 && holdSamples > 1) {
+            condensator = new Condensator(holdSamples);
+        } else {
+            condensator = null;
+        }
     }
 
     public void lookAheadGainReduction(float[] interleavedSamples, float[] sideChain) {
-        peakLogSampleAlongChannels(interleavedSamples, sideChain);
+        if (condensator != null) {
+            peakLogCondensateSampleAlongChannels(interleavedSamples, sideChain, condensator);
+        } else {
+            peakLogSampleAlongChannels(interleavedSamples, sideChain);
+        }
 
         float[] crest = new float[sideChain.length];
 
@@ -89,6 +104,16 @@ public class GainReduction {
         lastGainDev = smoothedGainDeviation;
     }
 
+    private void peakLogCondensateSampleAlongChannels(float[] interleavedSamples, float[] sideChain, Condensator condensator) {
+        for (int i = 0; i < sideChain.length; i++) {
+            // find max abs gain at future sample across all channels
+            float sample = max(abs(interleavedSamples[2 * i]), abs(interleavedSamples[2 * i + 1]));
+            float logSample = (float) log10(max(1e-6f, sample));
+
+            sideChain[i] = condensator.feed(logSample);
+        }
+    }
+
     private void peakLogSampleAlongChannels(float[] interleavedSamples, float[] sideChain) {
         for (int i = 0; i < sideChain.length; i++) {
             // find max abs gain at future sample across all channels
@@ -128,5 +153,55 @@ public class GainReduction {
         }
 
         return overShoot;
+    }
+
+    private static class Condensator {
+
+        private final int holdSamples;
+        private final float[] peaks;
+        private final int[] expireTimes;
+        private int time;
+        private int hi;
+
+        private Condensator(int holdSamples) {
+            this.holdSamples = holdSamples;
+            this.peaks = new float[holdSamples];
+            this.expireTimes = new int[holdSamples];
+
+            hi = 0;
+            time = 0;
+
+            peaks[hi] = Float.NEGATIVE_INFINITY;
+            expireTimes[hi] = holdSamples;
+        }
+
+        public float feed(float sample) {
+            int t = time++;
+
+            // check if highest peak expired
+            if (t >= expireTimes[hi]) {
+                hi = (hi + 1) % holdSamples;
+            }
+
+            if (sample >= peaks[hi]) {
+                peaks[hi] = sample;
+                expireTimes[hi] = t + holdSamples;
+                return sample;
+            }
+
+            // insert sample at corresponding index
+            // can't use binarySearch as arrays are ring buffers
+            for (int i = 1; i < holdSamples; i++) {
+                int j = (hi + i) % holdSamples;
+
+                if (sample >= peaks[j] || t >= expireTimes[j]) {
+                    peaks[j] = sample;
+                    expireTimes[j] = t + holdSamples;
+                    break;
+                }
+            }
+
+            return peaks[hi];
+        }
     }
 }

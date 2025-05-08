@@ -86,7 +86,7 @@ public class MixedSongPlayback {
             }
 
             // adjust sampleOffset by tick duration
-            float tickSeconds = 1 / song.tempo().tempoAt(ticksToProcess);
+            float tickSeconds = 1 / song.tempo().tempoAt(processorTick);
             int tickSamples = (int) ceil(tickSeconds * sampleRate);
 
             sampleOffset += tickSamples;

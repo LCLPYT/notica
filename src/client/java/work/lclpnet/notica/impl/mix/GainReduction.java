@@ -1,17 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
 import org.jetbrains.annotations.Nullable;
-import work.lclpnet.notica.util.ByteBufferInputStream;
-
-import javax.sound.sampled.AudioFileFormat;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 import static java.lang.Math.*;
 import static net.minecraft.util.math.MathHelper.lerp;
@@ -58,76 +47,24 @@ public class GainReduction {
     }
 
     public void lookAheadGainReduction(float[] interleavedSamples, float[] sideChain) {
-        // sideChain will be in linear domain
-        linkChannels(interleavedSamples, sideChain);
-
-        debugExport(sideChain);
+        computeLinearSideChain(interleavedSamples, sideChain);
 
         float[] crest = new float[sideChain.length];
 
-        calcCrestFactor(sideChain, crest);
+        computeCrestFactor(sideChain, crest);
 
-        // side chain will be in log domain
         if (condensator != null) {
-            toLogCondensate(sideChain, condensator);
+            toLogarithmicCondensate(sideChain, condensator);
         } else {
-            toLog(sideChain);
+            toLogarithmic(sideChain);
         }
 
-        compGainReduction(sideChain, crest);
+        computeGainReduction(sideChain, crest);
     }
 
-    private void debugExportExp(float[] sideChain) {
-        float[] samples = new float[sideChain.length];
-
+    private void computeLinearSideChain(float[] interleavedSamples, float[] sideChain) {
         for (int i = 0; i < sideChain.length; i++) {
-            samples[i] = (float) exp(sideChain[i]);
-        }
-
-        debugExport(samples);
-    }
-
-    private void debugExport(float[] samples) {
-        float min = Float.MAX_VALUE, max = Float.MIN_VALUE;
-
-        for (float sample : samples) {
-            if (sample < min) {
-                min = sample;
-            }
-
-            if (sample > max) {
-                max = sample;
-            }
-        }
-
-        ByteBuffer buf = ByteBuffer.allocate(samples.length * 2).order(ByteOrder.LITTLE_ENDIAN);
-        float range = max - min;
-        float norm = 1f / range;
-
-        for (float sample : samples) {
-            float normedSample = sample * norm;
-            short quantized = (short) clamp(normedSample * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
-
-            buf.putShort(quantized);
-        }
-
-        buf.flip();
-
-        var format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-                48_000, 16, 1, 2, 48_000, false);
-
-        var in = new AudioInputStream(new ByteBufferInputStream(buf), format, buf.limit());
-
-        try (var out = Files.newOutputStream(Path.of("debug-samples.wav"))) {
-            AudioSystem.write(in, AudioFileFormat.Type.WAVE, out);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void linkChannels(float[] interleavedSamples, float[] sideChain) {
-        for (int i = 0; i < sideChain.length; i++) {
-            // find max abs gain at future sample across all channels
+            // sideChain sample is the max abs gain across all channels
             float left = abs(interleavedSamples[2 * i]);
             float right = abs(interleavedSamples[2 * i + 1]);
 
@@ -135,7 +72,7 @@ public class GainReduction {
         }
     }
 
-    private void calcCrestFactor(float[] sideChain, float[] crest) {
+    private void computeCrestFactor(float[] sideChain, float[] crest) {
         // calculate crest factor for each side-chain sample in linear domain
         float peak = this.lastPeak;
         float rms = this.lastRms;
@@ -153,7 +90,7 @@ public class GainReduction {
         this.lastRms = rms;
     }
 
-    private void toLog(float[] sideChain) {
+    private void toLogarithmic(float[] sideChain) {
         for (int i = 0; i < sideChain.length; i++) {
             float sample = sideChain[i];
 
@@ -161,7 +98,7 @@ public class GainReduction {
         }
     }
 
-    private void toLogCondensate(float[] sideChain, Condensator condensator) {
+    private void toLogarithmicCondensate(float[] sideChain, Condensator condensator) {
         for (int i = 0; i < sideChain.length; i++) {
             float sample = sideChain[i];
             float logSample = (float) log(max(1e-6f, sample));
@@ -170,7 +107,7 @@ public class GainReduction {
         }
     }
 
-    private void compGainReduction(float[] sideChain, float[] crest) {
+    private void computeGainReduction(float[] sideChain, float[] crest) {
         float releaseEnvelope = lastRelease;
         float attackEnvelope = lastAttack;
         float smoothedGainDeviation = lastGainDev;
@@ -224,6 +161,14 @@ public class GainReduction {
         }
 
         return overShoot;
+    }
+
+    public void reset() {
+        lastPeak = 0;
+        lastRms = 0;
+        lastAttack = 0;
+        lastRelease = 0;
+        lastGainDev = 0;
     }
 
     private static class Condensator {

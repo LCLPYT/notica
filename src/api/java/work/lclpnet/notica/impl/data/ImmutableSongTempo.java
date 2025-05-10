@@ -77,7 +77,6 @@ public class ImmutableSongTempo implements SongTempo {
 
         // exact time is not in the sectionStarts array, use the previous section (similar to floor())
         return max(0, -(i + 1) - 1);
-
     }
 
     @Override

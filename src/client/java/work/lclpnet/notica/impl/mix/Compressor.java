@@ -37,4 +37,8 @@ public class Compressor {
 
         output.flip();
     }
+
+    public void reset() {
+        gainReduction.reset();
+    }
 }

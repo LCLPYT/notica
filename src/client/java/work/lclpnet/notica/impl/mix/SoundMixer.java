@@ -11,6 +11,7 @@ import work.lclpnet.notica.util.NoteHelper;
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.IntFunction;
 
@@ -20,14 +21,18 @@ public class SoundMixer {
 
     private static final int RESERVE_BUFFERS = 2;
     public static final int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
+    private static final float INV_SHORT = 1.f / 32768.f;
 
     private final Song song;
     private final AudioFormat format;
     private final SoundSampleManager sampleManager;
     private final StereoMode stereoMode;
     private final Compressor compressor;
-    private final ByteBuffer[] buffers = new ByteBuffer[RESERVE_BUFFERS + 2];  // current + upNext + reserve
-    private final float[][] internalBuffers = new float[buffers.length][0];
+    private final int bufferSize;
+    private final float[] sampleBuffer;
+    private final ByteBuffer directBuffer;
+    private final float[][] buffers = new float[2 + RESERVE_BUFFERS][0];  // current + upNext + reserve
+    private int currentBuffer = 0;
 
     public SoundMixer(Song song, AudioFormat format, SoundSampleManager sampleManager, StereoMode stereoMode) {
         this.format = format;
@@ -43,14 +48,18 @@ public class SoundMixer {
 
         compressor = new Compressor(gainReduction);
 
-        int sectionSampleCount = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
+        int bufferSize = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
         int sampleBytes = format.getSampleSizeInBits() / 8;
-        int sectionSampleBytes = sectionSampleCount * sampleBytes;
+        this.bufferSize = bufferSize;
+
+        int sectionSampleBytes = bufferSize * sampleBytes;
         ByteOrder order = format.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
+        sampleBuffer = new float[RESERVE_BUFFERS * bufferSize];
+        directBuffer = BufferUtils.createByteBuffer(sectionSampleBytes).order(order);
+
         for (int i = 0; i < buffers.length; i++) {
-            buffers[i] = BufferUtils.createByteBuffer(sectionSampleBytes).order(order);
-            internalBuffers[i] = new float[sectionSampleCount];
+            buffers[i] = new float[bufferSize];
         }
     }
 
@@ -86,36 +95,76 @@ public class SoundMixer {
      * @param note The {@link Note} defining the instrument, volume, pitch and panning.
      * @param volume The volume to play the sample at. Note velocity (volume) is multiplied with this value.
      * @param layerPanning The unnormalized stereo panning of the note layer; between [0, 200], where 0 is the center.
-     * @param currentBuffer The index of the current {@link ByteBuffer} inside the ring buffer.
+     * @param bufferOffset The index offset of the {@link ByteBuffer} to write to, relative to the current buffer.
      * @param frameOffset The sample offset inside the current buffer. Is used to add sounds at specific timestamps.
      * @return True if the sound was successfully mixed into the ring buffer.
      * False if the sound was too long or if no sample exists fot the given {@link Note} instrument.
      */
-    public boolean putSound(Note note, float volume, short layerPanning, int currentBuffer, int frameOffset) {
-        ByteBuffer sample = sampleManager.getSample(note.instrument());
+    public boolean putSound(Note note, float volume, short layerPanning, int bufferOffset, int frameOffset) {
+        final int frameCount = createNoteSample(note, volume, layerPanning);
 
-        if (sample == null) {
+        if (frameCount < 0) {
             return false;
         }
 
-        float pitch = getPitch(note);
+        final int bufferIdx = (currentBuffer + bufferOffset) % buffers.length;
+
+        if (notEnoughSpace(frameOffset, frameCount, bufferIdx)) {
+            return false;
+        }
+
+        mixSample(sampleBuffer, frameCount, bufferIdx, frameOffset);
+
+        return true;
+    }
+
+    private boolean notEnoughSpace(int frameOffset, int frameCount, int bufferIdx) {
+        int bufferSpan = bufferSpan(frameOffset, frameCount);
+
+        int distanceToCurrent = (bufferIdx - currentBuffer + buffers.length) % buffers.length;
+        int available = buffers.length - distanceToCurrent;
+
+        return bufferSpan > available;
+    }
+
+    private int bufferSpan(int frameOffset, int frameCount) {
+        final int channels = 2;
+        final int sampleCount = frameCount * channels;
+        final int sampleOffset = frameOffset * channels;
+
+        int startBuffer = (sampleOffset / bufferSize);
+        int endBuffer = ((sampleOffset + sampleCount - 1) / bufferSize);
+
+        return endBuffer - startBuffer + 1;
+    }
+
+    private int createNoteSample(Note note, float volume, short layerPanning) {
+        ByteBuffer sample = sampleManager.getSample(note.instrument());
+
+        if (sample == null) {
+            return -1;
+        }
+
         volume *= note.velocity() * 1e-2f;
+
+        if (volume <= 0f) {
+            return -1;
+        }
+
+        float pitch = getPitch(note);
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
 
-        int channels = 2;
-        int sampleBytes = format.getSampleSizeInBits() / 8;  // support non-multiples of 8?
-        int frameSize = format.getFrameSize();
-        int baseFrameCount = sample.limit() / frameSize;
-        int sampleFrameCount = (int) (baseFrameCount / pitch);
+        final int sampleBytes = format.getSampleSizeInBits() / 8;  // support non-multiples of 8?
+        final int frameSize = format.getFrameSize();
+        final int channels = format.getChannels();
+        final int baseFrameCount = sample.limit() / frameSize;
+        final int sampleFrameCount = (int) (baseFrameCount / pitch);
 
         // check if sample can fit into the buffer
-        int bufferFrameCapacity = internalBuffers[currentBuffer].length / frameSize * sampleBytes;
-        int availableBuffers = internalBuffers.length - 1;
-        int currentFrameCapacity = bufferFrameCapacity - frameOffset;
-        int totalFrameCapacity = currentFrameCapacity + availableBuffers * bufferFrameCapacity;
+        final int capacity = sampleBuffer.length / channels;
 
-        if (sampleFrameCount >= totalFrameCapacity) {
-            return false;
+        if (sampleFrameCount > capacity) {
+            return -1;
         }
 
         // calculate panning
@@ -141,60 +190,87 @@ public class SoundMixer {
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
 
-        // now write transformed sample to the ring buffer
-        int frame = 0;
-        int frameCapacity = currentFrameCapacity;
-        int bufferIndex = currentBuffer;
-        int bufferOffset = frameOffset * frameSize / sampleBytes;
+        // transform sample
+        for (int frame = 0; frame < sampleFrameCount; frame++) {
+            float exactIdx = frame * pitch;
+            int idx = (int) exactIdx;
+            float delta = exactIdx - idx;
 
-        while (frame < sampleFrameCount) {
-            int framesToWrite = min(frameCapacity, sampleFrameCount - frame);
-
-            float[] output = internalBuffers[bufferIndex];
-
-            // calculate endFrame index (exclusive)
-            int endFrame = min(sampleFrameCount, frame + framesToWrite);
-
-            // write the transformed sample section into the target buffer
-            for (; frame < endFrame; frame++) {  // TODO optimize
-                float exactIdx = frame * pitch;
-                int idx = (int) exactIdx;
-                float delta = exactIdx - idx;
-
-                if (idx + 1 >= baseFrameCount) {
-                    frame = endFrame;
-                    break;
-                }
-
-                for (int channel = 0; channel < channels; channel++) {
-                    // lerp samples
-                    int leftIdx = (idx * channels + channel) * sampleBytes;
-                    int rightIdx = ((idx + 1) * channels + channel) * sampleBytes;
-
-                    final float threshold = abs((float) Short.MIN_VALUE);
-                    float leftSample = sample.getShort(leftIdx) / threshold;
-                    float rightSample = sample.getShort(rightIdx) / threshold;
-
-                    float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
-
-                    // apply volume
-                    interpolatedSample *= volume;
-
-                    // apply panning
-                    interpolatedSample *= (channel == 0 ? leftPanning : rightPanning);
-
-                    // mix with other sample
-                    output[bufferOffset] += interpolatedSample;
-                    bufferOffset++;
-                }
+            if (idx + 1 >= baseFrameCount) {
+                break;
             }
 
-            bufferIndex = (bufferIndex + 1) % internalBuffers.length;
-            frameCapacity = bufferFrameCapacity;
-            bufferOffset = 0;
+            for (int ch = 0; ch < channels; ch++) {
+                // lerp samples
+                int leftIdx = (idx * channels + ch) * sampleBytes;
+                int rightIdx = ((idx + 1) * channels + ch) * sampleBytes;
+
+                short leftSample = sample.getShort(leftIdx);
+                short rightSample = sample.getShort(rightIdx);
+
+                float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
+
+                interpolatedSample *= INV_SHORT;
+
+                // apply volume
+                interpolatedSample *= volume;
+
+                // apply panning
+                interpolatedSample *= (ch == 0 ? leftPanning : rightPanning);
+
+                sampleBuffer[channels * frame + ch] = interpolatedSample;
+            }
         }
 
-        return true;
+        return sampleFrameCount;
+    }
+
+    private void mixSample(float[] sample, final int frameCount, int bufferIdx, final int frameOffset) {
+        final int channels = 2;
+        final int sampleCount = frameCount * channels;
+
+        final int totalSampleOffset = frameOffset * channels;
+        final int bufferOffset = totalSampleOffset / bufferSize;
+        final int sampleOffset = totalSampleOffset % bufferSize;
+
+        // figure out first buffer index
+        bufferIdx = (bufferIdx + bufferOffset) % buffers.length;
+
+        // mix first part with offset into the first buffer
+        int written = mixOffset(sample, sampleCount, bufferIdx, sampleOffset);
+
+        // mix the rest into the following buffers
+        mixRest(sample, sampleCount, bufferIdx, frameOffset, written);
+    }
+
+    private void mixRest(float[] sample, int sampleCount, int bufferIdx, int frameOffset, final int written) {
+        final int channels = 2;
+        final int frameCount = sampleCount / channels;
+        final int restBufferSpan = bufferSpan(frameOffset, frameCount) - 1;
+
+        for (int i = 1; i <= restBufferSpan; i++) {
+            int writtenSoFar = written + i * bufferSize;
+            int remaining = sampleCount - writtenSoFar;
+            int len = max(0, min(bufferSize, remaining));
+
+            int idx = (bufferIdx + i) % buffers.length;
+            float[] buffer = buffers[idx];
+
+            for (int j = 0; j < len; j++) {
+                buffer[j] += sample[j + writtenSoFar];
+            }
+        }
+    }
+
+    private int mixOffset(float[] sample, int sampleCount, int bufferIdx, int sampleOffset) {
+        final int len = max(0, min(sampleCount, bufferSize - sampleOffset));
+        float[] buffer = buffers[bufferIdx];
+
+        for (int i = 0; i < len; i++) {
+            buffer[i + sampleOffset] += sample[i];
+        }
+
+        return len;
     }
 
     private float getPitch(Note note) {
@@ -266,18 +342,31 @@ public class SoundMixer {
         }
     }
 
-    public ByteBuffer processBuffer(int idx) {
-        float[] samples = internalBuffers[idx];
-        ByteBuffer output = buffers[idx];
+    public ByteBuffer completeCurrentBuffer() {
+        float[] samples = buffers[currentBuffer];
 
         // floating point samples might be outside the playable 16-bit range
         // apply dynamic-range-compression in order to make everything playable
         // this reduces audio over-amplification and clipping significantly
-        compressor.process(samples, output);
+        compressor.process(samples, directBuffer);
 
-        return output;
+        return directBuffer;
     }
-    
+
+    public void reset() {
+        currentBuffer = 0;
+
+        for (float[] buffer : buffers) {
+            Arrays.fill(buffer, 0f);
+        }
+
+        compressor.reset();
+    }
+
+    public void advanceBuffer() {
+        currentBuffer = (currentBuffer + 1) % buffers.length;
+    }
+
     public enum StereoMode {
         EQUAL_POWER,
         SPATIAL

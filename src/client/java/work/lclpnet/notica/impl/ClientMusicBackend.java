@@ -119,7 +119,7 @@ public class ClientMusicBackend {
 
         MixedSongPlayback.TimeNoiseSampler timeNoise = () -> random.nextInt(11);
 
-        var playback = new MixedSongPlayback(song, mixer, channel, timeNoise);
+        var playback = new MixedSongPlayback(song, mixer, channel, timeNoise, logger);
 
         playback.start(startTick, volume);
     }

@@ -15,24 +15,29 @@ public class Compressor {
         this.gainReduction = gainReduction;
     }
 
-    public void process(float[] interleavedSamples, ByteBuffer output) {
+    public void process(float[] samples, ByteBuffer output) {
         // assume stereo
-        int channels = 2;
-        float[] sideChain = new float[interleavedSamples.length / channels];
+        final int channels = 2;
+        float[] sideChain = new float[samples.length / channels];
 
         // linear gain reduction factor will be put into sideChain
-        gainReduction.lookAheadGainReduction(interleavedSamples, sideChain);
+        gainReduction.lookAheadGainReduction(samples, sideChain);
 
-        for (int i = 0; i < interleavedSamples.length; i++) {
-            interleavedSamples[i] *= sideChain[i / channels];
+        for (int i = 0; i < samples.length; i++) {
+            samples[i] *= sideChain[i % sideChain.length];
         }
 
+        // re-interleave
         output.position(0);
 
-        for (float sample : interleavedSamples) {
-            int quantized = clamp(round(sample * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
+        for (int i = 0; i < sideChain.length; i++) {
+            float sl = samples[i];
+            float sr = samples[i + sideChain.length];
+            int ql = clamp(round(sl * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
+            int qr = clamp(round(sr * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
 
-            output.putShort((short) quantized);
+            output.putShort((short) ql);
+            output.putShort((short) qr);
         }
 
         output.flip();

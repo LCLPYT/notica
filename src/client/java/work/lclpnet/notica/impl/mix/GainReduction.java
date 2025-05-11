@@ -46,8 +46,8 @@ public class GainReduction {
         }
     }
 
-    public void lookAheadGainReduction(float[] interleavedSamples, float[] sideChain) {
-        computeLinearSideChain(interleavedSamples, sideChain);
+    public void lookAheadGainReduction(float[] samples, float[] sideChain) {
+        computeLinearSideChain(samples, sideChain);
 
         float[] crest = new float[sideChain.length];
 
@@ -63,12 +63,16 @@ public class GainReduction {
     }
 
     private void computeLinearSideChain(float[] interleavedSamples, float[] sideChain) {
-        for (int i = 0; i < sideChain.length; i++) {
-            // sideChain sample is the max abs gain across all channels
-            float left = abs(interleavedSamples[2 * i]);
-            float right = abs(interleavedSamples[2 * i + 1]);
+        // sideChain sample is the max abs gain across all channels
 
-            sideChain[i] = max(left, right);
+        // left
+        for (int i = 0; i < sideChain.length; i++) {
+            sideChain[i] = abs(interleavedSamples[i]);
+        }
+
+        // right
+        for (int i = 0; i < sideChain.length; i++) {
+            sideChain[i] = max(sideChain[i], abs(interleavedSamples[i + sideChain.length]));
         }
     }
 

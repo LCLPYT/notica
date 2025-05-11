@@ -6,7 +6,6 @@ import net.minecraft.client.sound.Sound;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
@@ -20,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -27,10 +27,12 @@ import java.util.concurrent.CompletableFuture;
  */
 public class UnifiedSoundLoader {
 
+    private static final float INV_SHORT = 1.f / 32768.f;
+
     private final ResourceFactory resourceFactory;
     private final AudioFormat targetFormat;
     private final Logger logger;
-    private final Map<Identifier, CompletableFuture<ByteBuffer>> unifiedSamples = new HashMap<>();
+    private final Map<Identifier, CompletableFuture<Optional<float[]>>> unifiedSamples = new HashMap<>();
 
     public UnifiedSoundLoader(ResourceFactory resourceFactory, AudioFormat targetFormat, Logger logger) {
         this.resourceFactory = resourceFactory;
@@ -44,10 +46,10 @@ public class UnifiedSoundLoader {
      * @param sound The sound instance.
      * @return A future of the optional unified sample as {@link ByteBuffer} (buffer will be null if something went wrong).
      */
-    public synchronized CompletableFuture<@Nullable ByteBuffer> getUnifiedSample(Sound sound) {
+    public synchronized CompletableFuture<Optional<float[]>> getUnifiedSample(Sound sound) {
         Identifier resourceId = sound.getLocation();
 
-        CompletableFuture<ByteBuffer> future = unifiedSamples.get(resourceId);
+        CompletableFuture<Optional<float[]>> future = unifiedSamples.get(resourceId);
 
         if (future != null) {
             return future;
@@ -55,6 +57,8 @@ public class UnifiedSoundLoader {
 
         future = loadUnifiedSound(resourceId)
                 .thenApply(sample -> transformSample(sample, sound))
+                .thenApply(this::toDeinterleavedFloats)
+                .thenApply(Optional::of)
                 .exceptionally(err -> {
                     logger.error("Failed to get unified sample for sound id {}", resourceId, err);
 
@@ -62,12 +66,34 @@ public class UnifiedSoundLoader {
                         unifiedSamples.remove(resourceId);
                     }
 
-                    return null;
+                    return Optional.empty();
                 });
 
         unifiedSamples.put(resourceId, future);
 
         return future;
+    }
+
+    private float[] toDeinterleavedFloats(ByteBuffer samples) {
+        final int channels = 2;
+        int frameCount = samples.limit() / targetFormat.getFrameSize();
+
+        samples.position(0);
+
+        float[] floatSamples = new float[frameCount * channels];
+
+        for (int i = 0; i < frameCount; i++) {
+            short ql = samples.getShort();
+            short qr = samples.getShort();
+
+            float cl = ql * INV_SHORT;
+            float cr = qr * INV_SHORT;
+
+            floatSamples[i] = cl;
+            floatSamples[i + frameCount] = cr;
+        }
+
+        return floatSamples;
     }
 
     private CompletableFuture<ByteBuffer> loadUnifiedSound(Identifier id) {

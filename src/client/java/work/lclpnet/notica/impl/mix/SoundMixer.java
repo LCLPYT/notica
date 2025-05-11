@@ -28,7 +28,7 @@ public class SoundMixer {
     private final SoundSampleManager sampleManager;
     private final StereoMode stereoMode;
     private final Compressor compressor;
-    private final int bufferSize;
+    private final int bufferSize, bufferFrames;
     private final float[] sampleBuffer;
     private final ByteBuffer directBuffer;
     private final float[][] buffers = new float[2 + RESERVE_BUFFERS][0];  // current + upNext + reserve
@@ -51,6 +51,7 @@ public class SoundMixer {
         int bufferSize = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
         int sampleBytes = format.getSampleSizeInBits() / 8;
         this.bufferSize = bufferSize;
+        this.bufferFrames = bufferSize / 2;
 
         int sectionSampleBytes = bufferSize * sampleBytes;
         ByteOrder order = format.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
@@ -139,9 +140,9 @@ public class SoundMixer {
     }
 
     private int createNoteSample(Note note, float volume, short layerPanning) {
-        ByteBuffer sample = sampleManager.getSample(note.instrument());
+        float[] sample = sampleManager.getSample(note.instrument());
 
-        if (sample == null) {
+        if (sample.length == 0) {
             return -1;
         }
 
@@ -154,10 +155,8 @@ public class SoundMixer {
         float pitch = getPitch(note);
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
 
-        final int sampleBytes = format.getSampleSizeInBits() / 8;  // support non-multiples of 8?
-        final int frameSize = format.getFrameSize();
         final int channels = format.getChannels();
-        final int baseFrameCount = sample.limit() / frameSize;
+        final int baseFrameCount = sample.length / channels;
         final int sampleFrameCount = (int) (baseFrameCount / pitch);
 
         // check if sample can fit into the buffer
@@ -190,7 +189,7 @@ public class SoundMixer {
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
 
-        // transform sample
+        // transform left
         for (int frame = 0; frame < sampleFrameCount; frame++) {
             float exactIdx = frame * pitch;
             int idx = (int) exactIdx;
@@ -200,77 +199,97 @@ public class SoundMixer {
                 break;
             }
 
-            for (int ch = 0; ch < channels; ch++) {
-                // lerp samples
-                int leftIdx = (idx * channels + ch) * sampleBytes;
-                int rightIdx = ((idx + 1) * channels + ch) * sampleBytes;
+            float leftSample = sample[idx];
+            float rightSample = sample[idx + 1];
+            float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
 
-                short leftSample = sample.getShort(leftIdx);
-                short rightSample = sample.getShort(rightIdx);
+            // apply volume
+            interpolatedSample *= volume;
 
-                float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
+            // apply panning
+            interpolatedSample *= leftPanning;
 
-                interpolatedSample *= INV_SHORT;
+            sampleBuffer[frame] = interpolatedSample;
+        }
 
-                // apply volume
-                interpolatedSample *= volume;
+        // transform right
+        for (int frame = 0; frame < sampleFrameCount; frame++) {
+            float exactIdx = frame * pitch;
+            int idx = (int) exactIdx;
+            float delta = exactIdx - idx;
 
-                // apply panning
-                interpolatedSample *= (ch == 0 ? leftPanning : rightPanning);
-
-                sampleBuffer[channels * frame + ch] = interpolatedSample;
+            if (idx + 1 >= baseFrameCount) {
+                break;
             }
+
+            int realIdx = idx + baseFrameCount;
+            float leftSample = sample[realIdx];
+            float rightSample = sample[realIdx + 1];
+            float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
+
+            // apply volume
+            interpolatedSample *= volume;
+
+            // apply panning
+            interpolatedSample *= rightPanning;
+
+            sampleBuffer[frame + sampleFrameCount] = interpolatedSample;
         }
 
         return sampleFrameCount;
     }
 
-    private void mixSample(float[] sample, final int frameCount, int bufferIdx, final int frameOffset) {
-        final int channels = 2;
-        final int sampleCount = frameCount * channels;
-
-        final int totalSampleOffset = frameOffset * channels;
-        final int bufferOffset = totalSampleOffset / bufferSize;
-        final int sampleOffset = totalSampleOffset % bufferSize;
+    private void mixSample(float[] sample, final int frameCount, int bufferIdx, final int totalFrameOffset) {
+        final int bufferOffset = totalFrameOffset / bufferFrames;
+        final int frameOffset = totalFrameOffset % bufferFrames;
 
         // figure out first buffer index
         bufferIdx = (bufferIdx + bufferOffset) % buffers.length;
 
         // mix first part with offset into the first buffer
-        int written = mixOffset(sample, sampleCount, bufferIdx, sampleOffset);
+        int writtenFrames = mixOffset(sample, frameCount, bufferIdx, frameOffset);
 
         // mix the rest into the following buffers
-        mixRest(sample, sampleCount, bufferIdx, frameOffset, written);
+        mixRest(sample, frameCount, bufferIdx, totalFrameOffset, writtenFrames);
     }
 
-    private void mixRest(float[] sample, int sampleCount, int bufferIdx, int frameOffset, final int written) {
-        final int channels = 2;
-        final int frameCount = sampleCount / channels;
-        final int restBufferSpan = bufferSpan(frameOffset, frameCount) - 1;
+    private int mixOffset(float[] sample, int frameCount, int bufferIdx, int frameOffset) {
+        final int len = max(0, min(frameCount, bufferFrames - frameOffset));
+        float[] buffer = buffers[bufferIdx];
+
+        // left
+        for (int i = 0; i < len; i++) {
+            buffer[frameOffset + i] += sample[i];
+        }
+
+        // right
+        for (int i = 0; i < len; i++) {
+            buffer[bufferFrames + frameOffset + i] += sample[frameCount + i];
+        }
+
+        return len;
+    }
+
+    private void mixRest(float[] sample, int frameCount, int bufferIdx, int totalFrameOffset, final int writtenFrames) {
+        final int restBufferSpan = bufferSpan(totalFrameOffset, frameCount) - 1;
 
         for (int i = 1; i <= restBufferSpan; i++) {
-            int writtenSoFar = written + i * bufferSize;
-            int remaining = sampleCount - writtenSoFar;
-            int len = max(0, min(bufferSize, remaining));
+            int writtenSoFar = writtenFrames + i * bufferFrames;
+            int remainingFrames = frameCount - writtenSoFar;
+            int len = max(0, min(bufferFrames, remainingFrames));
 
             int idx = (bufferIdx + i) % buffers.length;
             float[] buffer = buffers[idx];
 
+            // left
             for (int j = 0; j < len; j++) {
                 buffer[j] += sample[j + writtenSoFar];
             }
+
+            for (int j = 0; j < len; j++) {
+                buffer[bufferFrames + j] = sample[frameCount + j + writtenFrames];
+            }
         }
-    }
-
-    private int mixOffset(float[] sample, int sampleCount, int bufferIdx, int sampleOffset) {
-        final int len = max(0, min(sampleCount, bufferSize - sampleOffset));
-        float[] buffer = buffers[bufferIdx];
-
-        for (int i = 0; i < len; i++) {
-            buffer[i + sampleOffset] += sample[i];
-        }
-
-        return len;
     }
 
     private float getPitch(Note note) {

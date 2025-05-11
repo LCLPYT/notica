@@ -11,7 +11,6 @@ import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -25,7 +24,7 @@ public class SoundSampleManager {
     private final DirectSoundManager directSoundManager;
     private final UnifiedSoundLoader soundLoader;
     private final Logger logger;
-    private final ByteBuffer[] samples;
+    private final float[][] samples;
 
     public SoundSampleManager(Instruments instruments, InstrumentSoundProvider soundProvider, Random random,
                               SoundManager soundManager, DirectSoundManager directSoundManager,
@@ -38,10 +37,10 @@ public class SoundSampleManager {
         this.soundLoader = soundLoader;
         this.logger = logger;
 
-        this.samples = new ByteBuffer[instruments.customBegin() + instruments.custom().length];
+        this.samples = new float[instruments.customBegin() + instruments.custom().length][0];
     }
 
-    public @Nullable ByteBuffer getSample(byte instrument) {
+    public float[] getSample(byte instrument) {
         return samples[instrument & 0xFF];
     }
 
@@ -60,8 +59,8 @@ public class SoundSampleManager {
 
             final int idx = i & 0xFF;
 
-            var future = soundLoader.getUnifiedSample(sound)
-                    .thenAccept(sample -> samples[idx] = sample);
+            var future = soundLoader.getUnifiedSample(sound).thenAccept(opt -> opt
+                    .ifPresent(sample -> samples[idx] = sample));
 
             futures.add(future);
         }

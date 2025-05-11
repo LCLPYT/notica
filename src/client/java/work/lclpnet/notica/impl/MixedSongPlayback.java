@@ -6,6 +6,7 @@ import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
@@ -34,17 +35,19 @@ public class MixedSongPlayback {
     private final SoundMixer mixer;
     private final Channel channel;
     private final TimeNoiseSampler timeNoise;
+    private final Logger logger;
     private final int[] sections;
     private final IntSet processed = new IntOpenHashSet();
     private float songVolume = 1f;
     private boolean running = false;
     private int tick = 0;
 
-    public MixedSongPlayback(Song song, SoundMixer mixer, Channel channel, TimeNoiseSampler timeNoise) {
+    public MixedSongPlayback(Song song, SoundMixer mixer, Channel channel, TimeNoiseSampler timeNoise, Logger logger) {
         this.song = song;
         this.mixer = mixer;
         this.channel = channel;
         this.timeNoise = timeNoise;
+        this.logger = logger;
 
         this.sections = computeSectionStarts();
     }
@@ -88,6 +91,9 @@ public class MixedSongPlayback {
             int code = this.hashCode();
 
 //            Thread.ofPlatform().name("NBS playback @ " + code).start(this::runPlayback);
+        }).exceptionally(err -> {
+            logger.error("Failed to start playback", err);
+            return null;
         });
     }
 

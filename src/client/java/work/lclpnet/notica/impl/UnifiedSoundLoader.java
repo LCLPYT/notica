@@ -1,11 +1,5 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.client.sound.NonRepeatingAudioStream;
-import net.minecraft.client.sound.OggAudioStream;
-import net.minecraft.client.sound.Sound;
-import net.minecraft.resource.ResourceFactory;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
 import org.slf4j.Logger;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
@@ -13,7 +7,6 @@ import work.lclpnet.notica.util.ByteBufferInputStream;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -29,13 +22,11 @@ public class UnifiedSoundLoader {
 
     private static final float INV_SHORT = 1.f / 32768.f;
 
-    private final ResourceFactory resourceFactory;
     private final AudioFormat targetFormat;
     private final Logger logger;
-    private final Map<Identifier, CompletableFuture<Optional<float[]>>> unifiedSamples = new HashMap<>();
+    private final Map<SoundRef, CompletableFuture<Optional<float[]>>> unifiedSamples = new HashMap<>();
 
-    public UnifiedSoundLoader(ResourceFactory resourceFactory, AudioFormat targetFormat, Logger logger) {
-        this.resourceFactory = resourceFactory;
+    public UnifiedSoundLoader(AudioFormat targetFormat, Logger logger) {
         this.targetFormat = targetFormat;
         this.logger = logger;
     }
@@ -43,33 +34,34 @@ public class UnifiedSoundLoader {
     /**
      * Gets the sound sample for a given sound identifier, loaded in a unified format.
      * If there is no sample yet, the sound will be loaded using the resource factory.
-     * @param sound The sound instance.
+     * @param sound The sound sample.
      * @return A future of the optional unified sample as {@link ByteBuffer} (buffer will be null if something went wrong).
      */
-    public synchronized CompletableFuture<Optional<float[]>> getUnifiedSample(Sound sound) {
-        Identifier resourceId = sound.getLocation();
-
-        CompletableFuture<Optional<float[]>> future = unifiedSamples.get(resourceId);
+    public synchronized CompletableFuture<Optional<float[]>> getUnifiedSample(SoundRef sound) {
+        CompletableFuture<Optional<float[]>> future = unifiedSamples.get(sound);
 
         if (future != null) {
             return future;
         }
 
-        future = loadUnifiedSound(resourceId)
+        future = sound.load()
+                .thenCompose(this::recode)
                 .thenApply(sample -> transformSample(sample, sound))
                 .thenApply(this::toDeinterleavedFloats)
                 .thenApply(Optional::of)
                 .exceptionally(err -> {
-                    logger.error("Failed to get unified sample for sound id {}", resourceId, err);
+                    logger.error("Failed to get unified sample for sound {}", sound, err);
 
                     synchronized (this) {
-                        unifiedSamples.remove(resourceId);
+                        unifiedSamples.remove(sound);
                     }
 
                     return Optional.empty();
                 });
 
-        unifiedSamples.put(resourceId, future);
+        if (!future.isCompletedExceptionally()) {
+            unifiedSamples.put(sound, future);
+        }
 
         return future;
     }
@@ -96,25 +88,20 @@ public class UnifiedSoundLoader {
         return floatSamples;
     }
 
-    private CompletableFuture<ByteBuffer> loadUnifiedSound(Identifier id) {
+    private CompletableFuture<ByteBuffer> recode(SoundSample sample) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return loadUnifiedSoundSync(id);
-            } catch (IOException | UnsupportedAudioFileException e) {
-                throw new RuntimeException("Failed to load unified sound", e);
+                return recodeSync(sample);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to recode sound", e);
             }
         });
     }
 
-    private ByteBuffer loadUnifiedSoundSync(Identifier id) throws IOException, UnsupportedAudioFileException {
-        try (NonRepeatingAudioStream audioIn = new OggAudioStream(resourceFactory.open(id))) {
-            ByteBuffer sample = audioIn.readAll();
+    private ByteBuffer recodeSync(SoundSample sample) throws IOException {
+        ByteBuffer source = sample.sample();
+        AudioFormat srcFormat = sample.format();
 
-            return recode(sample, audioIn.getFormat());
-        }
-    }
-
-    private ByteBuffer recode(ByteBuffer source, AudioFormat srcFormat) throws IOException {
         ByteOrder order = targetFormat.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
         if (targetFormat.matches(srcFormat)) {
@@ -135,14 +122,10 @@ public class UnifiedSoundLoader {
      * @param sound The sound configuration from sounds.json.
      * @return The transformed sample.
      */
-    private ByteBuffer transformSample(ByteBuffer sample, Sound sound) {
-        Random random = Random.create(42L);
-        float volume = sound.getVolume().get(random);
-        float pitch = sound.getPitch().get(random);
+    private ByteBuffer transformSample(ByteBuffer sample, SoundRef sound) {
+        sample = SoundMixer.changePitch(sample, sound.pitch(), targetFormat, ByteBuffer::allocate);
 
-        sample = SoundMixer.changePitch(sample, pitch, targetFormat, ByteBuffer::allocate);
-
-        SoundMixer.changeVolume(sample, volume);
+        SoundMixer.changeVolume(sample, sound.volume());
 
         return sample;
     }

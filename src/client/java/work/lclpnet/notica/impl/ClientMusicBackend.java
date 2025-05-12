@@ -40,7 +40,7 @@ public class ClientMusicBackend {
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
     private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
             48_000, 16, 2, 4, 48_000, false);
-    private @Nullable volatile UnifiedSoundLoader soundLoader = null;
+    private final UnifiedSoundLoader unifiedSoundLoader;
 
     public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,
                               PlayerConfigEntry playerConfig, Logger logger) {
@@ -48,26 +48,7 @@ public class ClientMusicBackend {
         this.soundProvider = soundProvider;
         this.playerConfig = playerConfig;
         this.logger = logger;
-    }
-
-    private UnifiedSoundLoader unifiedSoundLoader() {
-        if (soundLoader != null) {
-            return soundLoader;
-        }
-
-        synchronized (this) {
-            if (soundLoader != null) {
-                return soundLoader;
-            }
-
-            SoundSystem soundSystem = ((SoundManagerAccessor) MinecraftClient.getInstance().getSoundManager()).getSoundSystem();
-            SoundLoader soundLoader = ((SoundSystemAccessor) soundSystem).getSoundLoader();
-            ResourceFactory resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceFactory();
-
-            this.soundLoader = new UnifiedSoundLoader(resourceFactory, unifiedAudioFormat, logger);
-        }
-
-        return soundLoader;
+        this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
     public void playSong(PendingSong song, Identifier songId, float volume, int startTick) {
@@ -103,18 +84,20 @@ public class ClientMusicBackend {
     }
 
     private void playMixedSamples(PendingSong song, int startTick, float volume) {
+        Random random = Random.create(42);
+
         SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
 
         Channel channel = soundSystemAccess.getChannel();
+        SoundLoader soundLoader = soundSystemAccess.getSoundLoader();
+        ResourceFactory resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceFactory();
 
-        UnifiedSoundLoader soundLoader = unifiedSoundLoader();
+        var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
+                directSoundManager, resourceFactory, logger);
 
-        Random random = Random.create(42);
-
-        var sampleManager = new SoundSampleManager(song.instruments(), soundProvider, random, soundManager,
-                directSoundManager, soundLoader, logger);
+        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader);
 
         var soundMixer = new SoundMixer(song, unifiedAudioFormat, sampleManager, SoundMixer.StereoMode.EQUAL_POWER);
         var songMixer = new SongMixer(soundMixer, song, () -> random.nextInt(11));

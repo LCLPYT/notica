@@ -85,6 +85,8 @@ dependencies {
 
     apiImplementation(implementation('org.jetbrains:annotations:24.0.0'))
 
+    testImplementation("work.lclpnet.mods.kibu:kibu-assets-api:${project.kibu_assets_api_version}")
+    testImplementation("org.jcraft:jorbis:0.0.17")
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.8.1'
 }

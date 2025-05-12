@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
@@ -115,11 +116,10 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), soundProvider, random, soundManager,
                 directSoundManager, soundLoader, logger);
 
-        var mixer = new SoundMixer(song, unifiedAudioFormat, sampleManager, SoundMixer.StereoMode.EQUAL_POWER);
+        var soundMixer = new SoundMixer(song, unifiedAudioFormat, sampleManager, SoundMixer.StereoMode.EQUAL_POWER);
+        var songMixer = new SongMixer(soundMixer, song, () -> random.nextInt(11));
 
-        MixedSongPlayback.TimeNoiseSampler timeNoise = () -> random.nextInt(11);
-
-        var playback = new MixedSongPlayback(song, mixer, channel, timeNoise, logger);
+        var playback = new MixedSongPlayback(song, soundMixer, songMixer, channel, logger);
 
         playback.start(startTick, volume);
     }

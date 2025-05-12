@@ -7,9 +7,8 @@ import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
-import work.lclpnet.notica.api.data.Layer;
-import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
 
@@ -25,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static java.lang.Math.ceil;
 import static java.lang.Math.max;
 import static work.lclpnet.notica.impl.mix.SoundMixer.SECTION_LENGTH_MS;
 
@@ -33,20 +31,19 @@ public class MixedSongPlayback {
 
     private final Song song;
     private final SoundMixer mixer;
+    private final SongMixer songMixer;
     private final Channel channel;
-    private final TimeNoiseSampler timeNoise;
     private final Logger logger;
     private final int[] sections;
     private final IntSet processed = new IntOpenHashSet();
-    private float songVolume = 1f;
     private boolean running = false;
     private int tick = 0;
 
-    public MixedSongPlayback(Song song, SoundMixer mixer, Channel channel, TimeNoiseSampler timeNoise, Logger logger) {
+    public MixedSongPlayback(Song song, SoundMixer mixer, SongMixer songMixer, Channel channel, Logger logger) {
         this.song = song;
         this.mixer = mixer;
+        this.songMixer = songMixer;
         this.channel = channel;
-        this.timeNoise = timeNoise;
         this.logger = logger;
 
         this.sections = computeSectionStarts();
@@ -81,7 +78,8 @@ public class MixedSongPlayback {
 
     public void start(int startTick, float volume) {
         this.tick = startTick;
-        this.songVolume = volume;
+
+        songMixer.setSongVolume(volume);
 
         mixer.preloadSounds().thenRun(() -> {
             processSection(0, 0);
@@ -171,37 +169,7 @@ public class MixedSongPlayback {
         final int startTick = sections[section];
         final int endTick = section < sections.length - 1 ? sections[section + 1] : song.durationTicks();
 
-        final float sampleRate = mixer.getFormat().getSampleRate();
-
-        int sampleOffset = 0;
-
-        for (int tick = startTick; tick < endTick; tick++) {
-            // mix all sounds in current tick
-            for (Layer layer : song.layers()) {
-                Note note = layer.notes().get(tick);
-
-                if (note == null) continue;
-
-                float volume = songVolume * layer.volume() * 1e-2f;
-
-                if (volume <= 0f) continue;
-
-                short panning = layer.panning();
-
-                if (!mixer.putSound(note, volume, panning, bufferOffset, sampleOffset)) {
-                    // TODO schedule long sound playback manually
-                }
-            }
-
-            // adjust sampleOffset by tick duration
-            float tickSeconds = 1.f / song.tempo().tempoAt(tick);
-            int tickSamples = (int) ceil(tickSeconds * sampleRate);
-
-            // apply noise to simulate timing imperfections of default SongPlayback
-            int noiseSamples = timeNoise.sampleNoiseTime();
-
-            sampleOffset += tickSamples + noiseSamples;
-        }
+        songMixer.mixTicks(startTick, endTick, bufferOffset);
     }
 
     private void playSound(ByteBuffer buf) {
@@ -227,9 +195,4 @@ public class MixedSongPlayback {
         }
     }
 
-    public interface TimeNoiseSampler {
-        TimeNoiseSampler NONE = () -> 0;
-
-        int sampleNoiseTime();
-    }
 }

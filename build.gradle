@@ -5,6 +5,7 @@ plugins {
 	id 'maven-publish'
 	id 'gradle-build-utils' version '1.7.0'
     id 'com.modrinth.minotaur' version '2.4.3'
+    id "me.champeau.jmh" version '0.7.3'
 }
 
 Properties props = buildUtils.loadProperties('publish.properties')
@@ -129,6 +130,17 @@ java {
 	}
 
     it.from sourceSets.api.output
+}
+
+jmh {
+    benchmarkMode = ['avgt']
+    fork = 2
+    threads = 4
+    timeUnit = 'ms'
+    profilers = ['async']  // make sure to have async-profiler library path on LD_LIBRARY_PATH
+
+    includeTests = false
+    zip64 = true
 }
 
 def env = System.getenv()

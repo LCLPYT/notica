@@ -1,6 +1,7 @@
 package work.lclpnet.notica.impl.mix;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Note;
@@ -102,7 +103,7 @@ public class SoundMixer {
      * False if the sound was too long or if no sample exists fot the given {@link Note} instrument.
      */
     public boolean putSound(Note note, float volume, short layerPanning, int bufferOffset, int frameOffset) {
-        final int frameCount = createNoteSample(note, volume, layerPanning);
+        final int frameCount = createNoteSample(note, volume, layerPanning, sampleBuffer);
 
         if (frameCount < 0) {
             return false;
@@ -139,7 +140,8 @@ public class SoundMixer {
         return endBuffer - startBuffer + 1;
     }
 
-    private int createNoteSample(Note note, float volume, short layerPanning) {
+    @VisibleForTesting
+    int createNoteSample(Note note, float volume, short layerPanning, float[] sampleBuffer) {
         float[] sample = sampleManager.getSample(note.instrument());
 
         if (sample.length == 0) {

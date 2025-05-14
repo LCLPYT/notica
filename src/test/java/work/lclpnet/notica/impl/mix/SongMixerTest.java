@@ -6,28 +6,35 @@ import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 
 public class SongMixerTest {
 
-    private static final boolean EXPORT = false;
+    private static final boolean EXPORT = true, OPEN = true;
 
     @Test
     void test() throws IOException {
-        Song song = TestUtil.loadSong("Driftveil City.nbs", getClass());
+        Song song = TestUtil.loadSong(Path.of("run", "config", "notica", "songs", "Note Block Megacollab.nbs"));
         SoundMixer soundMixer = TestUtil.createSoundMixer(song);
         SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         soundMixer.preloadSounds().join();
 
-        int startTick = 0;
-        int endTick = song.tempo().durationTicks(startTick, 5);
+        int startTick = song.tempo().durationTicks(0, 3 * 60 + 58 /* 17 * 60 + 25 */);
+        int endTick = startTick + song.tempo().durationTicks(startTick, 30);
 
         songMixer.mixTicks(startTick, endTick, 0);
 
         ByteBuffer buffer = soundMixer.completeCurrentBuffer();
 
-        if (EXPORT) {
-            System.out.println("File exported to " + TestUtil.exportSound(buffer));
-        }
+        if (!EXPORT) return;
+
+        Path path = TestUtil.exportSound(buffer);
+
+        System.out.println("File exported to " + path.toAbsolutePath());
+
+        if (!OPEN) return;
+
+        Runtime.getRuntime().exec(new String[] {"xdg-open", path.toAbsolutePath().toString()});
     }
 }

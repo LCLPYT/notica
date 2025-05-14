@@ -39,13 +39,15 @@ public class TestUtil {
         InputStream in = clazz.getResourceAsStream("/songs/" + name);
         Objects.requireNonNull(in, "Song not found");
 
-        Song song;
-
         try (in) {
-            song = SongDecoder.parse(in);
+            return SongDecoder.parse(in);
         }
+    }
 
-        return song;
+    public static @NotNull Song loadSong(Path path) throws IOException {
+        try (var in = Files.newInputStream(path)) {
+            return SongDecoder.parse(in);
+        }
     }
 
     public static @NotNull SongMixer createSongMixer(Song song, SoundMixer soundMixer) {

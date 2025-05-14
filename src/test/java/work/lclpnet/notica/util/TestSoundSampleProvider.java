@@ -35,6 +35,12 @@ public class TestSoundSampleProvider implements SoundSampleProvider {
     }
 
     private Optional<SoundRef> loadDirect(CustomInstrument custom) {
+        String name = custom.name();
+
+        if (SongDecoder.TEMPO_CHANGER_NAME.equals(name)) {
+            return Optional.empty();
+        }
+
         String file = custom.soundFile();
         int sep = file.indexOf("/");
         String namespace;
@@ -44,7 +50,6 @@ public class TestSoundSampleProvider implements SoundSampleProvider {
             namespace = file.substring(0, sep);
             path = file.substring(sep + 1);
         } else {
-            String name = custom.name();
             sep = name.indexOf("/");
 
             if (sep != -1) {

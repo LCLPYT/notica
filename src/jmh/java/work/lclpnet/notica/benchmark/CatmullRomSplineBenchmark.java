@@ -205,15 +205,15 @@ public class CatmullRomSplineBenchmark {
     public void accumulateFloatIndex(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
-        final float pitch = state.pitch;
+        final double pitch = state.pitch;
         final int sampleCount = state.sampleCount;
         final ByteBuffer buffer = state.input;
 
-        float x = 0f;
+        double x = 0f;
 
         for (int i = 0; i < length; i++) {
             int j = (int) x;
-            float t = x - j;
+            float t = (float) x - j;
 
             x += pitch;
 
@@ -367,15 +367,15 @@ public class CatmullRomSplineBenchmark {
     public void accumulateFloatArray(FloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
-        final float pitch = state.pitch;
+        final double pitch = state.pitch;
         final int sampleCount = state.sampleCount;
         final float[] buffer = state.input;
 
-        float x = 0f;
+        double x = 0f;
 
         for (int i = 0; i < length; i++) {
             int j = (int) x;
-            float t = x - j;
+            float t = (float) x - j;
 
             x += pitch;
 
@@ -406,49 +406,49 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-//    @Benchmark
-//    public void accumulateFloatArrayNoIndexClamping(PaddedFloatArrayState state, Blackhole blackhole) {
-//        final float[] output = state.output;
-//        final int length = output.length;
-//        final float pitch = state.pitch;
-//        final float[] buffer = state.input;
-//
-//        float x = 0f;
-//
-//        for (int i = 0; i < length; i++) {
-//            int j = (int) x;
-//            float t = x - j;
-//
-//            x += pitch;
-//
-//            int i0 = j + 1;
-//            int i1 = j + 2;
-//            int i2 = j + 3;
-//            int i3 = j + 4;
-//
-//            if (i3 >= buffer.length) {
-//                throw new IllegalStateException("bug " + i + " / " + length);
-//            }
-//
-//            float p0 = buffer[i0];
-//            float p1 = buffer[i1];
-//            float p2 = buffer[i2];
-//            float p3 = buffer[i3];
-//
-//            // Catmull-Rom spline formula
-//            float t2 = t * t;
-//            float t3 = t2 * t;
-//
-//            float sample = 0.5f * (
-//                    (2 * p1) +
-//                            (-p0 + p2) * t +
-//                            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-//                            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-//            );
-//
-//            output[i] = sample;
-//        }
-//
-//        blackhole.consume(output);
-//    }
+    @Benchmark
+    public void accumulateFloatArrayNoIndexClamping(PaddedFloatArrayState state, Blackhole blackhole) {
+        final float[] output = state.output;
+        final int length = output.length;
+        final double pitch = state.pitch;
+        final float[] buffer = state.input;
+
+        double x = 0f;
+
+        for (int i = 0; i < length; i++) {
+            int j = (int) x;
+            float t = (float) x - j;
+
+            x += pitch;
+
+            int i0 = j + 1;
+            int i1 = j + 2;
+            int i2 = j + 3;
+            int i3 = j + 4;
+
+            if (i3 >= buffer.length) {
+                throw new IllegalStateException("bug " + i + " / " + length);
+            }
+
+            float p0 = buffer[i0];
+            float p1 = buffer[i1];
+            float p2 = buffer[i2];
+            float p3 = buffer[i3];
+
+            // Catmull-Rom spline formula
+            float t2 = t * t;
+            float t3 = t2 * t;
+
+            float sample = 0.5f * (
+                    (2 * p1) +
+                            (-p0 + p2) * t +
+                            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+
+            output[i] = sample;
+        }
+
+        blackhole.consume(output);
+    }
 }

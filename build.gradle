@@ -142,7 +142,7 @@ java {
 jmh {
     benchmarkMode = ['avgt', 'ss']
     fork = 2
-    iterations = 10
+    iterations = 5
     timeUnit = 'ns'
 
     /* on linux, make sure to have:

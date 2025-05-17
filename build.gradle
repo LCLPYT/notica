@@ -90,6 +90,11 @@ dependencies {
     testImplementation("org.jcraft:jorbis:0.0.17")
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.8.1'
+
+    // must be defined for idea jmh plugin to execute benchmarks individually
+    jmh 'org.openjdk.jmh:jmh-core:1.37'
+    jmh 'org.openjdk.jmh:jmh-generator-bytecode:1.37'
+    jmhAnnotationProcessor(jmh('org.openjdk.jmh:jmh-generator-annprocess:1.37'))
 }
 
 test {
@@ -139,7 +144,14 @@ jmh {
     fork = 2
     iterations = 10
     timeUnit = 'ns'
-    // profilers = ['async']  // make sure to have async-profiler library path on LD_LIBRARY_PATH
+
+    /* on linux, make sure to have:
+     - the async-profiler library path on LD_LIBRARY_PATH
+     - perf installed
+     - expose kernel addresses for the current session (execute as root: echo 0 > /proc/sys/kernel/kptr_restrict)
+     - enable perf events for unprivileged users (execute as root: echo 1 > /proc/sys/kernel/perf_event_paranoid)
+     */
+    profilers = ['async:dir=build/results/jmh/profiler;output=jfr']
 
     includeTests = false
     zip64 = true

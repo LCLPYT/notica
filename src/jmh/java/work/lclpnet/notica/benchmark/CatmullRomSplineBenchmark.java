@@ -245,46 +245,6 @@ public class CatmullRomSplineBenchmark {
     }
 
     @Benchmark
-    public void shortArray(ShortArrayState state, Blackhole blackhole) {
-        final float[] output = state.output;
-        final int length = output.length;
-        final float pitch = state.pitch;
-        final int sampleCount = state.sampleCount;
-        final short[] buffer = state.input;
-
-        for (int i = 0; i < length; i++) {
-            float x = i * pitch;
-            int j = (int) x;
-            float t = x - j;
-
-            int i0 = max(0, min(j - 1, sampleCount - 1));
-            int i1 = max(0, min(j, sampleCount - 1));
-            int i2 = max(0, min(j + 1, sampleCount - 1));
-            int i3 = max(0, min(j + 2, sampleCount - 1));
-
-            float p0 = buffer[i0];
-            float p1 = buffer[i1];
-            float p2 = buffer[i2];
-            float p3 = buffer[i3];
-
-            // Catmull-Rom spline formula
-            float t2 = t * t;
-            float t3 = t2 * t;
-
-            float sample = 0.5f * (
-                    (2 * p1) +
-                            (-p0 + p2) * t +
-                            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-                            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-            );
-
-            output[i] = sample;
-        }
-
-        blackhole.consume(output);
-    }
-
-    @Benchmark
     public void floatArray(FloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -364,6 +324,43 @@ public class CatmullRomSplineBenchmark {
     }
 
     @Benchmark
+    public void fma(ByteBufferState state, Blackhole blackhole) {
+        final float[] output = state.output;
+        final int length = output.length;
+        final float pitch = state.pitch;
+        final int sampleCount = state.sampleCount;
+        final ByteBuffer buffer = state.input;
+
+        for (int i = 0; i < length; i++) {
+            float x = i * pitch;
+            int j = (int) x;
+            float t = x - j;
+
+            int i0 = max(0, min(j - 1, sampleCount - 1));
+            int i1 = max(0, min(j, sampleCount - 1));
+            int i2 = max(0, min(j + 1, sampleCount - 1));
+            int i3 = max(0, min(j + 2, sampleCount - 1));
+
+            float p0 = buffer.getShort(i0 * 2);
+            float p1 = buffer.getShort(i1 * 2);
+            float p2 = buffer.getShort(i2 * 2);
+            float p3 = buffer.getShort(i3 * 2);
+
+            // Catmull-Rom spline formula
+            float t2 = t * t;
+            float t3 = t2 * t;
+
+            float a = Math.fma(-p0 + p2,    t,     2f*p1);
+            float b = Math.fma(2f*p0 -5f*p1 +4f*p2 -p3, t2, a);
+            float c = Math.fma(-p0 +3f*p1 -3f*p2 +p3,  t3, b);
+
+            output[i] = 0.5f * c;
+        }
+
+        blackhole.consume(output);
+    }
+
+    @Benchmark
     public void accumulateFloatArray(FloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -407,7 +404,7 @@ public class CatmullRomSplineBenchmark {
     }
 
     @Benchmark
-    public void accumulateFloatArrayNoIndexClamping(PaddedFloatArrayState state, Blackhole blackhole) {
+    public void accumulateFloatArrayNoClampFMA(PaddedFloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
         final double pitch = state.pitch;
@@ -426,10 +423,6 @@ public class CatmullRomSplineBenchmark {
             int i2 = j + 3;
             int i3 = j + 4;
 
-            if (i3 >= buffer.length) {
-                throw new IllegalStateException("bug " + i + " / " + length);
-            }
-
             float p0 = buffer[i0];
             float p1 = buffer[i1];
             float p2 = buffer[i2];
@@ -439,14 +432,11 @@ public class CatmullRomSplineBenchmark {
             float t2 = t * t;
             float t3 = t2 * t;
 
-            float sample = 0.5f * (
-                    (2 * p1) +
-                            (-p0 + p2) * t +
-                            (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-                            (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-            );
+            float a = Math.fma(-p0 + p2,    t,     2f*p1);
+            float b = Math.fma(2f*p0 -5f*p1 +4f*p2 -p3, t2, a);
+            float c = Math.fma(-p0 +3f*p1 -3f*p2 +p3,  t3, b);
 
-            output[i] = sample;
+            output[i] = 0.5f * c;
         }
 
         blackhole.consume(output);

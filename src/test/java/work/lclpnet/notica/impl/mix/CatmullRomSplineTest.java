@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl.mix;
 
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CatmullRomSplineTest {
@@ -60,5 +61,48 @@ public class CatmullRomSplineTest {
         float z = Math.fma(2, p1, y);
 
         return 0.5f * z;
+    }
+
+    @Test
+    void fixedPointCorrect() {
+        int n = 240_000;
+        float pitch = 0.7f;
+
+        int[] i1 = new int[n];
+        int[] i2 = new int[n];
+
+        float[] f1 = new float[n];
+        float[] f2 = new float[n];
+
+        floatingPointDirect(pitch, i1, f1);
+        floatingPointAccumulate(pitch, i2, f2);
+
+        assertArrayEquals(i1, i2, "float accumulate: Indices mismatch");
+        assertArrayEquals(f1, f2, "float accumulate: Fractional mismatch");
+    }
+
+    private void floatingPointDirect(float pitch, int[] indices, float[] fractional) {
+        for (int i = 0; i < indices.length; i++) {
+            float x = i * pitch;
+            int j = (int) x;
+            float t = x - j;
+
+            indices[i] = j;
+            fractional[i] = t;
+        }
+    }
+
+    private void floatingPointAccumulate(double pitch, int[] indices, float[] fractional) {
+        double x = 0f;
+
+        for (int i = 0; i < indices.length; i++) {
+            int j = (int) (float) x;
+            float t = (float) x - j;
+
+            indices[i] = j;
+            fractional[i] = t;
+
+            x += pitch;
+        }
     }
 }

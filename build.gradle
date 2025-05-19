@@ -146,7 +146,7 @@ jmh {
     timeUnit = 'ns'
 
     /* on linux, make sure to have:
-     - the async-profiler library path on LD_LIBRARY_PATH
+     - the async-profiler library path on LD_LIBRARY_PATH (e.g. LD_LIBRARY_PATH=/opt/async-profiler/lib)
      - perf installed
      - expose kernel addresses for the current session (execute as root: echo 0 > /proc/sys/kernel/kptr_restrict)
      - enable perf events for unprivileged users (execute as root: echo 1 > /proc/sys/kernel/perf_event_paranoid)

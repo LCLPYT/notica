@@ -5,6 +5,7 @@ import org.openjdk.jmh.infra.Blackhole;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -13,7 +14,7 @@ import static java.lang.Math.min;
 @BenchmarkMode({Mode.AverageTime, Mode.SingleShotTime})
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Fork(2)
-@Threads(6)
+@Threads(4)
 public class CatmullRomSplineBenchmark {
 
     private static final float INV_SHORT = 1f / Short.MAX_VALUE;
@@ -582,5 +583,74 @@ public class CatmullRomSplineBenchmark {
 
             y_out[i] = 0.5f * c;
         }
+    }
+
+    @Benchmark
+    @Threads(2)
+    public void streams(PaddedFloatArrayState state, Blackhole blackhole) {
+        final float[] output = state.output;
+        final int length = output.length;
+        final float pitch = state.pitch;
+        final float[] buffer = state.input;
+
+        IntStream.range(0, length)
+                .parallel()
+                .forEach(i -> {
+                    float x = i * pitch;
+                    int j = (int) x;
+                    float t = x - j;
+
+                    float p0 = buffer[j + 1];
+                    float p1 = buffer[j + 2];
+                    float p2 = buffer[j + 3];
+                    float p3 = buffer[j + 4];
+
+                    // Catmull-Rom spline formula
+                    float t2 = t * t;
+                    float t3 = t2 * t;
+
+                    float a = Math.fma(-p0 + p2,    t,     2f*p1);
+                    float b = Math.fma(2f*p0 -5f*p1 +4f*p2 -p3, t2, a);
+                    float c = Math.fma(-p0 +3f*p1 -3f*p2 +p3,  t3, b);
+
+                    output[i] = 0.5f * c;
+                });
+
+        blackhole.consume(buffer);
+    }
+
+    @Benchmark
+    @Threads(2)
+    public void virtual_threads_simd(SimdPaddedFloatArrayState state, Blackhole blackhole) throws InterruptedException {
+        final float pitch = state.pitch;
+        final float[] xs = state.xs;
+        final int length = state.xs.length;
+        float[] input = state.input;
+        float[] output = state.output;
+
+        final int n = Runtime.getRuntime().availableProcessors();
+        final int batch = length / n;
+
+        Thread[] threads = new Thread[n];
+
+        for (int i = 0; i < n; i++) {
+            final int start = i * batch;
+            final int len = min(batch, length - start);
+            final int end = start + len;
+
+            threads[i] = Thread.startVirtualThread(() -> {
+                for (int j = start; j < end; j++) {
+                    xs[j] = j * pitch;
+                }
+
+                evaluateSimd(len, xs, input, output);
+            });
+        }
+
+        for (Thread thread : threads) {
+            thread.join();
+        }
+
+        blackhole.consume(output);
     }
 }

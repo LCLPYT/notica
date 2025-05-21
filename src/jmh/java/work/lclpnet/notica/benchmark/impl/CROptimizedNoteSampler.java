@@ -13,7 +13,7 @@ import javax.sound.sampled.AudioFormat;
 import static java.lang.Math.*;
 
 @SuppressWarnings("DuplicatedCode")
-public class CatmullRomBaselineNoteSampler implements NoteSampler {
+public class CROptimizedNoteSampler implements NoteSampler {
 
     private static final float INV_SHORT = 1f / Short.MAX_VALUE;
 
@@ -22,7 +22,7 @@ public class CatmullRomBaselineNoteSampler implements NoteSampler {
     private final SoundMixer.StereoMode stereoMode;
     private final Instruments instruments;
 
-    public CatmullRomBaselineNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public CROptimizedNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
@@ -80,53 +80,44 @@ public class CatmullRomBaselineNoteSampler implements NoteSampler {
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
 
+        float[] xs = new float[outFrames];
+
+        for (int i = 0; i < xs.length; i++) {
+            xs[i] = i * pitch;
+        }
+
         // transform left
-        transform(in, 0, inFrames, out, 0, outFrames, pitch);
+        evaluateSimd(outFrames, xs, in, out, 0, 0);
         mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        transform(in, inFrames, inFrames, out, outFrames, outFrames, pitch);
+        evaluateSimd(outFrames, xs, in, out, inFrames, outFrames);
         mul(out, outFrames, outFrames, volume * rightPanning);
 
         return outFrames;
     }
 
-    private static void transform(final float[] in, final int inOffset, final int inLen,
-                           final float[] out, final int outOffset, final int outLen,
-                           final float pitch) {
+    private static void evaluateSimd(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {
+        for (int i = 0; i < len; i++) {
+            final float x = xs[i];
 
-        for (int i = 0; i < outLen; i++) {
-            float x = i * pitch;
-            int j = (int) x;
-            float t = x - j;
+            final int j = (int) x;
+            final float t = x - (float) j;
 
-            int i0 = max(0, min(inOffset + j - 1, inLen - 1));
-            int i1 = max(0, min(inOffset + j, inLen - 1));
-            int i2 = max(0, min(inOffset + j + 1, inLen - 1));
-            int i3 = max(0, min(inOffset + j + 2, inLen - 1));
-
-            float p0 = in[i0];
-            float p1 = in[i1];
-            float p2 = in[i2];
-            float p3 = in[i3];
-
-            p0 *= INV_SHORT;
-            p1 *= INV_SHORT;
-            p2 *= INV_SHORT;
-            p3 *= INV_SHORT;
+            float p0 = y_in[in_offset + j + 1];
+            float p1 = y_in[in_offset + j + 2];
+            float p2 = y_in[in_offset + j + 3];
+            float p3 = y_in[in_offset + j + 4];
 
             // Catmull-Rom spline formula
             float t2 = t * t;
             float t3 = t2 * t;
 
-            float sample = 0.5f * (
-                    (2 * p1) +
-                    (-p0 + p2) * t +
-                    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-                    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-            );
+            float a = Math.fma(-p0 + p2, t, 2f * p1);
+            float b = Math.fma(2f * p0 - 5f * p1 + 4f * p2 - p3, t2, a);
+            float c = Math.fma(-p0 + 3f * p1 - 3f * p2 + p3, t3, b);
 
-            out[outOffset + i] = sample;
+            y_out[out_offset + i] = 0.5f * c;
         }
     }
 

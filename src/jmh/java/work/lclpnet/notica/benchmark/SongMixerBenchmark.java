@@ -3,7 +3,8 @@ package work.lclpnet.notica.benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.benchmark.impl.CatmullRomBaselineNoteSampler;
+import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
+import work.lclpnet.notica.benchmark.impl.CROptimizedNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitVolumeNoteSampler;
 import work.lclpnet.notica.impl.BaselineNoteSampler;
@@ -99,7 +100,28 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomBaselineNoteSampler::new);
+            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CRBaselineNoteSampler::new);
+            songMixer = TestUtil.createSongMixer(song, soundMixer);
+
+            endTick = song.tempo().durationTicks(0, 5);
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class CatmullRomOptimizedState {
+
+        SoundMixer soundMixer;
+        SongMixer songMixer;
+        int endTick;
+
+        @Setup(Level.Trial)
+        public void setup() throws IOException {
+            Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
+            sampleManager.loadAll();
+
+            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CROptimizedNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
             endTick = song.tempo().durationTicks(0, 5);
@@ -135,6 +157,15 @@ public class SongMixerBenchmark {
 
     @Benchmark
     public void catmullRomBaseline(CatmullRomBaselineState state, Blackhole blackhole) {
+        state.songMixer.mixTicks(0, state.endTick, 0);
+
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+
+        blackhole.consume(res);
+    }
+
+    @Benchmark
+    public void catmullRomOptimized(CatmullRomOptimizedState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.completeCurrentBuffer();

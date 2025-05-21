@@ -6,6 +6,7 @@ plugins {
 	id 'gradle-build-utils' version '1.7.0'
     id 'com.modrinth.minotaur' version '2.4.3'
     id "me.champeau.jmh" version '0.7.3'
+    id "io.morethan.jmhreport" version "0.9.0"
 }
 
 Properties props = buildUtils.loadProperties('publish.properties')
@@ -149,6 +150,7 @@ jmh {
     fork = 2
     iterations = 5
     timeUnit = 'ns'
+    resultFormat = 'json'
 
     /* on linux, make sure to have:
      - the async-profiler library path on LD_LIBRARY_PATH (e.g. LD_LIBRARY_PATH=/opt/async-profiler/lib)
@@ -165,6 +167,19 @@ jmh {
 jmhJar {
     from sourceSets.api.getOutput()
 }
+
+def jmhReportDir = project.file('build/reports/jmh')
+
+jmhReport {
+    jmhResultPath = project.file('build/results/jmh/results.json')
+    jmhReportOutput = jmhReportDir
+}
+
+tasks.jmhReport.doFirst {
+    jmhReportDir.mkdirs()
+}
+
+tasks.jmh.finalizedBy tasks.jmhReport
 
 def env = System.getenv()
 

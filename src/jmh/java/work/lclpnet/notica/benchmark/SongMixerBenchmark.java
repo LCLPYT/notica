@@ -3,6 +3,7 @@ package work.lclpnet.notica.benchmark;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.benchmark.impl.CatmullRomBaselineNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitVolumeNoteSampler;
 import work.lclpnet.notica.impl.BaselineNoteSampler;
@@ -84,6 +85,27 @@ public class SongMixerBenchmark {
         }
     }
 
+    @State(Scope.Thread)
+    public static class CatmullRomBaselineState {
+
+        SoundMixer soundMixer;
+        SongMixer songMixer;
+        int endTick;
+
+        @Setup(Level.Trial)
+        public void setup() throws IOException {
+            Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
+            sampleManager.loadAll();
+
+            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomBaselineNoteSampler::new);
+            songMixer = TestUtil.createSongMixer(song, soundMixer);
+
+            endTick = song.tempo().durationTicks(0, 5);
+        }
+    }
+
     @Benchmark
     public void baseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
@@ -93,7 +115,7 @@ public class SongMixerBenchmark {
         blackhole.consume(res);
     }
 
-    @Benchmark
+//    @Benchmark
     public void split(SplitState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
@@ -104,6 +126,15 @@ public class SongMixerBenchmark {
 
     @Benchmark
     public void splitVolume(SplitVolumeState state, Blackhole blackhole) {
+        state.songMixer.mixTicks(0, state.endTick, 0);
+
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+
+        blackhole.consume(res);
+    }
+
+    @Benchmark
+    public void catmullRomBaseline(CatmullRomBaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.completeCurrentBuffer();

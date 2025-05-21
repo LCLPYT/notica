@@ -123,7 +123,7 @@ public class GainReduction {
 
             // calculate how much the gain should be reduced
             int lookAheadIndex = min(i + lookaheadSamples, sideChain.length - 1); // TODO smooth with next sample
-            float overShoot = sideChain[lookAheadIndex] - thresholdLn;  // TODO optimize lookup
+            float overShoot = sideChain[lookAheadIndex] - thresholdLn;
             float gainReduction = calcGainReduction(overShoot, kneeHalf);  // y_G = gain reduction
 
             // adjust attack and release

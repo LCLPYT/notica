@@ -1,19 +1,14 @@
 package work.lclpnet.notica.impl.mix;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
-import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.util.NoteHelper;
+import work.lclpnet.notica.impl.NoteSampler;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.IntFunction;
 
 import static java.lang.Math.*;
@@ -23,10 +18,8 @@ public class SoundMixer {
     private static final int RESERVE_BUFFERS = 2;
     public static final int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
 
-    private final Song song;
     private final AudioFormat format;
-    private final SoundSampleManager sampleManager;
-    private final StereoMode stereoMode;
+    private final NoteSampler noteSampler;
     private final Compressor compressor;
     private final int bufferSize, bufferFrames;
     private final float[] sampleBuffer;
@@ -34,11 +27,9 @@ public class SoundMixer {
     private final float[][] buffers = new float[2 + RESERVE_BUFFERS][0];  // current + upNext + reserve
     private int currentBuffer = 0;
 
-    public SoundMixer(Song song, AudioFormat format, SoundSampleManager sampleManager, StereoMode stereoMode) {
+    public SoundMixer(AudioFormat format, NoteSampler noteSampler) {
         this.format = format;
-        this.song = song;
-        this.sampleManager = sampleManager;
-        this.stereoMode = stereoMode;
+        this.noteSampler = noteSampler;
 
         if (format.getChannels() != 2) {
             throw new IllegalArgumentException("Implementation expects stereo audio format");
@@ -82,10 +73,6 @@ public class SoundMixer {
         return format;
     }
 
-    public CompletableFuture<Void> preloadSounds() {
-        return CompletableFuture.runAsync(sampleManager::loadAll);
-    }
-
     /**
      * Mix the sound sample of a {@link Note} into the sound ring buffer with a given frameOffset.
      * If the sound sample is longer than the current buffer element capacity, the rest of it is put into the
@@ -102,7 +89,7 @@ public class SoundMixer {
      * False if the sound was too long or if no sample exists fot the given {@link Note} instrument.
      */
     public boolean putSound(Note note, float volume, short layerPanning, int bufferOffset, int frameOffset) {
-        final int frameCount = createNoteSample(note, volume, layerPanning, sampleBuffer);
+        final int frameCount = noteSampler.sample(note, volume, layerPanning, sampleBuffer);
 
         if (frameCount < 0) {
             return false;
@@ -137,107 +124,6 @@ public class SoundMixer {
         int endBuffer = ((sampleOffset + sampleCount - 1) / bufferSize);
 
         return endBuffer - startBuffer + 1;
-    }
-
-    @VisibleForTesting
-    int createNoteSample(Note note, float volume, short layerPanning, float[] sampleBuffer) {
-        float[] sample = sampleManager.getSample(note.instrument());
-
-        if (sample.length == 0) {
-            return -1;
-        }
-
-        volume *= note.velocity() * 1e-2f;
-
-        if (volume <= 0f) {
-            return -1;
-        }
-
-        float pitch = getPitch(note);
-        float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
-
-        final int channels = format.getChannels();
-        final int baseFrameCount = sample.length / channels;
-        final int sampleFrameCount = (int) (baseFrameCount / pitch);
-
-        // check if sample can fit into the buffer
-        final int capacity = sampleBuffer.length / channels;
-
-        if (sampleFrameCount > capacity) {
-            return -1;
-        }
-
-        // calculate panning
-        float leftPanning;
-        float rightPanning;
-
-        if (stereoMode == StereoMode.SPATIAL) {
-            // mimic vanilla behavior:
-            // if there is panning, mute the other channel and apply linear attenuation with 16 block range.
-            // a panning of 1 means 2 blocks from the nbs specification
-            if (panning < 0) {
-                leftPanning = 1.f - (-panning / 8f);
-                rightPanning = 0;
-            } else if (panning > 0) {
-                leftPanning = 0;
-                rightPanning = 1.f - (panning / 8f);
-            } else {
-                leftPanning = 1;
-                rightPanning = 1;
-            }
-        } else {
-            leftPanning = (float) cos((panning + 1) * PI / 4);
-            rightPanning = (float) sin((panning + 1) * PI / 4);
-        }
-
-        // transform left
-        for (int frame = 0; frame < sampleFrameCount; frame++) {
-            float exactIdx = frame * pitch;
-            int idx = (int) exactIdx;
-            float delta = exactIdx - idx;
-
-            if (idx + 1 >= baseFrameCount) {
-                break;
-            }
-
-            float leftSample = sample[idx];
-            float rightSample = sample[idx + 1];
-            float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
-
-            // apply volume
-            interpolatedSample *= volume;
-
-            // apply panning
-            interpolatedSample *= leftPanning;
-
-            sampleBuffer[frame] = interpolatedSample;
-        }
-
-        // transform right
-        for (int frame = 0; frame < sampleFrameCount; frame++) {
-            float exactIdx = frame * pitch;
-            int idx = (int) exactIdx;
-            float delta = exactIdx - idx;
-
-            if (idx + 1 >= baseFrameCount) {
-                break;
-            }
-
-            int realIdx = idx + baseFrameCount;
-            float leftSample = sample[realIdx];
-            float rightSample = sample[realIdx + 1];
-            float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
-
-            // apply volume
-            interpolatedSample *= volume;
-
-            // apply panning
-            interpolatedSample *= rightPanning;
-
-            sampleBuffer[frame + sampleFrameCount] = interpolatedSample;
-        }
-
-        return sampleFrameCount;
     }
 
     private void mixSample(float[] sample, final int frameCount, int bufferIdx, final int totalFrameOffset) {
@@ -291,21 +177,6 @@ public class SoundMixer {
                 buffer[bufferFrames + j] = sample[frameCount + j + writtenFrames];
             }
         }
-    }
-
-    private float getPitch(Note note) {
-        final byte instrument = note.instrument();
-        CustomInstrument custom = song.instruments().custom(instrument);
-
-        byte key;
-
-        if (custom != null) {
-            key = (byte) (note.key() + custom.key() - 45);
-        } else {
-            key = note.key();
-        }
-
-        return NoteHelper.openAlPitch((short) (key * 100 + note.pitch()));  // (0.0, any]
     }
 
     public static ByteBuffer changePitch(ByteBuffer input, float pitch, AudioFormat format, IntFunction<ByteBuffer> outputFactory) {

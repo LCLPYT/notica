@@ -5,7 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.assets.AssetManager;
 import work.lclpnet.notica.api.SongDecoder;
+import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.BaselineNoteSampler;
+import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
 import work.lclpnet.notica.impl.mix.SongMixer;
@@ -57,12 +60,25 @@ public class TestUtil {
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song) throws IOException {
+        SoundSampleManager sampleManager = createSampleManager(song.instruments());
+
+        sampleManager.loadAll();
+
+        return createSoundMixer(song, sampleManager, BaselineNoteSampler::new);
+    }
+
+    public static @NotNull SoundSampleManager createSampleManager(Instruments instruments) {
+        var sampleProvider = new TestSoundSampleProvider(instruments, soundRegistry);
+
+        return new SoundSampleManager(instruments, sampleProvider, soundLoader);
+    }
+
+    public static @NotNull SoundMixer createSoundMixer(Song song, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
         initSoundRegistry();
 
-        var sampleProvider = new TestSoundSampleProvider(song.instruments(), soundRegistry);
-        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, soundLoader);
+        var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, SoundMixer.StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(song, AUDIO_FORMAT, sampleManager, SoundMixer.StereoMode.EQUAL_POWER);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {
@@ -89,5 +105,9 @@ public class TestUtil {
             registryInit = true;
             soundRegistry.init();
         }
+    }
+
+    public interface NoteSamplerFactory {
+        NoteSampler create(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments);
     }
 }

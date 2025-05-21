@@ -25,13 +25,15 @@ import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Math.max;
+import static java.util.concurrent.CompletableFuture.runAsync;
 import static work.lclpnet.notica.impl.mix.SoundMixer.SECTION_LENGTH_MS;
 
 public class MixedSongPlayback {
 
     private final Song song;
-    private final SoundMixer mixer;
+    private final SoundMixer soundMixer;
     private final SongMixer songMixer;
+    private final SoundSampleManager sampleManager;
     private final Channel channel;
     private final Logger logger;
     private final int[] sections;
@@ -39,10 +41,12 @@ public class MixedSongPlayback {
     private boolean running = false;
     private int tick = 0;
 
-    public MixedSongPlayback(Song song, SoundMixer mixer, SongMixer songMixer, Channel channel, Logger logger) {
+    public MixedSongPlayback(Song song, SoundMixer soundMixer, SongMixer songMixer, SoundSampleManager sampleManager,
+                             Channel channel, Logger logger) {
         this.song = song;
-        this.mixer = mixer;
+        this.soundMixer = soundMixer;
         this.songMixer = songMixer;
+        this.sampleManager = sampleManager;
         this.channel = channel;
         this.logger = logger;
 
@@ -81,9 +85,9 @@ public class MixedSongPlayback {
 
         songMixer.setSongVolume(volume);
 
-        mixer.preloadSounds().thenRun(() -> {
+        runAsync(sampleManager::loadAll).thenRun(() -> {
             processSection(0, 0);
-            ByteBuffer soundBuf = mixer.completeCurrentBuffer();
+            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
             playSound(soundBuf);
 
             int code = this.hashCode();
@@ -101,7 +105,7 @@ public class MixedSongPlayback {
 
     public void seekTo(int tick) {
         this.tick = tick;
-        mixer.reset();
+        soundMixer.reset();
     }
 
     private void runPlayback() {
@@ -141,7 +145,7 @@ public class MixedSongPlayback {
             }
 
             // play the current section
-            ByteBuffer soundBuf = mixer.completeCurrentBuffer();
+            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
             playSound(soundBuf);
 
             // wait until next section
@@ -158,7 +162,7 @@ public class MixedSongPlayback {
 
     private void freeSection(int section) {
         processed.remove(section);
-        mixer.advanceBuffer();
+        soundMixer.advanceBuffer();
 
         // TODO free openAL source
     }
@@ -174,7 +178,7 @@ public class MixedSongPlayback {
 
     private void playSound(ByteBuffer buf) {
         Channel.SourceManager sourceManager = channel.createSource(SoundEngine.RunMode.STATIC).join();
-        AudioFormat format = mixer.getFormat();
+        AudioFormat format = soundMixer.getFormat();
         StaticSound sound = new StaticSound(buf, format);
 
         sourceManager.run(source -> {

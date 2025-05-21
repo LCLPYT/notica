@@ -99,10 +99,11 @@ public class ClientMusicBackend {
 
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader);
 
-        var soundMixer = new SoundMixer(song, unifiedAudioFormat, sampleManager, SoundMixer.StereoMode.EQUAL_POWER);
+        var noteSampler = new BaselineNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.EQUAL_POWER, song.instruments());
+        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler);
         var songMixer = new SongMixer(soundMixer, song, () -> random.nextInt(11));
 
-        var playback = new MixedSongPlayback(song, soundMixer, songMixer, channel, logger);
+        var playback = new MixedSongPlayback(song, soundMixer, songMixer, sampleManager, channel, logger);
 
         playback.start(startTick, volume);
     }

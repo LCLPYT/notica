@@ -66,6 +66,11 @@ sourceSets {
         compileClasspath += main.compileClasspath + main.getOutput() + client.compileClasspath + client.getOutput()
         runtimeClasspath += main.runtimeClasspath + main.getOutput() + client.runtimeClasspath + client.getOutput()
     }
+
+    jmh {
+        compileClasspath += api.getOutput() + client.getOutput()
+        runtimeClasspath += api.getOutput() + client.getOutput()
+    }
 }
 
 dependencies {
@@ -153,8 +158,12 @@ jmh {
      */
     profilers = ['async:dir=build/results/jmh/profiler;output=jfr']
 
-    includeTests = false
+    includeTests = true
     zip64 = true
+}
+
+jmhJar {
+    from sourceSets.api.getOutput()
 }
 
 def env = System.getenv()

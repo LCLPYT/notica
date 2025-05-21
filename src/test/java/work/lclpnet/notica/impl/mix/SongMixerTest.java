@@ -20,8 +20,10 @@ public class SongMixerTest {
 
         soundMixer.preloadSounds().join();
 
+        songMixer.setSongVolume(0.5f);
+
         int startTick = song.tempo().durationTicks(0, 3 * 60 + 58 /* 17 * 60 + 25 */);
-        int endTick = startTick + song.tempo().durationTicks(startTick, 30);
+        int endTick = startTick + song.tempo().durationTicks(startTick, 5);
 
         songMixer.mixTicks(startTick, endTick, 0);
 

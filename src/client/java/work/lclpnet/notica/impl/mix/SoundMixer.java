@@ -22,7 +22,6 @@ public class SoundMixer {
 
     private static final int RESERVE_BUFFERS = 2;
     public static final int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
-    private static final float INV_SHORT = 1.f / 32768.f;
 
     private final Song song;
     private final AudioFormat format;

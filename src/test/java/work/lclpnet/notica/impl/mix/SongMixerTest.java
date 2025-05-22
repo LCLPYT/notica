@@ -17,6 +17,8 @@ public class SongMixerTest {
     void test() throws IOException {
         Song song = TestUtil.loadSong(Path.of("run", "config", "notica", "songs", "Note Block Megacollab.nbs"));
 
+        TestUtil.initSoundRegistry();
+
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 

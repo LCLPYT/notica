@@ -34,6 +34,8 @@ public class SongMixerBenchmark {
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
 
+            TestUtil.initSoundRegistry();
+
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
@@ -54,6 +56,8 @@ public class SongMixerBenchmark {
         @Setup(Level.Trial)
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            TestUtil.initSoundRegistry();
 
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
@@ -76,6 +80,8 @@ public class SongMixerBenchmark {
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
 
+            TestUtil.initSoundRegistry();
+
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
@@ -97,6 +103,8 @@ public class SongMixerBenchmark {
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
 
+            TestUtil.initSoundRegistry();
+
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
@@ -117,6 +125,8 @@ public class SongMixerBenchmark {
         @Setup(Level.Trial)
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            TestUtil.initSoundRegistry();
 
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
             sampleManager.loadAll();

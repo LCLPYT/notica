@@ -63,6 +63,7 @@ public class TestUtil {
     public static @NotNull SoundMixer createSoundMixer(Song song) throws IOException {
         SoundSampleManager sampleManager = createSampleManager(song.instruments());
 
+        initSoundRegistry();
         sampleManager.loadAll();
 
         return createSoundMixer(song, sampleManager, BaselineNoteSampler::new);
@@ -101,7 +102,7 @@ public class TestUtil {
         }
     }
 
-    private static void initSoundRegistry() throws IOException {
+    public static void initSoundRegistry() throws IOException {
         if (registryInit) return;
 
         synchronized (TestUtil.class) {

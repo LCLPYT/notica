@@ -13,14 +13,14 @@ import javax.sound.sampled.AudioFormat;
 import static java.lang.Math.*;
 
 @SuppressWarnings("DuplicatedCode")
-public class CROptimizedNoteSampler implements NoteSampler {
+public class CRSimdNoteSampler implements NoteSampler {
 
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;
     private final Instruments instruments;
 
-    public CROptimizedNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public CRSimdNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
@@ -45,7 +45,7 @@ public class CROptimizedNoteSampler implements NoteSampler {
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
 
         final int channels = format.getChannels();
-        final int inFrames = in.length / channels;
+        final int inFrames = (in.length - 4) / channels;  // don't count padding
         final int outFrames = (int) (inFrames / pitch);
 
         // check if sample can fit into the buffer

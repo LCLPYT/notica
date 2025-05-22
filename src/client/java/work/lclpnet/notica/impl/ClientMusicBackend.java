@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 public class ClientMusicBackend {
 
@@ -97,7 +98,7 @@ public class ClientMusicBackend {
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
 
-        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader);
+        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, UnaryOperator.identity());
 
         var noteSampler = new BaselineNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.EQUAL_POWER, song.instruments());
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler);

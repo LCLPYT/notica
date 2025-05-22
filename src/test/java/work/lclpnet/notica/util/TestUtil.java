@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Random;
+import java.util.function.UnaryOperator;
 
 public class TestUtil {
 
@@ -68,9 +69,13 @@ public class TestUtil {
     }
 
     public static @NotNull SoundSampleManager createSampleManager(Instruments instruments) {
+        return createSampleManager(instruments, UnaryOperator.identity());
+    }
+
+    public static @NotNull SoundSampleManager createSampleManager(Instruments instruments, UnaryOperator<float[]> sampleTransformer) {
         var sampleProvider = new TestSoundSampleProvider(instruments, soundRegistry);
 
-        return new SoundSampleManager(instruments, sampleProvider, soundLoader);
+        return new SoundSampleManager(instruments, sampleProvider, soundLoader, sampleTransformer);
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {

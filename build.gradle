@@ -149,7 +149,7 @@ jmh {
     benchmarkMode = ['avgt', 'ss']
     fork = 2
     iterations = 5
-    timeUnit = 'ns'
+    timeUnit = 'us'
     resultFormat = 'json'
 
     /* on linux, make sure to have:

@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl.mix;
 
 import org.junit.jupiter.api.Test;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;
@@ -15,7 +16,11 @@ public class SongMixerTest {
     @Test
     void test() throws IOException {
         Song song = TestUtil.loadSong(Path.of("run", "config", "notica", "songs", "Note Block Megacollab.nbs"));
-        SoundMixer soundMixer = TestUtil.createSoundMixer(song);
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomNoteSampler::new);
         SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         songMixer.setSongVolume(0.5f);

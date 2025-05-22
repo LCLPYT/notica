@@ -4,11 +4,11 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
-import work.lclpnet.notica.benchmark.impl.CRSimdNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitNoteSampler;
 import work.lclpnet.notica.benchmark.impl.SplitVolumeNoteSampler;
 import work.lclpnet.notica.impl.BaselineNoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
+import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.TestUtil;
@@ -118,24 +118,13 @@ public class SongMixerBenchmark {
         public void setup() throws IOException {
             Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
 
-            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), this::paddedSample);
+            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CRSimdNoteSampler::new);
+            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
             endTick = song.tempo().durationTicks(0, 5);
-        }
-
-        private float[] paddedSample(float[] sample) {
-            float[] padded = new float[sample.length + 4];
-
-            System.arraycopy(sample, 0, padded, 2, sample.length);
-
-            padded[0] = padded[1] = padded[2];
-            padded[sample.length + 1] = padded[sample.length] = padded[sample.length - 1];
-
-            return padded;
         }
     }
 

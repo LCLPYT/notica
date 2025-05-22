@@ -1,11 +1,10 @@
-package work.lclpnet.notica.benchmark.impl;
+package work.lclpnet.notica.impl.mix;
 
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.NoteHelper;
 
 import javax.sound.sampled.AudioFormat;
@@ -13,18 +12,29 @@ import javax.sound.sampled.AudioFormat;
 import static java.lang.Math.*;
 
 @SuppressWarnings("DuplicatedCode")
-public class CRSimdNoteSampler implements NoteSampler {
+public class CatmullRomNoteSampler implements NoteSampler {
 
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;
     private final Instruments instruments;
 
-    public CRSimdNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public CatmullRomNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
         this.instruments = instruments;
+    }
+
+    public static float[] paddedSample(float[] sample) {
+        float[] padded = new float[sample.length + 4];
+
+        System.arraycopy(sample, 0, padded, 2, sample.length);
+
+        padded[0] = padded[1] = padded[2];
+        padded[sample.length + 1] = padded[sample.length] = padded[sample.length - 1];
+
+        return padded;
     }
 
     @Override

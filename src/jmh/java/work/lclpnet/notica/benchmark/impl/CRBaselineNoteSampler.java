@@ -15,8 +15,6 @@ import static java.lang.Math.*;
 @SuppressWarnings("DuplicatedCode")
 public class CRBaselineNoteSampler implements NoteSampler {
 
-    private static final float INV_SHORT = 1f / Short.MAX_VALUE;
-
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;
@@ -109,11 +107,6 @@ public class CRBaselineNoteSampler implements NoteSampler {
             float p1 = in[i1];
             float p2 = in[i2];
             float p3 = in[i3];
-
-            p0 *= INV_SHORT;
-            p1 *= INV_SHORT;
-            p2 *= INV_SHORT;
-            p3 *= INV_SHORT;
 
             // Catmull-Rom spline formula
             float t2 = t * t;

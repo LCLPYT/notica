@@ -15,8 +15,6 @@ import static java.lang.Math.*;
 @SuppressWarnings("DuplicatedCode")
 public class CROptimizedNoteSampler implements NoteSampler {
 
-    private static final float INV_SHORT = 1f / Short.MAX_VALUE;
-
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;

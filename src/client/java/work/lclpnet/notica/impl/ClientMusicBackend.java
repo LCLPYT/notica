@@ -16,7 +16,7 @@ import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
-import work.lclpnet.notica.impl.mix.BaselineNoteSampler;
+import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.UnaryOperator;
 
 public class ClientMusicBackend {
 
@@ -99,9 +98,9 @@ public class ClientMusicBackend {
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
 
-        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, UnaryOperator.identity());
+        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
 
-        var noteSampler = new BaselineNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.EQUAL_POWER, song.instruments());
+        var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.SPATIAL, song.instruments());
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler);
         var songMixer = new SongMixer(soundMixer, song, () -> random.nextInt(11));
 

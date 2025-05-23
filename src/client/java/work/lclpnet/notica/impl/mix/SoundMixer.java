@@ -261,6 +261,8 @@ public class SoundMixer {
     }
 
     public void advanceBuffer() {
+        Arrays.fill(buffers[currentBuffer], 0f);
+
         currentBuffer = (currentBuffer + 1) % buffers.length;
     }
 

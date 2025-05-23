@@ -72,12 +72,11 @@ public class SongAudioStream implements AudioStream {
 
         songMixer.mixTicks(tick, endTick, 0);
 
-        tick = endTick;
-
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.completeCurrentBuffer(frameCount);
 
         soundMixer.advanceBuffer();
+        tick = endTick;
 
         return buf;
     }

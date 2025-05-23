@@ -79,6 +79,10 @@ public class SoundMixer {
         return format;
     }
 
+    public float getCompressorLookAheadSeconds() {
+        return compressor.getGainReduction().getLookaheadSamples() / format.getSampleRate();
+    }
+
     /**
      * Mix the sound sample of a {@link Note} into the sound ring buffer with a given frameOffset.
      * If the sound sample is longer than the current buffer element capacity, the rest of it is put into the
@@ -241,11 +245,12 @@ public class SoundMixer {
 
     public ByteBuffer completeCurrentBuffer(final int frameCount) {
         float[] samples = buffers[currentBuffer];
+        float[] next = buffers[(currentBuffer + 1) % buffers.length];
 
         // floating point samples might be outside the playable 16-bit range
         // apply dynamic-range-compression in order to make everything playable
         // this reduces audio over-amplification and clipping significantly
-        compressor.process(frameCount, samples, directBuffer);
+        compressor.process(frameCount, samples, next, directBuffer);
 
         return directBuffer;
     }

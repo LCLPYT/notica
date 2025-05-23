@@ -46,8 +46,15 @@ public class GainReduction {
         }
     }
 
-    public void lookAheadGainReduction(float[] samples, float[] sideChain) {
-        computeLinearSideChain(samples, sideChain);
+    public int getLookaheadSamples() {
+        return lookaheadSamples;
+    }
+
+    public void lookAheadGainReduction(float[] samples, float[] next, float[] sideChain) {
+        final int frames = sideChain.length - lookaheadSamples;
+
+        computeLinearSideChain(samples, sideChain, 0, frames);
+        computeLinearSideChain(next, sideChain, frames, lookaheadSamples);
 
         float[] crest = new float[sideChain.length];
 
@@ -59,20 +66,20 @@ public class GainReduction {
             toLogarithmic(sideChain);
         }
 
-        computeGainReduction(sideChain, crest);
+        computeLookaheadGainReduction(sideChain, crest, frames);
     }
 
-    private void computeLinearSideChain(float[] interleavedSamples, float[] sideChain) {
+    private void computeLinearSideChain(final float[] in, final float[] out, final int outOffset, final int len) {
         // sideChain sample is the max abs gain across all channels
 
         // left
-        for (int i = 0; i < sideChain.length; i++) {
-            sideChain[i] = abs(interleavedSamples[i]);
+        for (int i = 0; i < len; i++) {
+            out[outOffset + i] = abs(in[i]);
         }
 
         // right
-        for (int i = 0; i < sideChain.length; i++) {
-            sideChain[i] = max(sideChain[i], abs(interleavedSamples[i + sideChain.length]));
+        for (int i = 0; i < len; i++) {
+            out[outOffset + i] = max(out[outOffset + i], abs(in[i + len]));
         }
     }
 
@@ -111,18 +118,20 @@ public class GainReduction {
         }
     }
 
-    private void computeGainReduction(float[] sideChain, float[] crest) {
+    private void computeLookaheadGainReduction(final float[] sideChain, final float[] crest, final int len) {
         float releaseEnvelope = lastRelease;
         float attackEnvelope = lastAttack;
         float smoothedGainDeviation = lastGainDev;
 
-        for (int i = 0; i < sideChain.length; i++) {
+        // TODO hoist len bounds check
+
+        for (int i = 0; i < len; i++) {
             // adjust knee width
             float knee = max(0f, 2.5f * (smoothedGainDeviation * gainEstimateLn));
             float kneeHalf = 0.5f * knee;
 
             // calculate how much the gain should be reduced
-            int lookAheadIndex = min(i + lookaheadSamples, sideChain.length - 1); // TODO smooth with next sample
+            int lookAheadIndex = i + lookaheadSamples; // TODO remove clamping (is padded)
             float overShoot = sideChain[lookAheadIndex] - thresholdLn;
             float gainReduction = calcGainReduction(overShoot, kneeHalf);  // y_G = gain reduction
 

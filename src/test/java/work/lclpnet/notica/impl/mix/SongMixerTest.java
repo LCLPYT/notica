@@ -34,8 +34,10 @@ public class SongMixerTest {
 
         songMixer.setSongVolume(0.5f);
 
+        float lookAheadSeconds = soundMixer.getCompressorLookAheadSeconds();
+
         int startTick = song.tempo().durationTicks(0, 3 * 60 + 58 /* 17 * 60 + 25 */);
-        int endTick = startTick + song.tempo().durationTicks(startTick, seconds);
+        int endTick = startTick + song.tempo().durationTicks(startTick, seconds + lookAheadSeconds);
 
         songMixer.mixTicks(startTick, endTick, 0);
 

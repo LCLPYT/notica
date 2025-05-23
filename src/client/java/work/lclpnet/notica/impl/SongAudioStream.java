@@ -21,6 +21,7 @@ public class SongAudioStream implements AudioStream {
     private final SongMixer songMixer;
 //    private final ByteBuffer[] buffers;
 
+    private boolean first = true;
     private int tick = 0;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song) {
@@ -60,7 +61,12 @@ public class SongAudioStream implements AudioStream {
     @Override
     public ByteBuffer read(int size) {
         final int frameCount = getFrameCount(format, size);
-        final float seconds = getSeconds(format, frameCount);
+        float seconds = getSeconds(format, frameCount);
+
+        if (first) {
+            first = false;
+            seconds += soundMixer.getCompressorLookAheadSeconds();
+        }
 
         int durationTicks = song.tempo().durationTicks(tick, seconds);
         int endTick = min(tick + durationTicks, song.durationTicks());

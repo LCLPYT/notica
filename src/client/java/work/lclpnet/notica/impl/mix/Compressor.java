@@ -15,26 +15,32 @@ public class Compressor {
         this.gainReduction = gainReduction;
     }
 
-    public void process(final int frameCount, float[] samples, ByteBuffer output) {
-        float[] sideChain = new float[frameCount];
+    public GainReduction getGainReduction() {
+        return gainReduction;
+    }
+
+    public void process(final int frameCount, float[] samples, float[] next, ByteBuffer output) {
+        final int lookaheadSamples = gainReduction.getLookaheadSamples();
+
+        float[] sideChain = new float[frameCount + lookaheadSamples];
 
         // linear gain reduction factor will be put into sideChain
-        gainReduction.lookAheadGainReduction(samples, sideChain);
+        gainReduction.lookAheadGainReduction(samples, next, sideChain);
 
-        for (int i = 0; i < sideChain.length; i++) {
+        for (int i = 0; i < frameCount; i++) {
             samples[i] *= sideChain[i];
         }
 
-        for (int i = 0; i < sideChain.length; i++) {
-            samples[i + sideChain.length] *= sideChain[i];
+        for (int i = 0; i < frameCount; i++) {
+            samples[i + frameCount] *= sideChain[i];
         }
 
         // re-interleave
         output.position(0);
 
-        for (int i = 0; i < sideChain.length; i++) {
+        for (int i = 0; i < frameCount; i++) {
             float sl = samples[i];
-            float sr = samples[i + sideChain.length];
+            float sr = samples[i + frameCount];
             int ql = clamp(round(sl * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
             int qr = clamp(round(sr * Short.MAX_VALUE), Short.MIN_VALUE, Short.MAX_VALUE);
 

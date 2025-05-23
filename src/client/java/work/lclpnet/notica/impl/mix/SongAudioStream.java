@@ -1,9 +1,7 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import net.minecraft.client.sound.AudioStream;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.mix.SongMixer;
-import work.lclpnet.notica.impl.mix.SoundMixer;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;

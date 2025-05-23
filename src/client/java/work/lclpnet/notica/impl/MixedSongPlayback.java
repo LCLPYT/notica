@@ -7,6 +7,7 @@ import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 

@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
-import work.lclpnet.notica.impl.SongAudioStream;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;

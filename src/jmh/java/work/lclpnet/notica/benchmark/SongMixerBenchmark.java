@@ -4,10 +4,9 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
-import work.lclpnet.notica.benchmark.impl.SplitNoteSampler;
-import work.lclpnet.notica.benchmark.impl.SplitVolumeNoteSampler;
-import work.lclpnet.notica.impl.BaselineNoteSampler;
+import work.lclpnet.notica.benchmark.impl.LerpSplitNoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
+import work.lclpnet.notica.impl.mix.BaselineNoteSampler;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
@@ -47,29 +46,6 @@ public class SongMixerBenchmark {
     }
 
     @State(Scope.Thread)
-    public static class SplitState {
-
-        SoundMixer soundMixer;
-        SongMixer songMixer;
-        int endTick;
-
-        @Setup(Level.Trial)
-        public void setup() throws IOException {
-            Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
-
-            TestUtil.initSoundRegistry();
-
-            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
-            sampleManager.loadAll();
-
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, SplitNoteSampler::new);
-            songMixer = TestUtil.createSongMixer(song, soundMixer);
-
-            endTick = song.tempo().durationTicks(0, 5);
-        }
-    }
-
-    @State(Scope.Thread)
     public static class SplitVolumeState {
 
         SoundMixer soundMixer;
@@ -85,7 +61,7 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, SplitVolumeNoteSampler::new);
+            soundMixer = TestUtil.createSoundMixer(song, sampleManager, LerpSplitNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
             endTick = song.tempo().durationTicks(0, 5);
@@ -140,15 +116,6 @@ public class SongMixerBenchmark {
 
     @Benchmark
     public void baseline(BaselineState state, Blackhole blackhole) {
-        state.songMixer.mixTicks(0, state.endTick, 0);
-
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
-
-        blackhole.consume(res);
-    }
-
-//    @Benchmark
-    public void split(SplitState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.completeCurrentBuffer();

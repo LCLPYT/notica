@@ -23,8 +23,12 @@ public class Compressor {
         // linear gain reduction factor will be put into sideChain
         gainReduction.lookAheadGainReduction(samples, sideChain);
 
-        for (int i = 0; i < samples.length; i++) {
-            samples[i] *= sideChain[i % sideChain.length];
+        for (int i = 0; i < sideChain.length; i++) {
+            samples[i] *= sideChain[i];
+        }
+
+        for (int i = 0; i < sideChain.length; i++) {
+            samples[i + sideChain.length] *= sideChain[i];
         }
 
         // re-interleave

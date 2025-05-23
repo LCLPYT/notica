@@ -7,10 +7,10 @@ import work.lclpnet.kibu.assets.AssetManager;
 import work.lclpnet.notica.api.SongDecoder;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.BaselineNoteSampler;
 import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
+import work.lclpnet.notica.impl.mix.BaselineNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 

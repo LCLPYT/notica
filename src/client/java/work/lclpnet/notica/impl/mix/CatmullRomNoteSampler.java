@@ -27,12 +27,25 @@ public class CatmullRomNoteSampler implements NoteSampler {
     }
 
     public static float[] paddedSample(float[] sample) {
-        float[] padded = new float[sample.length + 4];
+        if (sample.length % 2 == 1) {
+            throw new IllegalArgumentException("Non stereo sample");
+        }
 
-        System.arraycopy(sample, 0, padded, 2, sample.length);
+        float[] padded = new float[sample.length + 8];
+
+        final int frames = sample.length / 2;
+
+        // left channel
+        System.arraycopy(sample, 0, padded, 2, frames);
 
         padded[0] = padded[1] = padded[2];
-        padded[sample.length + 1] = padded[sample.length] = padded[sample.length - 1];
+        padded[frames + 1] = padded[frames] = padded[frames - 1];
+
+        // right channel
+        System.arraycopy(sample, frames, padded, frames + 4, frames);
+
+        padded[frames + 2] = padded[frames + 3] = padded[frames + 4];
+        padded[sample.length + 7] = padded[sample.length - 6] = padded[sample.length - 5];
 
         return padded;
     }
@@ -55,7 +68,7 @@ public class CatmullRomNoteSampler implements NoteSampler {
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
 
         final int channels = format.getChannels();
-        final int inFrames = (in.length - 4) / channels;  // don't count padding
+        final int inFrames = (in.length - 8) / channels;  // don't count padding
         final int outFrames = (int) (inFrames / pitch);
 
         // check if sample can fit into the buffer
@@ -99,13 +112,14 @@ public class CatmullRomNoteSampler implements NoteSampler {
         mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        evaluateSimd(outFrames, xs, in, out, inFrames, outFrames);
+        evaluateSimd(outFrames, xs, in, out, inFrames + 4, outFrames);
         mul(out, outFrames, outFrames, volume * rightPanning);
 
         return outFrames;
     }
 
     private static void evaluateSimd(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {
+        // TODO hosting
         for (int i = 0; i < len; i++) {
             final float x = xs[i];
 
@@ -130,8 +144,8 @@ public class CatmullRomNoteSampler implements NoteSampler {
     }
 
     private static void mul(final float[] vals, final int offset, final int len, final float volume) {
-        for (int i = offset; i < len; i++) {
-            vals[i] *= volume;
+        for (int i = 0; i < len; i++) {
+            vals[offset + i] *= volume;
         }
     }
 

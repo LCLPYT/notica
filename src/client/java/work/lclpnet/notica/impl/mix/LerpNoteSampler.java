@@ -1,11 +1,10 @@
-package work.lclpnet.notica.benchmark.impl;
+package work.lclpnet.notica.impl.mix;
 
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.NoteHelper;
 
 import javax.sound.sampled.AudioFormat;
@@ -13,14 +12,14 @@ import javax.sound.sampled.AudioFormat;
 import static java.lang.Math.*;
 
 @SuppressWarnings("DuplicatedCode")
-public class SplitVolumeNoteSampler implements NoteSampler {
+public class LerpNoteSampler implements NoteSampler {
 
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;
     private final Instruments instruments;
 
-    public SplitVolumeNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public LerpNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
@@ -45,7 +44,7 @@ public class SplitVolumeNoteSampler implements NoteSampler {
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
 
         final int channels = format.getChannels();
-        final int inFrames = in.length / channels;
+        final int inFrames = (in.length - 8) / channels;
         final int outFrames = (int) (inFrames / pitch);
 
         // check if sample can fit into the buffer
@@ -78,41 +77,42 @@ public class SplitVolumeNoteSampler implements NoteSampler {
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
 
+        float[] xs = new float[outFrames];
+
+        for (int i = 0; i < xs.length; i++) {
+            xs[i] = i * pitch;
+        }
+
         // transform left
-        transform(in, 0, inFrames, out, 0, outFrames, pitch);
+        transform(outFrames, xs, in, out, 2, 0);
         mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        transform(in, inFrames, inFrames, out, outFrames, outFrames, pitch);
+        transform(outFrames, xs, in, out, inFrames + 6, outFrames);
         mul(out, outFrames, outFrames, volume * rightPanning);
 
         return outFrames;
     }
 
-    private static void transform(final float[] in, final int inOffset, final int inLen,
-                           final float[] out, final int outOffset, final int outLen,
-                           final float pitch) {
+    private static void transform(final int len, final float[] xs, final float[] in, final float[] out,
+                                  final int inOffset, final int outOffset) {
 
-        for (int i = 0; i < outLen; i++) {
-            float exactIdx = i * pitch;
-            int idx = (int) exactIdx;
-            float delta = exactIdx - idx;
+        for (int i = 0; i < len; i++) {
+            float x = xs[i];
+            int j = (int) x;
+            float t = x - j;
 
-            if (idx + 1 >= inLen) {
-                break;
-            }
-
-            float leftSample = in[inOffset + idx];
-            float rightSample = in[inOffset + idx + 1];
-            float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
+            float leftSample = in[inOffset + j];
+            float rightSample = in[inOffset + j + 1];
+            float interpolatedSample = (1.f - t) * leftSample + t * rightSample;
 
             out[outOffset + i] = interpolatedSample;
         }
     }
 
     private static void mul(final float[] vals, final int offset, final int len, final float volume) {
-        for (int i = offset; i < len; i++) {
-            vals[i] *= volume;
+        for (int i = 0; i < len; i++) {
+            vals[i + offset] *= volume;
         }
     }
 

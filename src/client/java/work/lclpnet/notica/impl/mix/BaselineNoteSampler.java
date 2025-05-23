@@ -1,9 +1,10 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.impl.mix.SoundMixer;
+import work.lclpnet.notica.impl.NoteSampler;
+import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.util.NoteHelper;
 
 import javax.sound.sampled.AudioFormat;

@@ -13,14 +13,14 @@ import javax.sound.sampled.AudioFormat;
 import static java.lang.Math.*;
 
 @SuppressWarnings("DuplicatedCode")
-public class SplitNoteSampler implements NoteSampler {
+public class LerpSplitNoteSampler implements NoteSampler {
 
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
     private final SoundMixer.StereoMode stereoMode;
     private final Instruments instruments;
 
-    public SplitNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public LerpSplitNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
@@ -79,20 +79,22 @@ public class SplitNoteSampler implements NoteSampler {
         }
 
         // transform left
-        transform(in, 0, inFrames, out, 0, outFrames, pitch, volume * leftPanning);
+        transform(in, 0, inFrames, out, 0, outFrames, pitch);
+        mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        transform(in, inFrames, inFrames, out, outFrames, outFrames, pitch, volume * rightPanning);
+        transform(in, inFrames, inFrames, out, outFrames, outFrames, pitch);
+        mul(out, outFrames, outFrames, volume * rightPanning);
 
         return outFrames;
     }
 
     private static void transform(final float[] in, final int inOffset, final int inLen,
                            final float[] out, final int outOffset, final int outLen,
-                           final float pitch, final float volume) {
+                           final float pitch) {
 
-        for (int frame = 0; frame < outLen; frame++) {
-            float exactIdx = frame * pitch;
+        for (int i = 0; i < outLen; i++) {
+            float exactIdx = i * pitch;
             int idx = (int) exactIdx;
             float delta = exactIdx - idx;
 
@@ -104,10 +106,13 @@ public class SplitNoteSampler implements NoteSampler {
             float rightSample = in[inOffset + idx + 1];
             float interpolatedSample = (1.f - delta) * leftSample + delta * rightSample;
 
-            // apply volume
-            interpolatedSample *= volume;
+            out[outOffset + i] = interpolatedSample;
+        }
+    }
 
-            out[outOffset + frame] = interpolatedSample;
+    private static void mul(final float[] vals, final int offset, final int len, final float volume) {
+        for (int i = offset; i < len; i++) {
+            vals[i] *= volume;
         }
     }
 

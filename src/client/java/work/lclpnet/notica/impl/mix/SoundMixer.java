@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
+import work.lclpnet.notica.impl.SongAudioStream;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -15,8 +16,8 @@ import static java.lang.Math.*;
 
 public class SoundMixer {
 
-    private static final int RESERVE_BUFFERS = 2;
-    public static final int SECTION_LENGTH_MS = 5000;  // 5000 ~ 1 MB per buffer
+    private static final int BASE_BUFFER_COUNT = 4;
+    private static final float MAX_SOUND_SECONDS = 16.f;
 
     private final AudioFormat format;
     private final NoteSampler noteSampler;
@@ -24,10 +25,10 @@ public class SoundMixer {
     private final int bufferSize, bufferFrames;
     private final float[] sampleBuffer;
     private final ByteBuffer directBuffer;
-    private final float[][] buffers = new float[2 + RESERVE_BUFFERS][0];  // current + upNext + reserve
+    private final float[][] buffers;
     private int currentBuffer = 0;
 
-    public SoundMixer(AudioFormat format, NoteSampler noteSampler) {
+    public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes) {
         this.format = format;
         this.noteSampler = noteSampler;
 
@@ -39,16 +40,21 @@ public class SoundMixer {
 
         compressor = new Compressor(gainReduction);
 
-        int bufferSize = (int) ceil(SECTION_LENGTH_MS * 0.001f * format.getSampleRate() * format.getChannels());
         int sampleBytes = format.getSampleSizeInBits() / 8;
+        int bufferSize = bufferBytes / sampleBytes;
         this.bufferSize = bufferSize;
-        this.bufferFrames = bufferSize / 2;
+        this.bufferFrames = bufferSize / format.getChannels();
 
-        int sectionSampleBytes = bufferSize * sampleBytes;
         ByteOrder order = format.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
-        sampleBuffer = new float[RESERVE_BUFFERS * bufferSize];
-        directBuffer = BufferUtils.createByteBuffer(sectionSampleBytes).order(order);
+        final float bufferDurationSeconds = SongAudioStream.getSeconds(format, bufferFrames);
+        final int extraBufferCount = (int) ceil(MAX_SOUND_SECONDS / bufferDurationSeconds);
+        final int bufferCount = BASE_BUFFER_COUNT + extraBufferCount;
+
+        sampleBuffer = new float[extraBufferCount * bufferSize];
+        directBuffer = BufferUtils.createByteBuffer(bufferBytes).order(order);
+
+        buffers = new float[bufferCount][0];
 
         for (int i = 0; i < buffers.length; i++) {
             buffers[i] = new float[bufferSize];
@@ -233,13 +239,13 @@ public class SoundMixer {
         }
     }
 
-    public ByteBuffer completeCurrentBuffer() {
+    public ByteBuffer completeCurrentBuffer(final int frameCount) {
         float[] samples = buffers[currentBuffer];
 
         // floating point samples might be outside the playable 16-bit range
         // apply dynamic-range-compression in order to make everything playable
         // this reduces audio over-amplification and clipping significantly
-        compressor.process(samples, directBuffer);
+        compressor.process(frameCount, samples, directBuffer);
 
         return directBuffer;
     }

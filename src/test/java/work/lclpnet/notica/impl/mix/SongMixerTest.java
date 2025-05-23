@@ -9,6 +9,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
+import static work.lclpnet.notica.util.TestUtil.getBufferSize;
+import static work.lclpnet.notica.util.TestUtil.getFrames;
+
 public class SongMixerTest {
 
     private static final boolean EXPORT = true, OPEN = true;
@@ -22,17 +25,21 @@ public class SongMixerTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        SoundMixer soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomNoteSampler::new);
+        float seconds = 32;
+        int bufferSize = getBufferSize(seconds);
+        int frames = getFrames(bufferSize);
+
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
         SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         songMixer.setSongVolume(0.5f);
 
         int startTick = song.tempo().durationTicks(0, 3 * 60 + 58 /* 17 * 60 + 25 */);
-        int endTick = startTick + song.tempo().durationTicks(startTick, 5);
+        int endTick = startTick + song.tempo().durationTicks(startTick, seconds);
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.completeCurrentBuffer();
+        ByteBuffer buffer = soundMixer.completeCurrentBuffer(frames);
 
         if (!EXPORT) return;
 

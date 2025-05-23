@@ -57,15 +57,6 @@ public class TestUtil {
         return new SongMixer(soundMixer, song);
     }
 
-    public static @NotNull SoundMixer createSoundMixer(Song song) throws IOException {
-        SoundSampleManager sampleManager = createSampleManager(song.instruments());
-
-        initSoundRegistry();
-        sampleManager.loadAll();
-
-        return createSoundMixer(song, sampleManager, BaselineNoteSampler::new);
-    }
-
     public static @NotNull SoundSampleManager createSampleManager(Instruments instruments) {
         return createSampleManager(instruments, UnaryOperator.identity());
     }
@@ -76,12 +67,21 @@ public class TestUtil {
         return new SoundSampleManager(instruments, sampleProvider, soundLoader, sampleTransformer);
     }
 
-    public static @NotNull SoundMixer createSoundMixer(Song song, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferSize) throws IOException {
+        SoundSampleManager sampleManager = createSampleManager(song.instruments());
+
+        initSoundRegistry();
+        sampleManager.loadAll();
+
+        return createSoundMixer(song, bufferSize, sampleManager, BaselineNoteSampler::new);
+    }
+
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferSize, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
         initSoundRegistry();
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, SoundMixer.StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferSize);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {
@@ -108,6 +108,14 @@ public class TestUtil {
             registryInit = true;
             soundRegistry.init();
         }
+    }
+
+    public static int getBufferSize(float seconds) {
+        return (int) (AUDIO_FORMAT.getSampleRate() * seconds * AUDIO_FORMAT.getChannels() * (AUDIO_FORMAT.getSampleSizeInBits() / 8.f));
+    }
+
+    public static int getFrames(int bufferSize) {
+        return (int) (bufferSize / (AUDIO_FORMAT.getChannels() * (AUDIO_FORMAT.getSampleSizeInBits() / 8.f)));
     }
 
     public interface NoteSamplerFactory {

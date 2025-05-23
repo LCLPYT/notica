@@ -96,12 +96,15 @@ public class ClientMusicBackend {
                 directSoundManager, resourceFactory, logger);
 
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
-
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.SPATIAL, song.instruments());
-        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler);
-        var songMixer = new SongMixer(soundMixer, song);
 
-        var playback = new MixedSongPlayback(song, soundMixer, songMixer, sampleManager, channel, logger);
+        int bufferSize = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
+
+        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferSize);
+        var songMixer = new SongMixer(soundMixer, song);
+        var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song);
+
+        var playback = new MixedSongPlayback(audioStream, song, soundMixer, songMixer, sampleManager, channel, logger);
 
         playback.start(startTick, volume);
     }

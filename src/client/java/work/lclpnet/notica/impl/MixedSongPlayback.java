@@ -4,32 +4,22 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.SoundEngine;
-import net.minecraft.client.sound.StaticSound;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
-import work.lclpnet.notica.util.ByteBufferInputStream;
 
-import javax.sound.sampled.AudioFileFormat;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Math.max;
 import static java.util.concurrent.CompletableFuture.runAsync;
-import static work.lclpnet.notica.impl.mix.SoundMixer.SECTION_LENGTH_MS;
 
 public class MixedSongPlayback {
 
+    private final SongAudioStream audioStream;
     private final Song song;
     private final SoundMixer soundMixer;
     private final SongMixer songMixer;
@@ -41,8 +31,9 @@ public class MixedSongPlayback {
     private boolean running = false;
     private int tick = 0;
 
-    public MixedSongPlayback(Song song, SoundMixer soundMixer, SongMixer songMixer, SoundSampleManager sampleManager,
-                             Channel channel, Logger logger) {
+    public MixedSongPlayback(SongAudioStream audioStream, Song song, SoundMixer soundMixer, SongMixer songMixer,
+                             SoundSampleManager sampleManager, Channel channel, Logger logger) {
+        this.audioStream = audioStream;
         this.song = song;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
@@ -58,13 +49,13 @@ public class MixedSongPlayback {
         List<Integer> sectionStarts = new ArrayList<>();
         int offsetTicks = 0;
 
-        while (offsetTicks < totalTicks) {
-            sectionStarts.add(offsetTicks);
-
-            int ticks = song.tempo().durationTicks(offsetTicks, SECTION_LENGTH_MS / 1000f);
-
-            offsetTicks += ticks;
-        }
+//        while (offsetTicks < totalTicks) {
+//            sectionStarts.add(offsetTicks);
+//
+//            int ticks = song.tempo().durationTicks(offsetTicks, SECTION_LENGTH_MS / 1000f);
+//
+//            offsetTicks += ticks;
+//        }
 
         return sectionStarts.stream().mapToInt(i -> i).toArray();
     }
@@ -83,12 +74,15 @@ public class MixedSongPlayback {
     public void start(int startTick, float volume) {
         this.tick = startTick;
 
+        audioStream.setTick(startTick);
+
+        // TODO cleanup
         songMixer.setSongVolume(volume);
 
         runAsync(sampleManager::loadAll).thenRun(() -> {
-            processSection(0, 0);
-            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
-            playSound(soundBuf);
+//            processSection(0, 0);
+//            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
+            playSound();
 
             int code = this.hashCode();
 
@@ -145,18 +139,18 @@ public class MixedSongPlayback {
             }
 
             // play the current section
-            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
-            playSound(soundBuf);
+//            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
+//            playSound(soundBuf);
 
             // wait until next section
-            try {
+//            try {
                 //noinspection BusyWait
-                Thread.sleep(SECTION_LENGTH_MS);
-            } catch (InterruptedException e) {
-                break;
-            } finally {
-                freeSection(section);
-            }
+//                Thread.sleep(SECTION_LENGTH_MS);
+//            } catch (InterruptedException e) {
+//                break;
+//            } finally {
+//                freeSection(section);
+//            }
         }
     }
 
@@ -176,27 +170,14 @@ public class MixedSongPlayback {
         songMixer.mixTicks(startTick, endTick, bufferOffset);
     }
 
-    private void playSound(ByteBuffer buf) {
-        Channel.SourceManager sourceManager = channel.createSource(SoundEngine.RunMode.STATIC).join();
-        AudioFormat format = soundMixer.getFormat();
-        StaticSound sound = new StaticSound(buf, format);
+    private void playSound() {
+        Channel.SourceManager sourceManager = channel.createSource(SoundEngine.RunMode.STREAMING).join();
 
         sourceManager.run(source -> {
             source.setRelative(true);
             source.setPosition(Vec3d.ZERO);
-            source.setBuffer(sound);
+            source.setStream(audioStream);
             source.play();
         });
-
-        // TODO close sound
-
-        // TODO remove test code
-        try (var out = Files.newOutputStream(Path.of("test.wav"))) {
-            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buf), format, buf.limit());
-            AudioSystem.write(in, AudioFileFormat.Type.WAVE, out);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
-
 }

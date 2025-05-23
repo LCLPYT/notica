@@ -4,9 +4,7 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
-import work.lclpnet.notica.benchmark.impl.LerpSplitNoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.impl.mix.BaselineNoteSampler;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
@@ -15,6 +13,8 @@ import work.lclpnet.notica.util.TestUtil;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
+
+import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 @SuppressWarnings({"FieldMayBeFinal", "DuplicatedCode"})
 @BenchmarkMode({Mode.AverageTime, Mode.SingleShotTime})
@@ -27,7 +27,7 @@ public class SongMixerBenchmark {
 
         SoundMixer soundMixer;
         SongMixer songMixer;
-        int endTick;
+        int endTick, frames;
 
         @Setup(Level.Trial)
         public void setup() throws IOException {
@@ -38,10 +38,14 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, BaselineNoteSampler::new);
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
-            endTick = song.tempo().durationTicks(0, 5);
+            endTick = song.tempo().durationTicks(0, seconds);
         }
     }
 
@@ -50,7 +54,7 @@ public class SongMixerBenchmark {
 
         SoundMixer soundMixer;
         SongMixer songMixer;
-        int endTick;
+        int endTick, frames;
 
         @Setup(Level.Trial)
         public void setup() throws IOException {
@@ -61,10 +65,14 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, LerpSplitNoteSampler::new);
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
-            endTick = song.tempo().durationTicks(0, 5);
+            endTick = song.tempo().durationTicks(0, seconds);
         }
     }
 
@@ -73,7 +81,7 @@ public class SongMixerBenchmark {
 
         SoundMixer soundMixer;
         SongMixer songMixer;
-        int endTick;
+        int endTick, frames;
 
         @Setup(Level.Trial)
         public void setup() throws IOException {
@@ -84,10 +92,14 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments());
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CRBaselineNoteSampler::new);
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
-            endTick = song.tempo().durationTicks(0, 5);
+            endTick = song.tempo().durationTicks(0, seconds);
         }
     }
 
@@ -96,7 +108,7 @@ public class SongMixerBenchmark {
 
         SoundMixer soundMixer;
         SongMixer songMixer;
-        int endTick;
+        int endTick, frames;
 
         @Setup(Level.Trial)
         public void setup() throws IOException {
@@ -107,10 +119,14 @@ public class SongMixerBenchmark {
             SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
             sampleManager.loadAll();
 
-            soundMixer = TestUtil.createSoundMixer(song, sampleManager, CatmullRomNoteSampler::new);
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
-            endTick = song.tempo().durationTicks(0, 5);
+            endTick = song.tempo().durationTicks(0, seconds);
         }
     }
 
@@ -118,7 +134,7 @@ public class SongMixerBenchmark {
     public void baseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
 
         blackhole.consume(res);
     }
@@ -127,7 +143,7 @@ public class SongMixerBenchmark {
     public void splitVolume(SplitVolumeState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
 
         blackhole.consume(res);
     }
@@ -136,7 +152,7 @@ public class SongMixerBenchmark {
     public void catmullRomBaseline(BaselineCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
 
         blackhole.consume(res);
     }
@@ -145,7 +161,7 @@ public class SongMixerBenchmark {
     public void catmullRomSimd(SimdCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer();
+        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
 
         blackhole.consume(res);
     }

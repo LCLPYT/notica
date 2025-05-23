@@ -15,10 +15,8 @@ public class Compressor {
         this.gainReduction = gainReduction;
     }
 
-    public void process(float[] samples, ByteBuffer output) {
-        // assume stereo
-        final int channels = 2;
-        float[] sideChain = new float[samples.length / channels];
+    public void process(final int frameCount, float[] samples, ByteBuffer output) {
+        float[] sideChain = new float[frameCount];
 
         // linear gain reduction factor will be put into sideChain
         gainReduction.lookAheadGainReduction(samples, sideChain);

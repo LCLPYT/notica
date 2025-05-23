@@ -3,7 +3,6 @@ package work.lclpnet.notica.impl.mix;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.TimeNoiseSampler;
 
 import static java.lang.Math.ceil;
 
@@ -11,14 +10,12 @@ public class SongMixer {
 
     private final SoundMixer mixer;
     private final Song song;
-    private final TimeNoiseSampler timeNoise;
 
     private float songVolume = 1f;
 
-    public SongMixer(SoundMixer mixer, Song song, TimeNoiseSampler timeNoise) {
+    public SongMixer(SoundMixer mixer, Song song) {
         this.mixer = mixer;
         this.song = song;
-        this.timeNoise = timeNoise;
     }
 
     public void setSongVolume(float songVolume) {
@@ -52,10 +49,7 @@ public class SongMixer {
             float tickSeconds = 1.f / song.tempo().tempoAt(tick);
             int tickSamples = (int) ceil(tickSeconds * sampleRate);
 
-            // apply noise to simulate timing imperfections of default SongPlayback
-            int noiseSamples = timeNoise.sampleNoiseTime();
-
-            sampleOffset += tickSamples + noiseSamples;
+            sampleOffset += tickSamples;
         }
     }
 }

@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.Random;
 import java.util.function.UnaryOperator;
 
 public class TestUtil {
@@ -55,9 +54,7 @@ public class TestUtil {
     }
 
     public static @NotNull SongMixer createSongMixer(Song song, SoundMixer soundMixer) {
-        var random = new Random();
-
-        return new SongMixer(soundMixer, song, () -> random.nextInt(11));
+        return new SongMixer(soundMixer, song);
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song) throws IOException {

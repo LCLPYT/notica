@@ -10,7 +10,6 @@ import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.item.Items;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
@@ -85,8 +84,6 @@ public class ClientMusicBackend {
     }
 
     private void playMixedSamples(PendingSong song, int startTick, float volume) {
-        Random random = Random.create(42);
-
         SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
@@ -102,7 +99,7 @@ public class ClientMusicBackend {
 
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.SPATIAL, song.instruments());
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler);
-        var songMixer = new SongMixer(soundMixer, song, () -> random.nextInt(11));
+        var songMixer = new SongMixer(soundMixer, song);
 
         var playback = new MixedSongPlayback(song, soundMixer, songMixer, sampleManager, channel, logger);
 

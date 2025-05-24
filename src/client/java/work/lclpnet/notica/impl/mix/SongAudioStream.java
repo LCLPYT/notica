@@ -64,7 +64,7 @@ public class SongAudioStream implements AudioStream {
 
     @Override
     public ByteBuffer read(int size) {
-        ByteBuffer buf;
+        boolean needsProcessing = false;
 
         synchronized (this) {
             if (prepared <= 0) {
@@ -72,11 +72,32 @@ public class SongAudioStream implements AudioStream {
                     return null;
                 }
 
-                prepare(size);
+                needsProcessing = true;
+            }
+        }
 
-                if (prepared <= 0) {
-                    throw new IllegalStateException("Prepare didn't work");
+        if (needsProcessing) {
+            synchronized (prepareLock) {
+
+                // check if another thread prepared something in the meantime
+                synchronized (this) {
+                    if (prepared <= 0) {
+                        if (ended) {
+                            return null;
+                        }
+                    }
                 }
+
+                // prepare without locking this to prevent deadlock
+                _prepare(size);
+            }
+        }
+
+        ByteBuffer buf;
+
+        synchronized (this) {
+            if (prepared <= 0) {
+                throw new IllegalStateException("No buffer is prepared, likely a race-condition");
             }
 
             buf = preparedBuffers[prepareStart];

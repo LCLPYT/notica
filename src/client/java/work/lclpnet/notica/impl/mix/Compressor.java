@@ -37,6 +37,7 @@ public class Compressor {
 
         // re-interleave
         output.position(0);
+        output.limit(output.capacity());
 
         for (int i = 0; i < frameCount; i++) {
             float sl = samples[i];

@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static work.lclpnet.notica.util.TestUtil.getBufferSize;
+import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 
 class SongAudioStreamTest {
 
@@ -28,15 +28,15 @@ class SongAudioStreamTest {
 
         float seconds = 1.f;
         int amount = 3;
-        int bufferSize = getBufferSize(seconds);
+        int bufferBytes = getBufferByteSize(seconds);
 
-        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
         SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song);
+        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes);
 
         Path dir = Files.createTempDirectory("notica_test");
 
@@ -45,7 +45,7 @@ class SongAudioStreamTest {
         byte[][] parts = new byte[amount][0];
 
         for (int i = 0; i < amount; i++) {
-            ByteBuffer buf = stream.read(bufferSize);
+            ByteBuffer buf = stream.read(bufferBytes);
 
             if (buf == null) break;
 

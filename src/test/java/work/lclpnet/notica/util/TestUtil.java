@@ -67,21 +67,21 @@ public class TestUtil {
         return new SoundSampleManager(instruments, sampleProvider, soundLoader, sampleTransformer);
     }
 
-    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferSize) throws IOException {
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes) throws IOException {
         SoundSampleManager sampleManager = createSampleManager(song.instruments());
 
         initSoundRegistry();
         sampleManager.loadAll();
 
-        return createSoundMixer(song, bufferSize, sampleManager, BaselineNoteSampler::new);
+        return createSoundMixer(song, bufferBytes, sampleManager, BaselineNoteSampler::new);
     }
 
-    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferSize, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
         initSoundRegistry();
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, SoundMixer.StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferSize);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {
@@ -110,7 +110,7 @@ public class TestUtil {
         }
     }
 
-    public static int getBufferSize(float seconds) {
+    public static int getBufferByteSize(float seconds) {
         return (int) (AUDIO_FORMAT.getSampleRate() * seconds * AUDIO_FORMAT.getChannels() * (AUDIO_FORMAT.getSampleSizeInBits() / 8.f));
     }
 

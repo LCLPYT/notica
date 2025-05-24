@@ -1,42 +1,44 @@
 package work.lclpnet.notica.impl.mix;
 
 import net.minecraft.client.sound.AudioStream;
+import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Song;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class SongAudioStream implements AudioStream {
 
-//    private static final int BASE_BUFFER_COUNT = 4;
-//    private static final float MAX_SOUND_SECONDS = 16.f;
+    private static final int PREPARE_COUNT = 5;
 
     private final AudioFormat format;
     private final Song song;
     private final SoundMixer soundMixer;
     private final SongMixer songMixer;
-//    private final ByteBuffer[] buffers;
+    private final ByteBuffer[] preparedBuffers;
+    private final int bufferBytes;
 
     private boolean first = true;
+    private boolean ended = false;
     private int tick = 0;
+    private int prepared = 0;
+    private int prepareStart = 0;
 
-    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song) {
+    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
         this.song = song;
+        this.bufferBytes = bufferBytes;
 
-//        final int byteSize = getByteSize(format, segmentSeconds);
-//        final int extraBufCount = (int) ceil(MAX_SOUND_SECONDS / segmentSeconds);
-//        final int bufCount = BASE_BUFFER_COUNT + extraBufCount;
+        preparedBuffers = new ByteBuffer[PREPARE_COUNT];
 
-//        buffers = new ByteBuffer[bufCount];
-//
-//        for (int i = 0; i < buffers.length; i++) {
-//            buffers[i] = ByteBuffer.allocateDirect(byteSize);
-//        }
+        for (int i = 0; i < PREPARE_COUNT; i++) {
+            preparedBuffers[i] = BufferUtils.createByteBuffer(bufferBytes);
+        }
     }
 
     public static int getByteSize(AudioFormat format, float seconds) {
@@ -51,13 +53,61 @@ public class SongAudioStream implements AudioStream {
         return frameCount / format.getSampleRate();
     }
 
+    public int getBufferBytes() {
+        return bufferBytes;
+    }
+
     @Override
     public AudioFormat getFormat() {
         return format;
     }
 
     @Override
-    public ByteBuffer read(int size) {
+    public synchronized ByteBuffer read(int size) {
+        if (ended) {
+            return null;
+        }
+
+        if (prepared <= 0) {
+            prepare(size);
+
+            if (ended) {
+                return null;
+            }
+
+            if (prepared <= 0) {
+                throw new IllegalStateException("Prepare didn't work");
+            }
+        }
+
+        ByteBuffer buf = preparedBuffers[prepareStart];
+
+        prepared--;
+        prepareStart = (prepareStart + 1) % PREPARE_COUNT;
+
+        prepareAsync(size);
+
+        return buf;
+    }
+
+    public synchronized Thread prepareAsync(int size) {
+        return Thread.startVirtualThread(() -> {
+            int count = max(1, size / bufferBytes);
+            int remaining = size;
+
+            for (int i = 0; i < count; i++) {
+                int len = min(remaining, bufferBytes);
+
+                prepare(len);
+
+                remaining -= len;
+            }
+        });
+    }
+
+    public synchronized void prepare(int size) {
+        if (prepared >= PREPARE_COUNT) return;  // cannot prepare any more elements
+
         final int frameCount = getFrameCount(format, size);
         float seconds = getSeconds(format, frameCount);
 
@@ -71,7 +121,8 @@ public class SongAudioStream implements AudioStream {
 
         if (endTick <= tick) {
             // song ended
-            return null;
+            ended = true;
+            return;
         }
 
         songMixer.mixTicks(tick, endTick, 0);
@@ -79,10 +130,26 @@ public class SongAudioStream implements AudioStream {
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.applyCompressor(frameCount);
 
+        int prepareIdx = (prepareStart + prepared) % PREPARE_COUNT;
+
+        copyBuffer(buf, preparedBuffers[prepareIdx]);
+
         soundMixer.advanceBuffer();
         tick = endTick;
+        prepared++;
+    }
 
-        return buf;
+    private void copyBuffer(ByteBuffer src, ByteBuffer dst) {
+        dst.position(0);
+        dst.limit(dst.capacity());
+
+        if (src.remaining() > dst.remaining()) {
+            throw new IllegalStateException("Src buffer is bigger than dst buffer");
+        }
+
+        dst.put(src);
+
+        dst.flip();
     }
 
     @Override

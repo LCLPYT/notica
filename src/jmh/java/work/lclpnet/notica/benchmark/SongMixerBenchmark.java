@@ -39,7 +39,7 @@ public class SongMixerBenchmark {
             sampleManager.loadAll();
 
             float seconds = 5.f;
-            int bufferSize = TestUtil.getBufferSize(seconds);
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
@@ -66,7 +66,7 @@ public class SongMixerBenchmark {
             sampleManager.loadAll();
 
             float seconds = 5.f;
-            int bufferSize = TestUtil.getBufferSize(seconds);
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
@@ -93,7 +93,7 @@ public class SongMixerBenchmark {
             sampleManager.loadAll();
 
             float seconds = 5.f;
-            int bufferSize = TestUtil.getBufferSize(seconds);
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
@@ -120,7 +120,7 @@ public class SongMixerBenchmark {
             sampleManager.loadAll();
 
             float seconds = 5.f;
-            int bufferSize = TestUtil.getBufferSize(seconds);
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);

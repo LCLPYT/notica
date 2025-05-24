@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
-import static work.lclpnet.notica.util.TestUtil.getBufferSize;
+import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 public class SongMixerTest {
@@ -26,7 +26,7 @@ public class SongMixerTest {
         sampleManager.loadAll();
 
         float seconds = 32;
-        int bufferSize = getBufferSize(seconds);
+        int bufferSize = getBufferByteSize(seconds);
         int frames = getFrames(bufferSize);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);

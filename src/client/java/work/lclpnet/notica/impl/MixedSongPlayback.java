@@ -81,9 +81,18 @@ public class MixedSongPlayback {
         songMixer.setSongVolume(volume);
 
         runAsync(sampleManager::loadAll).thenRun(() -> {
+            Thread prepareThread = audioStream.prepareAsync(audioStream.getBufferBytes() * 4);
+
+            try {
+                prepareThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+
+            playSound();
+
 //            processSection(0, 0);
 //            ByteBuffer soundBuf = soundMixer.completeCurrentBuffer();
-            playSound();
 
             int code = this.hashCode();
 

@@ -1,6 +1,7 @@
 package work.lclpnet.notica.impl.mix;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
@@ -135,7 +136,8 @@ public class SoundMixer {
         return endBuffer - startBuffer + 1;
     }
 
-    private void mixSample(float[] sample, final int frameCount, int bufferIdx, final int totalFrameOffset) {
+    @VisibleForTesting
+    void mixSample(float[] sample, final int frameCount, int bufferIdx, final int totalFrameOffset) {
         final int bufferOffset = totalFrameOffset / bufferFrames;
         final int frameOffset = totalFrameOffset % bufferFrames;
 
@@ -170,7 +172,7 @@ public class SoundMixer {
         final int restBufferSpan = bufferSpan(totalFrameOffset, frameCount) - 1;
 
         for (int i = 1; i <= restBufferSpan; i++) {
-            int writtenSoFar = writtenFrames + i * bufferFrames;
+            int writtenSoFar = writtenFrames + (i - 1) * bufferFrames;
             int remainingFrames = frameCount - writtenSoFar;
             int len = max(0, min(bufferFrames, remainingFrames));
 
@@ -182,8 +184,9 @@ public class SoundMixer {
                 buffer[j] += sample[j + writtenSoFar];
             }
 
+            // right
             for (int j = 0; j < len; j++) {
-                buffer[bufferFrames + j] = sample[frameCount + j + writtenFrames];
+                buffer[bufferFrames + j] += sample[frameCount + j + writtenSoFar];
             }
         }
     }
@@ -242,7 +245,7 @@ public class SoundMixer {
         }
     }
 
-    public ByteBuffer completeCurrentBuffer(final int frameCount) {
+    public ByteBuffer applyCompressor(final int frameCount) {
         float[] samples = buffers[currentBuffer];
         float[] next = buffers[(currentBuffer + 1) % buffers.length];
 
@@ -252,6 +255,35 @@ public class SoundMixer {
         compressor.process(frameCount, samples, next, directBuffer);
 
         return directBuffer;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    @VisibleForTesting
+    ByteBuffer applyClamping(final int frameCount) {
+        ByteBuffer buf = BufferUtils.createByteBuffer(frameCount * 4);
+        buf.position(0);
+
+        final int bufCount = (int) Math.ceil((float) frameCount / bufferFrames);
+
+        for (int i = 0; i < bufCount; i++) {
+            float[] samples = buffers[i];
+            final int len = max(0, min(bufferFrames, frameCount - i * bufferFrames));
+
+            for (int j = 0; j < len; j++) {
+                float vl = samples[j];
+                float vr = samples[bufferFrames + j];
+
+                short ql = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vl * Short.MAX_VALUE));
+                short qr = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vr * Short.MAX_VALUE));
+
+                buf.putShort(ql);
+                buf.putShort(qr);
+            }
+        }
+
+        buf.flip();
+
+        return buf;
     }
 
     public void reset() {

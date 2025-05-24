@@ -134,7 +134,7 @@ public class SongMixerBenchmark {
     public void baseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
 
         blackhole.consume(res);
     }
@@ -143,7 +143,7 @@ public class SongMixerBenchmark {
     public void splitVolume(SplitVolumeState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
 
         blackhole.consume(res);
     }
@@ -152,7 +152,7 @@ public class SongMixerBenchmark {
     public void catmullRomBaseline(BaselineCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
 
         blackhole.consume(res);
     }
@@ -161,7 +161,7 @@ public class SongMixerBenchmark {
     public void catmullRomSimd(SimdCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.completeCurrentBuffer(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
 
         blackhole.consume(res);
     }

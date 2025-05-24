@@ -48,7 +48,7 @@ public class SongAudioStream implements AudioStream {
     }
 
     public static float getSeconds(AudioFormat format, int frameCount) {
-        return (int) (frameCount / format.getSampleRate());
+        return frameCount / format.getSampleRate();
     }
 
     @Override
@@ -77,7 +77,7 @@ public class SongAudioStream implements AudioStream {
         songMixer.mixTicks(tick, endTick, 0);
 
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
-        ByteBuffer buf = soundMixer.completeCurrentBuffer(frameCount);
+        ByteBuffer buf = soundMixer.applyCompressor(frameCount);
 
         soundMixer.advanceBuffer();
         tick = endTick;

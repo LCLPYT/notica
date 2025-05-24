@@ -96,6 +96,7 @@ dependencies {
     testImplementation("org.jcraft:jorbis:0.0.17")
     testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.8.1'
+    testImplementation 'org.mockito:mockito-core:5.6.0'
 
     // must be defined for idea jmh plugin to execute benchmarks individually
     jmh 'org.openjdk.jmh:jmh-core:1.37'

@@ -14,11 +14,11 @@ import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 public class SongMixerTest {
 
-    private static final boolean EXPORT = true, OPEN = true;
+    private static final boolean EXPORT = false, OPEN = false;
 
     @Test
     void test() throws IOException {
-        Song song = TestUtil.loadSong(Path.of("run", "config", "notica", "songs", "Note Block Megacollab.nbs"));
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerTest.class);
 
         TestUtil.initSoundRegistry();
 
@@ -41,7 +41,7 @@ public class SongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.completeCurrentBuffer(frames);
+        ByteBuffer buffer = soundMixer.applyCompressor(frames);
 
         if (!EXPORT) return;
 

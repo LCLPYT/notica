@@ -20,8 +20,8 @@ public class SongAudioStream implements AudioStream {
     private final SongMixer songMixer;
     private final ByteBuffer[] preparedBuffers;
     private final int bufferBytes;
+    private final Object prepareLock = new Object[0];
 
-    private boolean first = true;
     private boolean ended = false;
     private int tick = 0;
     private int prepared = 0;
@@ -63,34 +63,34 @@ public class SongAudioStream implements AudioStream {
     }
 
     @Override
-    public synchronized ByteBuffer read(int size) {
-        if (ended) {
-            return null;
-        }
+    public ByteBuffer read(int size) {
+        ByteBuffer buf;
 
-        if (prepared <= 0) {
-            prepare(size);
-
-            if (ended) {
-                return null;
-            }
-
+        synchronized (this) {
             if (prepared <= 0) {
-                throw new IllegalStateException("Prepare didn't work");
+                if (ended) {
+                    return null;
+                }
+
+                prepare(size);
+
+                if (prepared <= 0) {
+                    throw new IllegalStateException("Prepare didn't work");
+                }
             }
+
+            buf = preparedBuffers[prepareStart];
+
+            prepared--;
+            prepareStart = (prepareStart + 1) % PREPARE_COUNT;
         }
-
-        ByteBuffer buf = preparedBuffers[prepareStart];
-
-        prepared--;
-        prepareStart = (prepareStart + 1) % PREPARE_COUNT;
 
         prepareAsync(size);
 
         return buf;
     }
 
-    public synchronized Thread prepareAsync(int size) {
+    public Thread prepareAsync(int size) {
         return Thread.startVirtualThread(() -> {
             int count = max(1, size / bufferBytes);
             int remaining = size;
@@ -105,23 +105,29 @@ public class SongAudioStream implements AudioStream {
         });
     }
 
-    public synchronized void prepare(int size) {
-        if (prepared >= PREPARE_COUNT) return;  // cannot prepare any more elements
+    public void prepare(int size) {
+        synchronized (prepareLock) {
+            _prepare(size);
+        }
+    }
+
+    private void _prepare(int size) {
+        synchronized (this) {
+            if (prepared >= PREPARE_COUNT || ended) return;  // cannot prepare any more elements
+        }
 
         final int frameCount = getFrameCount(format, size);
         float seconds = getSeconds(format, frameCount);
-
-        if (first) {
-            first = false;
-            seconds += soundMixer.getCompressorLookAheadSeconds();
-        }
 
         int durationTicks = song.tempo().durationTicks(tick, seconds);
         int endTick = min(tick + durationTicks, song.durationTicks());
 
         if (endTick <= tick) {
-            // song ended
-            ended = true;
+            synchronized (this) {
+                // song ended
+                ended = true;
+            }
+
             return;
         }
 
@@ -130,13 +136,16 @@ public class SongAudioStream implements AudioStream {
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.applyCompressor(frameCount);
 
-        int prepareIdx = (prepareStart + prepared) % PREPARE_COUNT;
+        synchronized (this) {
+            int prepareIdx = (prepareStart + prepared) % PREPARE_COUNT;
 
-        copyBuffer(buf, preparedBuffers[prepareIdx]);
+            copyBuffer(buf, preparedBuffers[prepareIdx]);
 
-        soundMixer.advanceBuffer();
-        tick = endTick;
-        prepared++;
+            soundMixer.advanceBuffer();
+            tick = endTick;
+
+            prepared++;
+        }
     }
 
     private void copyBuffer(ByteBuffer src, ByteBuffer dst) {

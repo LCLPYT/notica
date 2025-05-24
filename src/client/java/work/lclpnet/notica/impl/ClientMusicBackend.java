@@ -105,7 +105,7 @@ public class ClientMusicBackend {
         var songMixer = new SongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
 
-        var playback = new MixedSongPlayback(audioStream, song, soundMixer, songMixer, sampleManager, channel, logger);
+        var playback = new StreamSongPlayback(audioStream, soundMixer, songMixer, sampleManager, channel, logger);
 
         playback.start(startTick, volume);
     }

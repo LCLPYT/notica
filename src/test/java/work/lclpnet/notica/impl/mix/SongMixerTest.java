@@ -36,7 +36,7 @@ public class SongMixerTest {
 
         float lookAheadSeconds = soundMixer.getCompressorLookAheadSeconds();
 
-        int startTick = song.tempo().durationTicks(0, 3 * 60 + 58 /* 17 * 60 + 25 */);
+        int startTick = song.tempo().durationTicks(0, 0);
         int endTick = startTick + song.tempo().durationTicks(startTick, seconds + lookAheadSeconds);
 
         songMixer.mixTicks(startTick, endTick, 0);

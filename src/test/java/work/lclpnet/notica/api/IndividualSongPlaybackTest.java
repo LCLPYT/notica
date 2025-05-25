@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SongPlaybackTest {
+class IndividualSongPlaybackTest {
 
     @Test
     void run_test_timingsConsistent() throws ReflectiveOperationException {
@@ -41,7 +41,7 @@ class SongPlaybackTest {
         LongList timestamps = new LongArrayList(ticks);
         NotePlayer player = (s, l, n) -> timestamps.add(System.currentTimeMillis());
 
-        var playback = new SongPlayback(song, player);
+        var playback = new IndividualSongPlayback(song, player);
         setStarted(playback);
 
         playback.run();  // execute on this thread (as opposed to playback.start())
@@ -57,8 +57,8 @@ class SongPlaybackTest {
         }
     }
 
-    private static void setStarted(SongPlayback playback) throws ReflectiveOperationException {
-        Field started = SongPlayback.class.getDeclaredField("started");
+    private static void setStarted(IndividualSongPlayback playback) throws ReflectiveOperationException {
+        Field started = IndividualSongPlayback.class.getDeclaredField("started");
         started.setAccessible(true);
         started.set(playback, true);
     }
@@ -72,7 +72,7 @@ class SongPlaybackTest {
                 layers, ImmutableInstruments.DEFAULT, false, (byte) 4);
 
         var executed = new AtomicBoolean(false);
-        var playback = new SongPlayback(song, (s, l, n) -> {});
+        var playback = new IndividualSongPlayback(song, (s, l, n) -> {});
         playback.whenDone(() -> executed.set(true));
 
         playback.run();  // execute on this thread (as opposed to playback.start())

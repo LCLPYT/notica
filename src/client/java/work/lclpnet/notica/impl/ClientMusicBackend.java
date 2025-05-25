@@ -10,8 +10,10 @@ import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.item.Items;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.SongPlayback;
@@ -57,16 +59,16 @@ public class ClientMusicBackend {
 
         stopSong(songId);
 
-        // TODO remove test code
+        SongPlayback playback;
+
+        // TODO use config option instead
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
 
         if (player != null && player.getMainHandStack().isOf(Items.STICK)) {
-            playMixedSamples(song, startTick, volume);
-            return;
+            playback = createStreamPlayback(song);
+        } else {
+            playback = createIndividualPlayback(song, volume);
         }
-
-        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
-        SongPlayback playback = new SongPlayback(song, notePlayer);
 
         playback.whenDone(() -> {
             songRepository.unbind(song, songId);
@@ -84,7 +86,13 @@ public class ClientMusicBackend {
         playback.start(startTick);
     }
 
-    private void playMixedSamples(PendingSong song, int startTick, float volume) {
+    private @NotNull SongPlayback createIndividualPlayback(PendingSong song, float volume) {
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
+
+        return new IndividualSongPlayback(song, notePlayer);
+    }
+
+    private StreamSongPlayback createStreamPlayback(PendingSong song) {
         SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
@@ -105,9 +113,7 @@ public class ClientMusicBackend {
         var songMixer = new SongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
 
-        var playback = new StreamSongPlayback(audioStream, soundMixer, songMixer, sampleManager, channel, logger);
-
-        playback.start(startTick, volume);
+        return new StreamSongPlayback(audioStream, soundMixer, songMixer, sampleManager, channel, logger);
     }
 
     public void stopSong(Identifier songId) {

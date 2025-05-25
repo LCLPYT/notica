@@ -5,13 +5,14 @@ import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.client.sound.Source;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
+import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
 
-public class StreamSongPlayback {
+public class StreamSongPlayback implements SongPlayback {
 
     private final SongAudioStream audioStream;
     private final SoundMixer soundMixer;
@@ -31,10 +32,9 @@ public class StreamSongPlayback {
         this.logger = logger;
     }
 
-    public void start(int startTick, float volume) {
+    @Override
+    public void start(int startTick) {
         audioStream.setTick(startTick);
-
-        songMixer.setSongVolume(volume);
 
         runAsync(sampleManager::loadAll).thenRun(() -> {
             Thread prepareThread = audioStream.prepareAsync(audioStream.getBufferBytes() * 4);
@@ -45,6 +45,7 @@ public class StreamSongPlayback {
                 throw new RuntimeException(e);
             }
 
+            // TODO support volume
             playSound();
         }).exceptionally(err -> {
             logger.error("Failed to start playback", err);
@@ -52,15 +53,28 @@ public class StreamSongPlayback {
         });
     }
 
+    @Override
     public void stop() {
         if (sourceManager == null) return;
 
         sourceManager.run(Source::stop);
     }
 
-    public void seekTo(int tick) {
+    @Override
+    public void seekTo(int tick, boolean absolute) {
+        // TODO support absolute
         audioStream.setTick(tick);
         soundMixer.reset();
+    }
+
+    @Override
+    public boolean isStopped() {
+        return false;  // TODO implement
+    }
+
+    @Override
+    public void whenDone(Runnable action) {
+        // TODO implement
     }
 
     private void playSound() {

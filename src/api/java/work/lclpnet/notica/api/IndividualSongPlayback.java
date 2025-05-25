@@ -1,0 +1,174 @@
+package work.lclpnet.notica.api;
+
+import work.lclpnet.kibu.hook.Hook;
+import work.lclpnet.kibu.hook.HookFactory;
+import work.lclpnet.notica.api.data.Layer;
+import work.lclpnet.notica.api.data.LoopConfig;
+import work.lclpnet.notica.api.data.Note;
+import work.lclpnet.notica.api.data.Song;
+
+import java.util.Objects;
+
+import static java.lang.Math.*;
+import static java.lang.System.currentTimeMillis;
+import static java.lang.Thread.sleep;
+
+public class IndividualSongPlayback implements Runnable, SongPlayback {
+
+    private final Song song;
+    private final NotePlayer notePlayer;
+    private final int durationTicks;
+    private int periodMs;
+    private double remainderMs;
+    private boolean started = false;
+    private int tick = 0;
+    private double extraMs = 0f;
+    private volatile Hook<Runnable> onComplete = null;
+    private volatile Thread thread = null;
+    private volatile boolean stopped = false;
+
+    public IndividualSongPlayback(Song song, NotePlayer notePlayer) {
+        this.song = Objects.requireNonNull(song, "Song must not be null");
+        this.notePlayer = Objects.requireNonNull(notePlayer, "NotePlayer must not be null");
+
+        this.durationTicks = song.durationTicks();
+
+        updateTempo(song.tempo().tempoAt(0));
+    }
+
+    private void updateTempo(float ticksPerSecond) {
+        double exactTempoMs = 1000f / ticksPerSecond;
+
+        this.periodMs = (int) ceil(exactTempoMs);
+        this.remainderMs = max(0, periodMs - exactTempoMs);
+    }
+
+    @Override
+    public synchronized void start(int startTick) {
+        if (started) return;
+        started = true;
+
+        tick = startTick;
+
+        thread = new Thread(this, "Song Player");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    @Override
+    public synchronized void stop() {
+        if (!started) return;
+        started = false;
+        stopped = true;
+
+        if (thread != null && thread.isAlive()) {
+            thread.interrupt();
+            thread = null;
+        }
+    }
+
+    @SuppressWarnings("BusyWait")
+    @Override
+    public void run() {
+        LoopConfig loopConfig = song.loopConfig();
+
+        int loopAmount = loopConfig.loopCount();
+        final boolean shouldLoop = loopConfig.enabled();
+        final int endTick;
+
+        if (shouldLoop) {
+            int interval = max(2, min(8, song.signature())) * 4;
+            endTick = durationTicks + interval - (durationTicks % interval);
+        } else {
+            endTick = durationTicks + 1;
+        }
+
+        while (started && tick < endTick) {
+            final long before = currentTimeMillis();
+            final int t = tick++;
+
+            for (Layer layer : song.layers()) {
+                Note note = layer.notes().get(t);
+
+                if (note == null) continue;
+
+                notePlayer.playNote(song, layer, note);
+            }
+
+            if (notePlayer instanceof AggregatingPlayer aggregatingPlayer) {
+                aggregatingPlayer.finishAggregation();
+            }
+
+            if (shouldLoop && tick == endTick) {
+                boolean infinite = loopConfig.infinite();
+
+                if (infinite || loopAmount > 0) {
+                    if (!infinite) loopAmount--;
+
+                    tick = loopConfig.loopStartTick();
+                }
+            }
+
+            if (song.tempo().changeAt(t)) {
+                updateTempo(song.tempo().tempoAt(t));
+            }
+
+            long elapsed = currentTimeMillis() - before;
+
+            if (extraMs >= 1.0) {
+                int w = (int) floor(extraMs);
+                elapsed += w;
+                extraMs -= w;
+            }
+
+            long waitMs = periodMs - elapsed;
+            extraMs += remainderMs;
+
+            if (waitMs <= 0) continue;
+
+            try {
+                sleep(periodMs);
+            } catch (InterruptedException ignored) {}
+        }
+
+        if (onComplete != null) {
+            onComplete.invoker().run();
+        }
+    }
+
+    @Override
+    public void whenDone(Runnable action) {
+        getOrCreateHook().register(action);
+    }
+
+    private Hook<Runnable> getOrCreateHook() {
+        if (onComplete != null) return onComplete;
+
+        synchronized (this) {
+            if (onComplete != null) return onComplete;
+
+            onComplete = HookFactory.createArrayBacked(Runnable.class, hooks -> () -> {
+                for (var hook : hooks) {
+                    hook.run();
+                }
+            });
+        }
+
+        return onComplete;
+    }
+
+    @Override
+    public synchronized boolean isStopped() {
+        return stopped;
+    }
+
+    @Override
+    public synchronized void seekTo(int ticks, boolean absolute) {
+        ticks = max(0, absolute ? ticks : this.tick + ticks);
+
+        this.tick = ticks;
+        this.extraMs = 0;
+
+        updateTempo(song.tempo().tempoAt(ticks));
+    }
+}

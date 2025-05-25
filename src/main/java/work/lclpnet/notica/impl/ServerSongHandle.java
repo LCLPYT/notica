@@ -25,7 +25,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private volatile boolean started = false;
     @Nullable
-    private SongPlayback serverPlayback = null;
+    private IndividualSongPlayback serverPlayback = null;
     @Nullable
     private ServerBasicNotePlayer serverNotePlayer = null;
     private final Hook<Runnable> onDestroy = HookFactory.createArrayBacked(Runnable.class, callbacks -> () -> {
@@ -64,7 +64,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         // there are vanilla players, a server playback is needed
         serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, volume);
 
-        final SongPlayback playback = new SongPlayback(checkedSong.song(), serverNotePlayer);
+        final IndividualSongPlayback playback = new IndividualSongPlayback(checkedSong.song(), serverNotePlayer);
 
         playback.whenDone(() -> {
             this.vanillaRefs.clear();

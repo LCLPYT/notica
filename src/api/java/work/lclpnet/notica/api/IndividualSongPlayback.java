@@ -147,18 +147,22 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         synchronized (this) {
             if (onComplete != null) return onComplete;
 
-            onComplete = HookFactory.createArrayBacked(Runnable.class, hooks -> () -> {
-                for (var hook : hooks) {
-                    hook.run();
-                }
-            });
+            onComplete = runnableHook();
         }
 
         return onComplete;
     }
 
+    public static Hook<Runnable> runnableHook() {
+        return HookFactory.createArrayBacked(Runnable.class, hooks -> () -> {
+            for (var hook : hooks) {
+                hook.run();
+            }
+        });
+    }
+
     @Override
-    public synchronized boolean isStopped() {
+    public synchronized boolean wasStoppedManually() {
         return stopped;
     }
 

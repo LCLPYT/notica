@@ -12,6 +12,8 @@
     "SoundManagerAccessor",
     "SoundSystemAccessor",
     "SoundSystemMixin",
+    "SourceManagerMixin",
+    "SourceMixin",
     "StaticSoundAccessor"
   ]
 }

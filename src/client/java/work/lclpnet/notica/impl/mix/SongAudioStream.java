@@ -106,29 +106,24 @@ public class SongAudioStream implements AudioStream {
             prepareStart = (prepareStart + 1) % PREPARE_COUNT;
         }
 
-        prepareAsync(size);
+        // prepare next async
+        Thread.startVirtualThread(() -> prepare(size));
 
         return buf;
     }
 
-    public Thread prepareAsync(int size) {
-        return Thread.startVirtualThread(() -> {
+    public void prepare(int size) {
+        synchronized (prepareLock) {
             int count = max(1, size / bufferBytes);
             int remaining = size;
 
             for (int i = 0; i < count; i++) {
                 int len = min(remaining, bufferBytes);
 
-                prepare(len);
+                _prepare(len);
 
                 remaining -= len;
             }
-        });
-    }
-
-    public void prepare(int size) {
-        synchronized (prepareLock) {
-            _prepare(size);
         }
     }
 
@@ -185,7 +180,14 @@ public class SongAudioStream implements AudioStream {
     @Override
     public void close() {}
 
-    public void setTick(int tick) {
-        this.tick = tick;
+    public void setTick(int tick, boolean absolute) {
+        this.tick = max(0, absolute ? tick : this.tick + tick);
+
+        reset();
+    }
+
+    public synchronized void reset() {
+        prepared = 0;
+        prepareStart = 0;
     }
 }

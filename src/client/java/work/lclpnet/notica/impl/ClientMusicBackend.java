@@ -73,7 +73,7 @@ public class ClientMusicBackend {
         playback.whenDone(() -> {
             songRepository.unbind(song, songId);
 
-            if (playback.isStopped()) return;
+            if (playback.wasStoppedManually()) return;
 
             removePlaying(songId);
             notifySongStopped(songId);
@@ -86,7 +86,7 @@ public class ClientMusicBackend {
         playback.start(startTick);
     }
 
-    private @NotNull SongPlayback createIndividualPlayback(PendingSong song, float volume) {
+    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, float volume) {
         NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
 
         return new IndividualSongPlayback(song, notePlayer);
@@ -113,7 +113,7 @@ public class ClientMusicBackend {
         var songMixer = new SongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
 
-        return new StreamSongPlayback(audioStream, soundMixer, songMixer, sampleManager, channel, logger);
+        return new StreamSongPlayback(audioStream, soundMixer, sampleManager, channel, logger);
     }
 
     public void stopSong(Identifier songId) {

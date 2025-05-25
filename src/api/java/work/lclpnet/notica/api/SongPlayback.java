@@ -8,7 +8,10 @@ public interface SongPlayback {
 
     void seekTo(int tick, boolean absolute);
 
-    boolean isStopped();
+    /**
+     * @return Whether the playback was stopped by calling {@link #stop()}.
+     */
+    boolean wasStoppedManually();
 
     void whenDone(Runnable action);
 }

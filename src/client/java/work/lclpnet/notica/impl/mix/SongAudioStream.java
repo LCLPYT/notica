@@ -22,6 +22,7 @@ public class SongAudioStream implements AudioStream {
     private final int bufferBytes;
     private final Object prepareLock = new Object[0];
 
+    private boolean first = true;
     private boolean ended = false;
     private int tick = 0;
     private int prepared = 0;
@@ -134,7 +135,12 @@ public class SongAudioStream implements AudioStream {
         }
 
         final int frameCount = getFrameCount(format, size);
-        float seconds = getSeconds(format, frameCount);
+        float seconds = getSeconds(format, frameCount - frameOffset);
+
+        if (first) {
+            seconds += soundMixer.getCompressorLookAheadSeconds();
+            first = false;
+        }
 
         int durationTicks = song.tempo().durationTicks(tick, seconds);
         int endTick = min(tick + durationTicks, song.durationTicks());
@@ -181,7 +187,7 @@ public class SongAudioStream implements AudioStream {
     @Override
     public void close() {}
 
-    public void setTick(int tick, boolean absolute) {
+    public synchronized void setTick(int tick, boolean absolute) {
         this.tick = max(0, absolute ? tick : this.tick + tick);
 
         reset();
@@ -190,5 +196,6 @@ public class SongAudioStream implements AudioStream {
     public synchronized void reset() {
         prepared = 0;
         prepareStart = 0;
+        first = true;
     }
 }

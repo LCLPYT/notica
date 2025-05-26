@@ -80,7 +80,6 @@ public class StreamSongPlayback implements SongPlayback {
             soundMixer.reset();
 
             audioStream.setTick(tick, absolute);
-            audioStream.reset();
 
             Thread.startVirtualThread(() -> {
                 prepareSync();

@@ -105,6 +105,16 @@ class SongAudioStreamTest {
         return array;
     }
 
+    private float[] toFloatArray(short[] samples) {
+        float[] array = new float[samples.length];
+
+        for (int i = 0; i < array.length; i++) {
+            array[i] = i / (float) Short.MAX_VALUE;
+        }
+
+        return array;
+    }
+
     @Test
     void testSameAsContinuous() throws IOException {
         Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerTest.class);
@@ -116,13 +126,13 @@ class SongAudioStreamTest {
 
         float seconds = 1.f;
         int amount = 5;
-        float volume = 0.5f;
+        float volume = 1.5f;
 
         ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount);
         ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount);
 
-        short[] reference_array = asShortArray(reference);
-        short[] combined_array = asShortArray(combined);
+        float[] reference_array = toFloatArray(asShortArray(reference));
+        float[] combined_array = toFloatArray(asShortArray(combined));
 
         assertArrayEquals(reference_array, combined_array, "Combined does not match reference (buffer_size=%s)"
                 .formatted(getBufferByteSize(seconds) / 2));

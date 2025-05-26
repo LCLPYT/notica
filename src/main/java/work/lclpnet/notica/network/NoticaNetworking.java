@@ -28,7 +28,7 @@ public class NoticaNetworking {
 
     public static final Protocol PROTOCOL = new Protocol(NoticaInit.identifier("version"), 2);
     public static final int MAX_PACKET_BYTES = 0x800000;  // packet size limit imposed by mc
-    private static final int RESET_MILLIS = 20_000, MAX_REQUESTS = 40;
+    private static final int RESET_MILLIS = 15_000, MAX_REQUESTS = 40;
     private static NoticaNetworking instance = null;
 
     private final Logger logger;

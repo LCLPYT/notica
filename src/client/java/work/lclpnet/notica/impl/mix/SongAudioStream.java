@@ -22,6 +22,7 @@ public class SongAudioStream implements AudioStream {
     private final int bufferBytes;
     private final Object prepareLock = new Object[0];
 
+    private Runnable onUpdate = () -> {};
     private boolean first = true;
     private boolean ended = false;
     private int tick = 0;
@@ -155,6 +156,7 @@ public class SongAudioStream implements AudioStream {
                 return;
             }
         } else {
+            onUpdate.run();
             frameOffset = songMixer.mixTicks(tick, endTick, frameOffset);
         }
 
@@ -199,5 +201,9 @@ public class SongAudioStream implements AudioStream {
         prepared = 0;
         prepareStart = 0;
         first = true;
+    }
+
+    public void setOnUpdate(Runnable onUpdate) {
+        this.onUpdate = onUpdate;
     }
 }

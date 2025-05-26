@@ -9,6 +9,7 @@ import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.item.Items;
 import net.minecraft.resource.ResourceFactory;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,6 +33,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 public class ClientMusicBackend {
 
@@ -65,7 +69,7 @@ public class ClientMusicBackend {
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
 
         if (player != null && player.getMainHandStack().isOf(Items.STICK)) {
-            playback = createStreamPlayback(song);
+            playback = createStreamPlayback(song, volume);
         } else {
             playback = createIndividualPlayback(song, volume);
         }
@@ -92,8 +96,9 @@ public class ClientMusicBackend {
         return new IndividualSongPlayback(song, notePlayer);
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song) {
-        SoundManager soundManager = MinecraftClient.getInstance().getSoundManager();
+    private StreamSongPlayback createStreamPlayback(PendingSong song, float volume) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        SoundManager soundManager = client.getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
 
@@ -112,6 +117,13 @@ public class ClientMusicBackend {
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes);
         var songMixer = new SongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
+
+        audioStream.setOnUpdate(() -> {
+            float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);
+            float totalVolume = max(0.f, min(1.f, volume * categoryVolume * playerConfig.getVolume()));
+
+            songMixer.setSongVolume(totalVolume);
+        });
 
         return new StreamSongPlayback(audioStream, soundMixer, sampleManager, channel, logger);
     }

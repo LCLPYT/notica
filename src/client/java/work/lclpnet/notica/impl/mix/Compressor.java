@@ -2,8 +2,8 @@ package work.lclpnet.notica.impl.mix;
 
 import java.nio.ByteBuffer;
 
+import static java.lang.Math.clamp;
 import static java.lang.Math.round;
-import static net.minecraft.util.math.MathHelper.clamp;
 
 /// A feed-forward audio compressor inspired by the [openal-soft compressor](https://github.com/kcat/openal-soft/blob/master/core/mastering.cpp)
 /// and [Daniel Rudrich's compressor](https://github.com/DanielRudrich/SimpleCompressor/blob/master/src/SimpleCompressor.h).

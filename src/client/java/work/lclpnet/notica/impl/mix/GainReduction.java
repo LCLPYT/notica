@@ -3,7 +3,6 @@ package work.lclpnet.notica.impl.mix;
 import org.jetbrains.annotations.Nullable;
 
 import static java.lang.Math.*;
-import static net.minecraft.util.math.MathHelper.lerp;
 
 /// Heavily inspired by the [openal-soft compressor](https://github.com/kcat/openal-soft/blob/master/core/mastering.cpp).
 public class GainReduction {
@@ -131,9 +130,9 @@ public class GainReduction {
             float kneeHalf = 0.5f * knee;
 
             // calculate how much the gain should be reduced
-            int lookAheadIndex = i + lookaheadSamples; // TODO remove clamping (is padded)
+            int lookAheadIndex = i + lookaheadSamples;
             float overShoot = sideChain[lookAheadIndex] - thresholdLn;
-            float gainReduction = calcGainReduction(overShoot, kneeHalf);  // y_G = gain reduction
+            float gainReduction = calcGainReduction(overShoot, kneeHalf);
 
             // adjust attack and release
             float crestVal = crest[i];
@@ -232,5 +231,9 @@ public class GainReduction {
 
             return peaks[hi];
         }
+    }
+
+    private static float lerp(float delta, float start, float end) {
+        return start + delta * (end - start);
     }
 }

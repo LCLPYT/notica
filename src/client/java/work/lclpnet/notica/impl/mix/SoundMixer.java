@@ -27,6 +27,7 @@ public class SoundMixer {
     private final ByteBuffer directBuffer;
     private final float[][] buffers;
     private int currentBuffer = 0;
+    private int remainingBuffers = 0;
 
     public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes) {
         this.format = format;
@@ -168,7 +169,11 @@ public class SoundMixer {
     }
 
     private void mixRest(float[] sample, int frameCount, int bufferIdx, int totalFrameOffset, final int writtenFrames) {
-        final int restBufferSpan = bufferSpan(totalFrameOffset, frameCount) - 1;
+        final int span = bufferSpan(totalFrameOffset, frameCount);
+
+        remainingBuffers = span;
+
+        final int restBufferSpan = span - 1;
 
         for (int i = 1; i <= restBufferSpan; i++) {
             int writtenSoFar = writtenFrames + (i - 1) * bufferFrames;
@@ -299,10 +304,15 @@ public class SoundMixer {
         Arrays.fill(buffers[currentBuffer], 0f);
 
         currentBuffer = (currentBuffer + 1) % buffers.length;
+        remainingBuffers = max(0, remainingBuffers - 1);
     }
 
     public int getBufferFrames() {
         return bufferFrames;
+    }
+
+    public boolean isDone() {
+        return remainingBuffers <= 0;
     }
 
     public enum StereoMode {

@@ -143,18 +143,20 @@ public class SongAudioStream implements AudioStream {
         }
 
         int durationTicks = song.tempo().durationTicks(tick, seconds);
-        int endTick = min(tick + durationTicks, song.durationTicks());
+        int endTick = min(tick + durationTicks, song.durationTicks() + 1);
 
         if (endTick <= tick) {
-            synchronized (this) {
-                // song ended
-                ended = true;
+            if (soundMixer.isDone()) {
+                synchronized (this) {
+                    // song ended
+                    ended = true;
+                }
+
+                return;
             }
-
-            return;
+        } else {
+            frameOffset = songMixer.mixTicks(tick, endTick, frameOffset);
         }
-
-        frameOffset = songMixer.mixTicks(tick, endTick, frameOffset);
 
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.applyCompressor(frameCount);

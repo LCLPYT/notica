@@ -93,19 +93,18 @@ public class SoundMixer {
      * @param note The {@link Note} defining the instrument, volume, pitch and panning.
      * @param volume The volume to play the sample at. Note velocity (volume) is multiplied with this value.
      * @param layerPanning The unnormalized stereo panning of the note layer; between [0, 200], where 0 is the center.
-     * @param bufferOffset The index offset of the {@link ByteBuffer} to write to, relative to the current buffer.
      * @param frameOffset The sample offset inside the current buffer. Is used to add sounds at specific timestamps.
      * @return True if the sound was successfully mixed into the ring buffer.
      * False if the sound was too long or if no sample exists fot the given {@link Note} instrument.
      */
-    public boolean putSound(Note note, float volume, short layerPanning, int bufferOffset, int frameOffset) {
+    public boolean putSound(Note note, float volume, short layerPanning, int frameOffset) {
         final int frameCount = noteSampler.sample(note, volume, layerPanning, sampleBuffer);
 
         if (frameCount < 0) {
             return false;
         }
 
-        final int bufferIdx = (currentBuffer + bufferOffset) % buffers.length;
+        final int bufferIdx = currentBuffer;
 
         if (notEnoughSpace(frameOffset, frameCount, bufferIdx)) {
             return false;
@@ -300,6 +299,10 @@ public class SoundMixer {
         Arrays.fill(buffers[currentBuffer], 0f);
 
         currentBuffer = (currentBuffer + 1) % buffers.length;
+    }
+
+    public int getBufferFrames() {
+        return bufferFrames;
     }
 
     public enum StereoMode {

@@ -5,6 +5,7 @@ import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
 
 import static java.lang.Math.ceil;
+import static java.lang.Math.max;
 
 public class SongMixer {
 
@@ -22,10 +23,15 @@ public class SongMixer {
         this.songVolume = songVolume;
     }
 
-    public void mixTicks(int startTick, int endTick, int bufferOffset) {
+    /**
+     * Mixes all notes in a given tick range into the current sound buffer.
+     * @param startTick The start tick (inclusive)
+     * @param endTick The end tick (exclusive)
+     * @param frameOffset The initial number of frames to skip when mixing.
+     * @return The amount of frames that should carry over to the next call of this method.
+     */
+    public int mixTicks(int startTick, int endTick, int frameOffset) {
         final float sampleRate = mixer.getFormat().getSampleRate();
-
-        int sampleOffset = 0;
 
         for (int tick = startTick; tick < endTick; tick++) {
             // mix all sounds in current tick
@@ -40,7 +46,7 @@ public class SongMixer {
 
                 short panning = layer.panning();
 
-                if (!mixer.putSound(note, volume, panning, bufferOffset, sampleOffset)) {
+                if (!mixer.putSound(note, volume, panning, frameOffset)) {
                     // TODO schedule long sound playback manually
                 }
             }
@@ -49,7 +55,9 @@ public class SongMixer {
             float tickSeconds = 1.f / song.tempo().tempoAt(tick);
             int tickSamples = (int) ceil(tickSeconds * sampleRate);
 
-            sampleOffset += tickSamples;
+            frameOffset += tickSamples;
         }
+
+        return max(0, frameOffset - mixer.getBufferFrames());
     }
 }

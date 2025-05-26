@@ -26,6 +26,7 @@ public class SongAudioStream implements AudioStream {
     private int tick = 0;
     private int prepared = 0;
     private int prepareStart = 0;
+    private int frameOffset = 0;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes) {
         this.format = format;
@@ -147,7 +148,7 @@ public class SongAudioStream implements AudioStream {
             return;
         }
 
-        songMixer.mixTicks(tick, endTick, 0);
+        frameOffset = songMixer.mixTicks(tick, endTick, frameOffset);
 
         // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.applyCompressor(frameCount);

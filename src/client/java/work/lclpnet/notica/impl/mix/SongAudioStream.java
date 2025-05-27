@@ -167,6 +167,8 @@ public class SongAudioStream implements AudioStream {
 
                 frameOffset = songMixer.mixTicks(tick, adjustedEndTick, this.frameOffset);
 
+                frameOffset %= soundMixer.getBufferFrames();
+
                 tick = loop.loopStartTick();
 
                 float remainingSeconds = max(0.f, bufferSeconds - endSeconds);

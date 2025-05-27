@@ -13,6 +13,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.Math.abs;
+import static java.lang.Math.max;
 import static work.lclpnet.notica.api.IoHelper.*;
 
 public class SongDecoder {
@@ -108,6 +109,7 @@ public class SongDecoder {
         final Map<Integer, Map<Integer, Note>> layerNotes = new HashMap<>(layerCount);
         boolean stereo = false;
         int tick = -1;
+        int maxInstrument = songVanillaInstrumentCount - 1;
 
         // iterate ticks
         while (true) {
@@ -128,6 +130,8 @@ public class SongDecoder {
                 layer += jump;
 
                 byte instrument = in.readByte();
+
+                maxInstrument = max(maxInstrument, instrument);
 
                 // support nbs files from versions with fewer vanilla instruments
                 // modern vanilla instruments are encoded as custom instruments;
@@ -176,7 +180,7 @@ public class SongDecoder {
         stereo |= layerResult.stereo();
 
         // CUSTOM INSTRUMENTS
-        ImmutableInstruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount);
+        ImmutableInstruments instruments = readInstruments(in, customInstrumentOffset, songVanillaInstrumentCount, maxInstrument);
 
         // TEMPO
         SongTempo tempo = buildSongTempo(ticksPerSecond, instruments, layerResult.layers());
@@ -223,7 +227,7 @@ public class SongDecoder {
     }
 
     @NotNull
-    private static ImmutableInstruments readInstruments(DataInputStream in, byte customInstrumentOffset, byte songVanillaInstrumentCount) throws IOException {
+    private static ImmutableInstruments readInstruments(DataInputStream in, byte customInstrumentOffset, byte songVanillaInstrumentCount, int maxInstrument) throws IOException {
         final byte customInstrumentCount = in.readByte();
 
         ImmutableCustomInstrument[] customInstruments = new ImmutableCustomInstrument[customInstrumentCount];
@@ -241,6 +245,10 @@ public class SongDecoder {
         if (customInstrumentOffset < 0) {
             // outdated game version (not supported)
             throw new IOException("Tried to load song for a later game version");
+        }
+
+        if (customInstrumentCount == 0) {
+            songVanillaInstrumentCount = (byte) max(maxInstrument + 1, songVanillaInstrumentCount);
         }
 
         byte customBegin = (byte) (songVanillaInstrumentCount + customInstrumentOffset);

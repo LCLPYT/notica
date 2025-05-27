@@ -73,7 +73,7 @@ public class NoticaNetworking {
         ServerPlayerEntity player = context.player();
         PlayerData data = getData(player);
 
-        if (data.throttle()) {
+        if (player.getPermissionLevel() < 2 && data.throttle()) {
             logger.warn("Player {} is sending too many requests", player.getNameForScoreboard());
             return;
         }

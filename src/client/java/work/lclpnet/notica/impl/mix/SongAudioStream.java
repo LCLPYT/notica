@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl.mix;
 
 import net.minecraft.client.sound.AudioStream;
 import org.lwjgl.BufferUtils;
+import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
 
 import javax.sound.sampled.AudioFormat;
@@ -29,6 +30,7 @@ public class SongAudioStream implements AudioStream {
     private int prepared = 0;
     private int prepareStart = 0;
     private int frameOffset = 0;
+    private int loopCount;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes) {
         this.format = format;
@@ -42,6 +44,8 @@ public class SongAudioStream implements AudioStream {
         for (int i = 0; i < PREPARE_COUNT; i++) {
             preparedBuffers[i] = BufferUtils.createByteBuffer(bufferBytes);
         }
+
+        loopCount = song.loopConfig().loopCount();
     }
 
     public static int getByteSize(AudioFormat format, float seconds) {
@@ -136,17 +140,43 @@ public class SongAudioStream implements AudioStream {
         }
 
         final int frameCount = getFrameCount(format, size);
-        float seconds = getSeconds(format, frameCount - frameOffset);
+        float bufferSeconds = getSeconds(format, frameCount - frameOffset);
 
         if (first) {
-            seconds += soundMixer.getCompressorLookAheadSeconds();
+            bufferSeconds += soundMixer.getCompressorLookAheadSeconds();
             first = false;
         }
 
-        int durationTicks = song.tempo().durationTicks(tick, seconds);
-        int endTick = min(tick + durationTicks, song.durationTicks() + 1);
+        final int songDurationTicks = song.durationTicks();
 
-        if (endTick <= tick) {
+        final int durationTicks = song.tempo().durationTicks(tick, bufferSeconds);
+        int endTick = min(tick + durationTicks, songDurationTicks + 1);
+
+        if (endTick > songDurationTicks) {
+            // last segment of the song
+            LoopConfig loop = song.loopConfig();
+
+            if (loop.enabled() && (loop.infinite() || loopCount > 0)) {
+                loopCount = max(0, loopCount - 1);
+
+                int interval = max(2, min(8, song.signature())) * 4;
+                int adjustedEndTick = songDurationTicks + interval - (songDurationTicks % interval);
+                int ticksUntilAdjustedEnd = adjustedEndTick - tick - 1;
+
+                float endSeconds = song.tempo().durationSeconds(tick, ticksUntilAdjustedEnd);
+
+                frameOffset = songMixer.mixTicks(tick, adjustedEndTick, this.frameOffset);
+
+                tick = loop.loopStartTick();
+
+                float remainingSeconds = max(0.f, bufferSeconds - endSeconds);
+                int remainingTicks = song.tempo().durationTicks(tick, remainingSeconds);
+
+                endTick = min(tick + remainingTicks, songDurationTicks + 1);
+            }
+        }
+
+        if (tick >= endTick) {
             if (soundMixer.isDone()) {
                 synchronized (this) {
                     // song ended
@@ -157,10 +187,9 @@ public class SongAudioStream implements AudioStream {
             }
         } else {
             onUpdate.run();
-            frameOffset = songMixer.mixTicks(tick, endTick, frameOffset);
+            frameOffset = max(0, songMixer.mixTicks(tick, endTick, frameOffset) - soundMixer.getBufferFrames());
         }
 
-        // TODO make advanceBuffer internal and call it when the position of the buffer exceeds it's limit
         ByteBuffer buf = soundMixer.applyCompressor(frameCount);
 
         synchronized (this) {

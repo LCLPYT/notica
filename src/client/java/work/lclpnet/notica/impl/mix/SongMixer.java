@@ -5,7 +5,6 @@ import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
 
 import static java.lang.Math.ceil;
-import static java.lang.Math.max;
 
 public class SongMixer {
 
@@ -58,6 +57,6 @@ public class SongMixer {
             frameOffset += tickSamples;
         }
 
-        return max(0, frameOffset - mixer.getBufferFrames());
+        return frameOffset;
     }
 }

@@ -5,9 +5,7 @@ import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
-import work.lclpnet.notica.impl.mix.SongMixer;
-import work.lclpnet.notica.impl.mix.SoundMixer;
+import work.lclpnet.notica.impl.mix.*;
 import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;
@@ -42,7 +40,7 @@ public class SongMixerBenchmark {
             int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
-            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, BaselineNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
             endTick = song.tempo().durationTicks(0, seconds);
@@ -50,7 +48,7 @@ public class SongMixerBenchmark {
     }
 
     @State(Scope.Thread)
-    public static class SplitVolumeState {
+    public static class LerpSimdState {
 
         SoundMixer soundMixer;
         SongMixer songMixer;
@@ -69,7 +67,7 @@ public class SongMixerBenchmark {
             int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
-            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, LerpNoteSampler::new);
             songMixer = TestUtil.createSongMixer(song, soundMixer);
 
             endTick = song.tempo().durationTicks(0, seconds);
@@ -131,7 +129,7 @@ public class SongMixerBenchmark {
     }
 
     @Benchmark
-    public void baseline(BaselineState state, Blackhole blackhole) {
+    public void lerpBaseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
@@ -140,7 +138,7 @@ public class SongMixerBenchmark {
     }
 
     @Benchmark
-    public void splitVolume(SplitVolumeState state, Blackhole blackhole) {
+    public void lerpSimd(LerpSimdState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.applyCompressor(state.frames);

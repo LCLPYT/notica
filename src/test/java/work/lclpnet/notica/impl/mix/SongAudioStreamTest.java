@@ -18,7 +18,7 @@ import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 class SongAudioStreamTest {
 
-    private static final boolean EXPORT = true, OPEN = true;
+    private static final boolean EXPORT = false, OPEN = false;
 
     @Test
     void test() throws IOException {

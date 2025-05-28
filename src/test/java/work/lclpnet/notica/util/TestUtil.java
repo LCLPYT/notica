@@ -11,7 +11,7 @@ import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
-import work.lclpnet.notica.impl.mix.BaselineNoteSampler;
+import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 
@@ -69,12 +69,12 @@ public class TestUtil {
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes) throws IOException {
-        SoundSampleManager sampleManager = createSampleManager(song.instruments());
+        SoundSampleManager sampleManager = createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
 
         initSoundRegistry();
         sampleManager.loadAll();
 
-        return createSoundMixer(song, bufferBytes, sampleManager, BaselineNoteSampler::new);
+        return createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {

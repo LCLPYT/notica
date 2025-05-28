@@ -8,10 +8,12 @@ import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.type.NoticaSourceManager;
 
+import static java.lang.Math.max;
 import static java.util.concurrent.CompletableFuture.runAsync;
 
 public class StreamSongPlayback implements SongPlayback {
@@ -19,6 +21,7 @@ public class StreamSongPlayback implements SongPlayback {
     private final SongAudioStream audioStream;
     private final SoundMixer soundMixer;
     private final SoundSampleManager sampleManager;
+    private final Song song;
     private final Channel channel;
     private final Logger logger;
 
@@ -26,19 +29,24 @@ public class StreamSongPlayback implements SongPlayback {
     private Channel.SourceManager sourceManager = null;
     private boolean stopped = false;
     private Runnable onStopped = null;
+    private long playbackStartMs = 0;
+    private int playbackOffsetTicks = 0;
 
     public StreamSongPlayback(SongAudioStream audioStream, SoundMixer soundMixer, SoundSampleManager sampleManager,
-                              Channel channel, Logger logger) {
+                              Song song, Channel channel, Logger logger) {
         this.audioStream = audioStream;
         this.soundMixer = soundMixer;
         this.sampleManager = sampleManager;
+        this.song = song;
         this.channel = channel;
         this.logger = logger;
     }
 
     @Override
     public synchronized void start(int startTick) {
-        audioStream.setTick(startTick, true);
+        playbackOffsetTicks = 0;
+
+        audioStream.setTick(startTick);
 
         runAsync(sampleManager::loadAll).thenRun(() -> {
             prepareSync();
@@ -67,6 +75,11 @@ public class StreamSongPlayback implements SongPlayback {
     public synchronized void seekTo(int tick, boolean absolute) {
         if (sourceManager == null) return;
 
+        final int currentPlaybackTick = currentPlaybackTick();
+        final int startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
+
+        System.out.println(currentPlaybackTick + " -> " + startTick);
+
         sourceManager.run(source -> {
             if (source.isStopped()) return;
 
@@ -79,7 +92,8 @@ public class StreamSongPlayback implements SongPlayback {
 
             soundMixer.reset();
 
-            audioStream.setTick(tick, absolute);
+            audioStream.setTick(startTick);
+            playbackOffsetTicks = startTick;
 
             Thread.startVirtualThread(() -> {
                 prepareSync();
@@ -114,6 +128,9 @@ public class StreamSongPlayback implements SongPlayback {
                 source.setRelative(true);
                 source.setPosition(Vec3d.ZERO);
                 source.setStream(audioStream);
+
+                playbackStartMs = milliTime();
+
                 source.play();
             });
         });
@@ -129,5 +146,19 @@ public class StreamSongPlayback implements SongPlayback {
         }
 
         return onComplete;
+    }
+
+    private int currentPlaybackTick() {
+        long currentMs = milliTime();
+        long passedMs = max(0, currentMs - playbackStartMs);
+
+        int passedTicks = song.tempo().durationTicks(playbackOffsetTicks, passedMs / 1000f);
+
+        return (playbackOffsetTicks + passedTicks) % song.durationTicks();
+    }
+
+    private static long milliTime() {
+        // nanoTime() instead of currentTimeMillis(), because it's monotonic and we only care about relative times
+        return System.nanoTime() / 1_000_000;
     }
 }

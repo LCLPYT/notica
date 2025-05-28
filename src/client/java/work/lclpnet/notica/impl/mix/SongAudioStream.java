@@ -222,8 +222,8 @@ public class SongAudioStream implements AudioStream {
     @Override
     public void close() {}
 
-    public synchronized void setTick(int tick, boolean absolute) {
-        this.tick = max(0, absolute ? tick : this.tick + tick);
+    public synchronized void setTick(int tick) {
+        this.tick = max(0, tick);
 
         reset();
     }

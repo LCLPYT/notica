@@ -125,7 +125,7 @@ public class ClientMusicBackend {
             songMixer.setSongVolume(totalVolume);
         });
 
-        return new StreamSongPlayback(audioStream, soundMixer, sampleManager, channel, logger);
+        return new StreamSongPlayback(audioStream, soundMixer, sampleManager, song, channel, logger);
     }
 
     public void stopSong(Identifier songId) {

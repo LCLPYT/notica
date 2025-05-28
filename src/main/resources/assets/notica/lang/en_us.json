@@ -22,6 +22,7 @@
   "notica.music.seek.error_time": "Cannot parse time '%s'",
   "notica.music.seek.absolute": "Playback time modified to %s",
   "notica.music.seek.relative": "Playback time modified by %s",
+  "notica.music.play.invalid_value": "Invalid value: \"%s\"",
   "notica.time.seconds": "%s sec",
   "notica.time.minutes": "%s min",
   "notica.time.ticks": "%s ticks",

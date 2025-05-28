@@ -8,6 +8,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -22,6 +23,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
@@ -29,8 +31,7 @@ import work.lclpnet.kibu.translate.text.FormatWrapper;
 import work.lclpnet.kibu.translate.text.RootText;
 import work.lclpnet.kibu.translate.text.TextTranslatable;
 import work.lclpnet.notica.Notica;
-import work.lclpnet.notica.api.CheckedSong;
-import work.lclpnet.notica.api.SongHandle;
+import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.api.data.SongMeta;
 import work.lclpnet.notica.impl.NoticaImpl;
@@ -43,10 +44,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
@@ -74,6 +72,7 @@ public class MusicCommand {
     private final NoticaServerPackManager serverPackManager;
     private final Logger logger;
     private final SimpleCommandExceptionType errorNoPermissionPlayOther, errorNoPermissionStopOther;
+    private final DynamicCommandExceptionType invalidEnumValue;
 
     public MusicCommand(Path songDirectory, Translations translations, NoticaServerPackManager serverPackManager, Logger logger) {
         this.songDirectory = songDirectory;
@@ -83,6 +82,7 @@ public class MusicCommand {
 
         errorNoPermissionPlayOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.play.no_permission_other", "You don't have permission to play music to other players"));
         errorNoPermissionStopOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.stop.no_permission_other", "You don't have permission to stop music for other players"));
+        invalidEnumValue = new DynamicCommandExceptionType(arg -> Text.translatableWithFallback("notica.music.play.invalid_value", "Invalid value: \"%s\"", arg));
     }
 
     public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
@@ -98,8 +98,16 @@ public class MusicCommand {
                                 .executes(this::playSongAutoSelf)
                                 .then(argument("listeners", EntityArgumentType.players())
                                         .executes(this::playSongAuto)
-                                        .then(argument("id", IdentifierArgumentType.identifier())
-                                                .executes(this::playSongId)))))
+                                        .then(argument("volume", FloatArgumentType.floatArg(0.f, 1.f))
+                                                .executes(this::playSongVolume)
+                                                .then(argument("variant", StringArgumentType.word())
+                                                        .suggests((ctx, builder) -> suggestValues(builder, PlaybackVariant.class))
+                                                        .executes(this::playSongVariant)
+                                                        .then(argument("stereo", StringArgumentType.word())
+                                                                .suggests((ctx, builder) -> suggestValues(builder, StereoMode.class))
+                                                                .executes(this::playSongStereo)
+                                                                .then(argument("id", IdentifierArgumentType.identifier())
+                                                                        .executes(this::playSongId))))))))
                 .then(literal("stop")
                         .requires(require(permission("command.music.stop"), 2))
                         .executes(this::stopAllSelf)
@@ -126,6 +134,101 @@ public class MusicCommand {
                                         .then(argument("id", IdentifierArgumentType.identifier())
                                                 .suggests(this::commonPlayingSongIds)
                                                 .executes(this::seekId)))));
+    }
+
+    private int playSongAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        ServerCommandSource source = ctx.getSource();
+        ServerPlayerEntity player = source.getPlayerOrThrow();
+        String songFile = StringArgumentType.getString(ctx, "song");
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), List.of(player));
+
+        return playSong(source, List.of(player), path, id, new PlaybackOptions(1.f));
+    }
+
+    private int playSongAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), listeners);
+
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(1.f));
+    }
+
+    private int playSongVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+        float volume = FloatArgumentType.getFloat(ctx, "volume");
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), listeners);
+
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume));
+    }
+
+    private int playSongVariant(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+        float volume = FloatArgumentType.getFloat(ctx, "volume");
+        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), listeners);
+
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, StereoMode.SPATIAL));
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private int playSongStereo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+        float volume = FloatArgumentType.getFloat(ctx, "volume");
+        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
+        StereoMode stereoMode = getEnumValue(StereoMode.class, StringArgumentType.getString(ctx, "stereo"));
+
+        Path path = songDirectory.resolve(songFile);
+        Identifier id = SongUtils.createSongId(path);
+
+        // for auto, stop all other songs. Explicitly specify an id to prevent this.
+        stopAllSongs(ctx.getSource(), listeners);
+
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, stereoMode));
+    }
+
+    @SuppressWarnings("DuplicatedCode")
+    private int playSongId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+        String songFile = StringArgumentType.getString(ctx, "song");
+        float volume = FloatArgumentType.getFloat(ctx, "volume");
+        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
+        StereoMode stereoMode = getEnumValue(StereoMode.class, StringArgumentType.getString(ctx, "stereo"));
+        Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
+
+        Path path = songDirectory.resolve(songFile);
+
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, stereoMode));
+    }
+
+    private @NotNull <E extends Enum<E>> E getEnumValue(Class<E> enumClass, String name) throws CommandSyntaxException {
+        try {
+            return Enum.valueOf(enumClass, name.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw invalidEnumValue.create(name);
+        }
     }
 
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -174,43 +277,6 @@ public class MusicCommand {
         return 1;
     }
 
-    private int playSongAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerCommandSource source = ctx.getSource();
-        ServerPlayerEntity player = source.getPlayerOrThrow();
-        String songFile = StringArgumentType.getString(ctx, "song");
-
-        Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
-
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
-        stopAllSongs(ctx.getSource(), List.of(player));
-
-        return playSong(source, List.of(player), path, id);
-    }
-
-    private int playSongAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
-        String songFile = StringArgumentType.getString(ctx, "song");
-
-        Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
-
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
-        stopAllSongs(ctx.getSource(), listeners);
-
-        return playSong(ctx.getSource(), listeners, path, id);
-    }
-
-    private int playSongId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
-        String songFile = StringArgumentType.getString(ctx, "song");
-        Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
-
-        Path path = songDirectory.resolve(songFile);
-
-        return playSong(ctx.getSource(), listeners, path, id);
-    }
-
     private boolean involvesOther(ServerCommandSource source, Collection<? extends ServerPlayerEntity> players) {
         ServerPlayerEntity executor = source.getPlayer();
 
@@ -221,7 +287,7 @@ public class MusicCommand {
         return players.stream().anyMatch(player -> !executor.equals(player));
     }
 
-    private int playSong(ServerCommandSource source, Collection<? extends ServerPlayerEntity> listeners, Path path, Identifier id) throws CommandSyntaxException {
+    private int playSong(ServerCommandSource source, Collection<? extends ServerPlayerEntity> listeners, Path path, Identifier id, PlaybackOptions options) throws CommandSyntaxException {
         if (involvesOther(source, listeners) && !Permissions.check(source, permission("command.music.play.other"), 2)) {
             throw errorNoPermissionPlayOther.create();
         }
@@ -257,10 +323,20 @@ public class MusicCommand {
             source.sendMessage(msg);
 
             Notica api = Notica.getInstance(source.getServer());
-            api.playSong(song, 1f, listeners);
+            api.playSong(song, options, 0, listeners);
         });
 
         return 1;
+    }
+
+    private CompletableFuture<Suggestions> suggestValues(SuggestionsBuilder builder, Class<? extends Enum<?>> enumClass) {
+        Enum<?>[] constants = enumClass.getEnumConstants();
+
+        for (var constant : constants) {
+            builder.suggest(constant.name().toLowerCase(Locale.ROOT));
+        }
+
+        return builder.buildFuture();
     }
 
     private Text getPlayingMessage(ServerCommandSource source, Path relativePath, CheckedSong checkedSong) {

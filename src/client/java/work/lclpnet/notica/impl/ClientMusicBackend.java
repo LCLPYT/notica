@@ -2,22 +2,17 @@ package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.SoundLoader;
 import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.item.Items;
 import net.minecraft.resource.ResourceFactory;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
-import work.lclpnet.notica.api.IndividualSongPlayback;
-import work.lclpnet.notica.api.InstrumentSoundProvider;
-import work.lclpnet.notica.api.NotePlayer;
-import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongMixer;
@@ -58,20 +53,17 @@ public class ClientMusicBackend {
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, Identifier songId, float volume, int startTick) {
+    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
         songRepository.bind(song, songId);
 
         stopSong(songId);
 
         SongPlayback playback;
 
-        // TODO use config option instead
-        ClientPlayerEntity player = MinecraftClient.getInstance().player;
-
-        if (player != null && player.getMainHandStack().isOf(Items.STICK)) {
-            playback = createStreamPlayback(song, volume);
+        if (options.variant() == PlaybackVariant.STREAMED) {
+            playback = createStreamPlayback(song, options.volume(), options.stereoMode());
         } else {
-            playback = createIndividualPlayback(song, volume);
+            playback = createIndividualPlayback(song, options.volume());
         }
 
         playback.whenDone(() -> {
@@ -96,7 +88,7 @@ public class ClientMusicBackend {
         return new IndividualSongPlayback(song, notePlayer);
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song, float volume) {
+    private StreamSongPlayback createStreamPlayback(PendingSong song, float volume, StereoMode stereoMode) {
         MinecraftClient client = MinecraftClient.getInstance();
         SoundManager soundManager = client.getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
@@ -110,7 +102,7 @@ public class ClientMusicBackend {
                 directSoundManager, resourceFactory, logger);
 
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
-        var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, SoundMixer.StereoMode.SPATIAL, song.instruments());
+        var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
         int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
 

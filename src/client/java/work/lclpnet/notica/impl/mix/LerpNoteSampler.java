@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
+import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Note;
@@ -16,10 +17,10 @@ public class LerpNoteSampler implements NoteSampler {
 
     private final SoundSampleManager sampleManager;
     private final AudioFormat format;
-    private final SoundMixer.StereoMode stereoMode;
+    private final StereoMode stereoMode;
     private final Instruments instruments;
 
-    public LerpNoteSampler(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments) {
+    public LerpNoteSampler(SoundSampleManager sampleManager, AudioFormat format, StereoMode stereoMode, Instruments instruments) {
         this.sampleManager = sampleManager;
         this.format = format;
         this.stereoMode = stereoMode;
@@ -58,7 +59,7 @@ public class LerpNoteSampler implements NoteSampler {
         float leftPanning;
         float rightPanning;
 
-        if (stereoMode == SoundMixer.StereoMode.SPATIAL) {
+        if (stereoMode == StereoMode.SPATIAL) {
             // mimic vanilla behavior:
             // if there is panning, mute the other channel and apply linear attenuation with 16 block range.
             // a panning of 1 means 2 blocks from the nbs specification

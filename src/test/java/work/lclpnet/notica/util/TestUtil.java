@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.assets.AssetManager;
 import work.lclpnet.notica.api.SongDecoder;
+import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.NoteSampler;
@@ -79,7 +80,7 @@ public class TestUtil {
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
         initSoundRegistry();
 
-        var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, SoundMixer.StereoMode.SPATIAL, song.instruments());
+        var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, StereoMode.SPATIAL, song.instruments());
 
         return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes);
     }
@@ -119,6 +120,6 @@ public class TestUtil {
     }
 
     public interface NoteSamplerFactory {
-        NoteSampler create(SoundSampleManager sampleManager, AudioFormat format, SoundMixer.StereoMode stereoMode, Instruments instruments);
+        NoteSampler create(SoundSampleManager sampleManager, AudioFormat format, StereoMode stereoMode, Instruments instruments);
     }
 }

@@ -6,6 +6,7 @@ import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.util.Identifier;
 import work.lclpnet.notica.NoticaInit;
+import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.SongSlice;
 import work.lclpnet.notica.network.NoticaPacketCodecs;
 import work.lclpnet.notica.network.SongHeader;
@@ -32,8 +33,8 @@ public record PlaySongS2CPacket(SongPlayOptions playOptions, SongHeader header, 
         return playOptions.songId();
     }
 
-    public float getVolume() {
-        return playOptions.volume();
+    public PlaybackOptions getPlaybackOptions() {
+        return playOptions.playbackOptions();
     }
 
     public int getStartTick() {

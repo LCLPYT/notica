@@ -9,10 +9,7 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 import work.lclpnet.notica.Notica;
-import work.lclpnet.notica.api.CheckedSong;
-import work.lclpnet.notica.api.InstrumentSoundProvider;
-import work.lclpnet.notica.api.PlayerStoppedPlaybackListener;
-import work.lclpnet.notica.api.SongHandle;
+import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.network.NoticaNetworking;
 import work.lclpnet.notica.network.packet.MusicOptionsS2CPacket;
@@ -57,7 +54,7 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players) {
+    public SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players) {
         if (players.isEmpty()) {
             throw new IllegalArgumentException("Listeners are empty");
         }
@@ -65,7 +62,7 @@ public class NoticaImpl implements Notica {
         Identifier id = song.id();
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, volume, startTick);
+        ServerSongHandle handle = new ServerSongHandle(song, options, startTick);
 
         Set<SongPlayerRef> moddedPlayers = new HashSet<>();
         Set<SongPlayerRef> vanillaPlayers = new HashSet<>();

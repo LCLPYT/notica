@@ -315,8 +315,4 @@ public class SoundMixer {
         return remainingBuffers <= 0;
     }
 
-    public enum StereoMode {
-        EQUAL_POWER,
-        SPATIAL
-    }
 }

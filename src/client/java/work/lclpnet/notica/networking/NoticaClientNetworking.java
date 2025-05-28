@@ -56,7 +56,7 @@ public class NoticaClientNetworking {
             acceptUnknownRegion(payload, song, songId);
         }
 
-        controller.playSong(song, songId, payload.getVolume(), startTick);
+        controller.playSong(song, songId, payload.getPlaybackOptions(), startTick);
     }
 
     private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {

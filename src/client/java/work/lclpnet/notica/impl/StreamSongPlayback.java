@@ -78,8 +78,6 @@ public class StreamSongPlayback implements SongPlayback {
         final int currentPlaybackTick = currentPlaybackTick();
         final int startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
 
-        System.out.println(currentPlaybackTick + " -> " + startTick);
-
         sourceManager.run(source -> {
             if (source.isStopped()) return;
 

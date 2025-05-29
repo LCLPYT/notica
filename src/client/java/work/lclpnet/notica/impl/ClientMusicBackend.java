@@ -12,7 +12,11 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
+import work.lclpnet.kibu.config.ConfigManager;
 import work.lclpnet.notica.api.*;
+import work.lclpnet.notica.config.NoticaClientConfig;
+import work.lclpnet.notica.config.PlaybackVariantOverride;
+import work.lclpnet.notica.config.StereoModeOverride;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongMixer;
@@ -24,10 +28,7 @@ import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
 import javax.sound.sampled.AudioFormat;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -37,6 +38,7 @@ public class ClientMusicBackend {
     private final ClientSongRepository songRepository;
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfigEntry playerConfig;
+    private final ConfigManager<NoticaClientConfig> configManager;
     private final Logger logger;
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
@@ -45,10 +47,12 @@ public class ClientMusicBackend {
     private final UnifiedSoundLoader unifiedSoundLoader;
 
     public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,
-                              PlayerConfigEntry playerConfig, Logger logger) {
+                              PlayerConfigEntry playerConfig, ConfigManager<NoticaClientConfig> configManager,
+                              Logger logger) {
         this.songRepository = songRepository;
         this.soundProvider = soundProvider;
         this.playerConfig = playerConfig;
+        this.configManager = configManager;
         this.logger = logger;
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
@@ -58,10 +62,20 @@ public class ClientMusicBackend {
 
         stopSong(songId);
 
+        NoticaClientConfig config = configManager.config();
+
+        PlaybackVariant variant = Optional.ofNullable(config.getPlaybackVariantOverride())
+                .map(PlaybackVariantOverride::variant)
+                .orElseGet(options::variant);
+
         SongPlayback playback;
 
-        if (options.variant() == PlaybackVariant.STREAMED) {
-            playback = createStreamPlayback(song, options.volume(), options.stereoMode());
+        if (variant == PlaybackVariant.STREAMED) {
+            StereoMode stereoMode = Optional.ofNullable(config.getStereoModeOverride())
+                    .map(StereoModeOverride::stereoMode)
+                    .orElseGet(options::stereoMode);
+
+            playback = createStreamPlayback(song, options.volume(), stereoMode);
         } else {
             playback = createIndividualPlayback(song, options.volume());
         }

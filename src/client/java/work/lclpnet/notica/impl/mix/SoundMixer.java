@@ -30,12 +30,13 @@ public class SoundMixer {
     private final ByteBuffer directBuffer;
     @Getter
     private final Scope scope;
+    private final Scope[] workerScopes;
     private final int extraBufferCount;
 
     private int currentBuffer = 0;
     private int remainingBuffers = 0;
 
-    public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes, boolean directScope) {
+    public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes, int scopeCount) {
         this.format = format;
         this.noteSampler = noteSampler;
 
@@ -60,7 +61,17 @@ public class SoundMixer {
         extraBufferCount = (int) ceil(MAX_SOUND_SECONDS / bufferDurationSeconds);
         final int bufferCount = BASE_BUFFER_COUNT + extraBufferCount;
 
-        scope = new Scope(directScope ? bufferCount : 0, extraBufferCount, bufferSize);
+        if (scopeCount > 1) {
+            scope = new Scope(0, extraBufferCount, bufferSize);
+            workerScopes = new Scope[scopeCount];
+
+            for (int i = 0; i < scopeCount; i++) {
+                workerScopes[i] = createScope();
+            }
+        } else {
+            scope = new Scope(bufferCount, extraBufferCount, bufferSize);
+            workerScopes = new Scope[0];
+        }
     }
 
     private @NotNull GainReduction createGainReduction(AudioFormat format) {
@@ -81,7 +92,7 @@ public class SoundMixer {
         return compressor.gainReduction().getLookaheadSamples() / format.getSampleRate();
     }
 
-    public Scope createScope() {
+    private Scope createScope() {
         int bufferCount = scope.buffers.length;
 
         return new Scope(extraBufferCount, bufferCount, bufferSize);
@@ -321,12 +332,38 @@ public class SoundMixer {
     public void advanceBuffer() {
         Arrays.fill(scope.buffers[currentBuffer], 0f);
 
+        for (Scope workerScope : workerScopes) {
+            Arrays.fill(workerScope.buffers[currentBuffer], 0f);
+        }
+
         currentBuffer = (currentBuffer + 1) % scope.buffers.length;
         remainingBuffers = max(0, remainingBuffers - 1);
     }
 
     public synchronized boolean isDone() {
         return remainingBuffers <= 0;
+    }
+
+    public Scope getWorkerScope(int i) {
+        if (workerScopes.length == 0 && i == 0) {
+            return scope;
+        }
+
+        return workerScopes[i];
+    }
+
+    public void combineScopes(int workers) {
+        if (workerScopes.length == 0) return;
+
+        var rootScope = scope;
+
+        rootScope.copy(workerScopes[0]);
+
+        workers = min(workerScopes.length, workers);
+
+        for (int i = 1; i < workers; i++) {
+            rootScope.add(workerScopes[i]);
+        }
     }
 
     public static class Scope {

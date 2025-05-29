@@ -19,7 +19,6 @@ public class ParallelBatchSongMixer implements SongMixer {
     private final SoundMixer soundMixer;
     private final Song song;
     private final int workerCount;
-    private final SoundMixer.Scope[] scopes;
 
     private float songVolume = 1f;
 
@@ -27,11 +26,6 @@ public class ParallelBatchSongMixer implements SongMixer {
         this.soundMixer = soundMixer;
         this.song = song;
         this.workerCount = workerCount;
-        this.scopes = new SoundMixer.Scope[workerCount];
-
-        for (int i = 0; i < workerCount; i++) {
-            scopes[i] = soundMixer.createScope();
-        }
     }
 
     @Override
@@ -49,8 +43,17 @@ public class ParallelBatchSongMixer implements SongMixer {
     @Override
     public int mixTicks(int startTick, int endTick, int frameOffset) {
         // batch same notes with same volume and panning
-        final float sampleRate = soundMixer.getFormat().getSampleRate();
         final Map<BatchNote, List<BatchNote>> batches = new HashMap<>();
+
+        frameOffset = batchNotes(startTick, endTick, frameOffset, batches);
+
+        dispatchParallel(batches);
+
+        return frameOffset;
+    }
+
+    private int batchNotes(int startTick, int endTick, int frameOffset, Map<BatchNote, List<BatchNote>> batches) {
+        final float sampleRate = soundMixer.getFormat().getSampleRate();
 
         for (int tick = startTick; tick < endTick; tick++) {
             for (Layer layer : song.layers()) {
@@ -74,24 +77,25 @@ public class ParallelBatchSongMixer implements SongMixer {
             frameOffset += tickSamples;
         }
 
-        dispatchParallel(batches);
-
         return frameOffset;
     }
 
     private void dispatchParallel(Map<BatchNote, List<BatchNote>> batches) {
         var jobs = new ArrayList<>(batches.entrySet());
 
+        // todo sort jobs so that every worker has approximately the same work load
+
         final int jobCount = batches.size();
-        final int batchJobs = jobCount / workerCount;
+        final int assignedWorkers = min(workerCount, jobCount);
+        final int batchJobs = jobCount / assignedWorkers;
 
-        final Thread[] workers = new Thread[workerCount];
+        final Thread[] workers = new Thread[assignedWorkers];
 
-        for (int i = 0; i < workerCount; i++) {
+        for (int i = 0; i < assignedWorkers; i++) {
             final int jobStart = i * batchJobs;
             final int jobEnd = min(jobStart + batchJobs, jobCount);
 
-            Thread worker = createWorker(jobStart, jobEnd, scopes[i], jobs);
+            Thread worker = createWorker(jobStart, jobEnd, soundMixer.getWorkerScope(i), jobs);
 
             workers[i] = worker;
         }
@@ -104,14 +108,7 @@ public class ParallelBatchSongMixer implements SongMixer {
             }
         }
 
-        // combine scopes into root scope
-        var rootScope = soundMixer.getScope();
-
-        rootScope.copy(scopes[0]);
-
-        for (int i = 1; i < workerCount; i++) {
-            rootScope.add(scopes[i]);
-        }
+        soundMixer.combineScopes(assignedWorkers);
     }
 
     private @NotNull Thread createWorker(int jobStart, int jobEnd, SoundMixer.Scope scope,

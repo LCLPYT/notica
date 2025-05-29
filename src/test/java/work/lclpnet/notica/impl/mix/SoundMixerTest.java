@@ -52,6 +52,6 @@ class SoundMixerTest {
     @SuppressWarnings("SameParameterValue")
     private @NotNull SoundMixer mockedMixer(int bufferSize) {
         AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, 48000, false);
-        return new SoundMixer(format, mock(), bufferSize, true);
+        return new SoundMixer(format, mock(), bufferSize, 1);
     }
 }

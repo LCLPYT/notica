@@ -178,10 +178,9 @@ public class SongMixerBenchmark {
             int bufferSize = TestUtil.getBufferByteSize(seconds);
             frames = getFrames(bufferSize);
 
-            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, false);
-
             int workerCount = Runtime.getRuntime().availableProcessors();
 
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, workerCount);
             songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
             endTick = song.tempo().durationTicks(0, seconds);

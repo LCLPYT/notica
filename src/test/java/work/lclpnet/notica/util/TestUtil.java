@@ -69,19 +69,19 @@ public class TestUtil {
         initSoundRegistry();
         sampleManager.loadAll();
 
-        return createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, true);
+        return createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1);
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory) throws IOException {
-        return createSoundMixer(song, bufferBytes, sampleManager, factory, true);
+        return createSoundMixer(song, bufferBytes, sampleManager, factory, 1);
     }
 
-    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, boolean directScope) throws IOException {
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, int workerCount) throws IOException {
         initSoundRegistry();
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, directScope);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {

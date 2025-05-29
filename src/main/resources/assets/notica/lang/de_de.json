@@ -22,7 +22,6 @@
   "notica.music.seek.error_time": "'%s' ist keine gültige Zeitangabe",
   "notica.music.seek.absolute": "Wiedergabezeit auf %s gesetzt",
   "notica.music.seek.relative": "Wiedergabezeit um %s geändert",
-  "notica.music.play.invalid_value": "Ungültiger Wert: \"%s\"",
   "notica.time.seconds": "%s sek",
   "notica.time.minutes": "%s min",
   "notica.time.ticks": "%s ticks",

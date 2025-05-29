@@ -8,7 +8,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
@@ -23,7 +22,6 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
@@ -72,7 +70,6 @@ public class MusicCommand {
     private final NoticaServerPackManager serverPackManager;
     private final Logger logger;
     private final SimpleCommandExceptionType errorNoPermissionPlayOther, errorNoPermissionStopOther;
-    private final DynamicCommandExceptionType invalidEnumValue;
 
     public MusicCommand(Path songDirectory, Translations translations, NoticaServerPackManager serverPackManager, Logger logger) {
         this.songDirectory = songDirectory;
@@ -82,7 +79,6 @@ public class MusicCommand {
 
         errorNoPermissionPlayOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.play.no_permission_other", "You don't have permission to play music to other players"));
         errorNoPermissionStopOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.stop.no_permission_other", "You don't have permission to stop music for other players"));
-        invalidEnumValue = new DynamicCommandExceptionType(arg -> Text.translatableWithFallback("notica.music.play.invalid_value", "Invalid value: \"%s\"", arg));
     }
 
     public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
@@ -100,14 +96,20 @@ public class MusicCommand {
                                         .executes(this::playSongAuto)
                                         .then(argument("volume", FloatArgumentType.floatArg(0.f, 1.f))
                                                 .executes(this::playSongVolume)
-                                                .then(argument("variant", StringArgumentType.word())
-                                                        .suggests((ctx, builder) -> suggestValues(builder, PlaybackVariant.class))
-                                                        .executes(this::playSongVariant)
-                                                        .then(argument("stereo", StringArgumentType.word())
-                                                                .suggests((ctx, builder) -> suggestValues(builder, StereoMode.class))
-                                                                .executes(this::playSongStereo)
+                                                .then(literal("individual")
+                                                        .executes(ctx -> playSongVariant(ctx, PlaybackVariant.INDIVIDUAL))
+                                                        .then(argument("id", IdentifierArgumentType.identifier())
+                                                                .executes(ctx -> playSongId(ctx, PlaybackVariant.INDIVIDUAL, StereoMode.SPATIAL))))
+                                                .then(literal("streamed")
+                                                        .executes(ctx -> playSongVariant(ctx, PlaybackVariant.STREAMED))
+                                                        .then(literal("spatial")
+                                                                .executes(ctx -> playSongStereo(ctx, StereoMode.SPATIAL))
                                                                 .then(argument("id", IdentifierArgumentType.identifier())
-                                                                        .executes(this::playSongId))))))))
+                                                                        .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.SPATIAL))))
+                                                        .then(literal("equal_power")
+                                                                .executes(ctx -> playSongStereo(ctx, StereoMode.EQUAL_POWER))
+                                                                .then(argument("id", IdentifierArgumentType.identifier())
+                                                                        .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.EQUAL_POWER)))))))))
                 .then(literal("stop")
                         .requires(require(permission("command.music.stop"), 2))
                         .executes(this::stopAllSelf)
@@ -177,11 +179,10 @@ public class MusicCommand {
         return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume));
     }
 
-    private int playSongVariant(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int playSongVariant(CommandContext<ServerCommandSource> ctx, PlaybackVariant variant) throws CommandSyntaxException {
         var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
 
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
@@ -193,12 +194,10 @@ public class MusicCommand {
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private int playSongStereo(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int playSongStereo(CommandContext<ServerCommandSource> ctx, StereoMode stereoMode) throws CommandSyntaxException {
         var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
-        StereoMode stereoMode = getEnumValue(StereoMode.class, StringArgumentType.getString(ctx, "stereo"));
 
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
@@ -206,29 +205,19 @@ public class MusicCommand {
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
 
-        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, stereoMode));
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, PlaybackVariant.STREAMED, stereoMode));
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private int playSongId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int playSongId(CommandContext<ServerCommandSource> ctx, PlaybackVariant variant, StereoMode stereoMode) throws CommandSyntaxException {
         var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-        PlaybackVariant variant = getEnumValue(PlaybackVariant.class, StringArgumentType.getString(ctx, "variant"));
-        StereoMode stereoMode = getEnumValue(StereoMode.class, StringArgumentType.getString(ctx, "stereo"));
         Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
 
         Path path = songDirectory.resolve(songFile);
 
         return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, stereoMode));
-    }
-
-    private @NotNull <E extends Enum<E>> E getEnumValue(Class<E> enumClass, String name) throws CommandSyntaxException {
-        try {
-            return Enum.valueOf(enumClass, name.toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException e) {
-            throw invalidEnumValue.create(name);
-        }
     }
 
     private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {

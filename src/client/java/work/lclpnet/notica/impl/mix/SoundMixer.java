@@ -99,8 +99,16 @@ public class SoundMixer {
      * False if the sound was too long or if no sample exists fot the given {@link Note} instrument.
      */
     public boolean putSound(Note note, float volume, short layerPanning, int frameOffset) {
-        final int frameCount = noteSampler.sample(note, volume, layerPanning, sampleBuffer);
+        final int frameCount = bindSample(note, volume, layerPanning);
 
+        return mixSample(frameOffset, frameCount);
+    }
+
+    public int bindSample(Note note, float volume, short layerPanning) {
+        return noteSampler.sample(note, volume, layerPanning, sampleBuffer);
+    }
+
+    public boolean mixSample(int frameOffset, int frameCount) {
         if (frameCount < 0) {
             return false;
         }
@@ -314,5 +322,4 @@ public class SoundMixer {
     public boolean isDone() {
         return remainingBuffers <= 0;
     }
-
 }

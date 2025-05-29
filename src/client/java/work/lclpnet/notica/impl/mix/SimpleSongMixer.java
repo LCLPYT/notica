@@ -3,21 +3,23 @@ package work.lclpnet.notica.impl.mix;
 import work.lclpnet.notica.api.data.Layer;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.SongMixer;
 
 import static java.lang.Math.ceil;
 
-public class SongMixer {
+public class SimpleSongMixer implements SongMixer {
 
     private final SoundMixer mixer;
     private final Song song;
 
     private float songVolume = 1f;
 
-    public SongMixer(SoundMixer mixer, Song song) {
+    public SimpleSongMixer(SoundMixer mixer, Song song) {
         this.mixer = mixer;
         this.song = song;
     }
 
+    @Override
     public void setSongVolume(float songVolume) {
         this.songVolume = songVolume;
     }
@@ -29,6 +31,7 @@ public class SongMixer {
      * @param frameOffset The initial number of frames to skip when mixing.
      * @return The amount of frames that should carry over to the next call of this method.
      */
+    @Override
     public int mixTicks(int startTick, int endTick, int frameOffset) {
         final float sampleRate = mixer.getFormat().getSampleRate();
 

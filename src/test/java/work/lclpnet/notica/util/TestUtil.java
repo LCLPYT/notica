@@ -12,7 +12,7 @@ import work.lclpnet.notica.impl.NoteSampler;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
-import work.lclpnet.notica.impl.mix.SongMixer;
+import work.lclpnet.notica.impl.mix.SimpleSongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 
 import javax.sound.sampled.AudioFileFormat;
@@ -54,8 +54,8 @@ public class TestUtil {
         }
     }
 
-    public static @NotNull SongMixer createSongMixer(Song song, SoundMixer soundMixer) {
-        return new SongMixer(soundMixer, song);
+    public static @NotNull SimpleSongMixer createSongMixer(Song song, SoundMixer soundMixer) {
+        return new SimpleSongMixer(soundMixer, song);
     }
 
     public static @NotNull SoundSampleManager createSampleManager(Instruments instruments) {

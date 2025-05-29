@@ -4,6 +4,7 @@ import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
+import work.lclpnet.notica.impl.SongMixer;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.mix.*;
 import work.lclpnet.notica.util.TestUtil;
@@ -24,7 +25,7 @@ public class SongMixerBenchmark {
     public static class BaselineState {
 
         SoundMixer soundMixer;
-        SongMixer songMixer;
+        SimpleSongMixer songMixer;
         int endTick, frames;
 
         @Setup(Level.Trial)
@@ -51,7 +52,7 @@ public class SongMixerBenchmark {
     public static class LerpSimdState {
 
         SoundMixer soundMixer;
-        SongMixer songMixer;
+        SimpleSongMixer songMixer;
         int endTick, frames;
 
         @Setup(Level.Trial)
@@ -78,7 +79,7 @@ public class SongMixerBenchmark {
     public static class BaselineCatmullRomState {
 
         SoundMixer soundMixer;
-        SongMixer songMixer;
+        SimpleSongMixer songMixer;
         int endTick, frames;
 
         @Setup(Level.Trial)
@@ -105,7 +106,7 @@ public class SongMixerBenchmark {
     public static class SimdCatmullRomState {
 
         SoundMixer soundMixer;
-        SongMixer songMixer;
+        SimpleSongMixer songMixer;
         int endTick, frames;
 
         @Setup(Level.Trial)
@@ -128,7 +129,34 @@ public class SongMixerBenchmark {
         }
     }
 
-    @Benchmark
+    @State(Scope.Thread)
+    public static class BatchCRState {
+
+        SoundMixer soundMixer;
+        SongMixer songMixer;
+        int endTick, frames;
+
+        @Setup(Level.Trial)
+        public void setup() throws IOException {
+            Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            TestUtil.initSoundRegistry();
+
+            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+            sampleManager.loadAll();
+
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
+            songMixer = new BatchSongMixer(soundMixer, song);
+
+            endTick = song.tempo().durationTicks(0, seconds);
+        }
+    }
+
+//    @Benchmark
     public void lerpBaseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
@@ -137,7 +165,7 @@ public class SongMixerBenchmark {
         blackhole.consume(res);
     }
 
-    @Benchmark
+//    @Benchmark
     public void lerpSimd(LerpSimdState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
@@ -157,6 +185,15 @@ public class SongMixerBenchmark {
 
     @Benchmark
     public void catmullRomSimd(SimdCatmullRomState state, Blackhole blackhole) {
+        state.songMixer.mixTicks(0, state.endTick, 0);
+
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+
+        blackhole.consume(res);
+    }
+
+    @Benchmark
+    public void catmullRomBatched(BatchCRState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
         ByteBuffer res = state.soundMixer.applyCompressor(state.frames);

@@ -109,17 +109,17 @@ public class CatmullRomNoteSampler implements NoteSampler {
         }
 
         // transform left
-        evaluateSimd(outFrames, xs, in, out, 0, 0);
+        resample(outFrames, xs, in, out, 0, 0);
         mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        evaluateSimd(outFrames, xs, in, out, inFrames + 4, outFrames);
+        resample(outFrames, xs, in, out, inFrames + 4, outFrames);
         mul(out, outFrames, outFrames, volume * rightPanning);
 
         return outFrames;
     }
 
-    private static void evaluateSimd(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {
+    private static void resample(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {
         // TODO hosting
         for (int i = 0; i < len; i++) {
             final float x = xs[i];

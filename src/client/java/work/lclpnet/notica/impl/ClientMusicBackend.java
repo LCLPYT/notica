@@ -18,8 +18,8 @@ import work.lclpnet.notica.config.NoticaClientConfig;
 import work.lclpnet.notica.config.PlaybackVariantOverride;
 import work.lclpnet.notica.config.StereoModeOverride;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
+import work.lclpnet.notica.impl.mix.SimpleSongMixer;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
-import work.lclpnet.notica.impl.mix.SongMixer;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
@@ -121,7 +121,7 @@ public class ClientMusicBackend {
         int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
 
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes);
-        var songMixer = new SongMixer(soundMixer, song);
+        var songMixer = new SimpleSongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
 
         audioStream.setOnUpdate(() -> {

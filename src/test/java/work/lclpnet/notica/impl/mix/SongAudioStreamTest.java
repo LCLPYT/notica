@@ -22,7 +22,7 @@ class SongAudioStreamTest {
 
     @Test
     void test() throws IOException {
-        Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerTest.class);
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
 
         TestUtil.initSoundRegistry();
 
@@ -34,7 +34,7 @@ class SongAudioStreamTest {
         int bufferBytes = getBufferByteSize(seconds);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         songMixer.setSongVolume(0.5f);
 
@@ -117,7 +117,7 @@ class SongAudioStreamTest {
 
     @Test
     void testSameAsContinuous() throws IOException {
-        Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerTest.class);
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
 
         TestUtil.initSoundRegistry();
 
@@ -142,7 +142,7 @@ class SongAudioStreamTest {
         int bufferBytes = getBufferByteSize(seconds);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         songMixer.setSongVolume(volume);
 
@@ -169,7 +169,7 @@ class SongAudioStreamTest {
         int frames = getFrames(bufferBytes);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
 
         int startTick = 0;
         int endTick = startTick + song.tempo().durationTicks(startTick, seconds * amount);

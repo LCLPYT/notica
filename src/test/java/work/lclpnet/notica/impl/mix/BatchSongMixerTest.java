@@ -12,13 +12,13 @@ import java.nio.file.Path;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
-public class SongMixerTest {
+public class BatchSongMixerTest {
 
-    private static final boolean EXPORT = false, OPEN = false;
+    private static final boolean EXPORT = true, OPEN = true;
 
     @Test
     void test() throws IOException {
-        Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerTest.class);
+        Song song = TestUtil.loadSong("Driftveil City.nbs", BatchSongMixerTest.class);
 
         TestUtil.initSoundRegistry();
 
@@ -30,7 +30,7 @@ public class SongMixerTest {
         int frames = getFrames(bufferSize);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
-        SongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        BatchSongMixer songMixer = new BatchSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(0.5f);
 

@@ -179,7 +179,7 @@ jmh {
      - expose kernel addresses for the current session (execute as root: echo 0 > /proc/sys/kernel/kptr_restrict)
      - enable perf events for unprivileged users (execute as root: echo 1 > /proc/sys/kernel/perf_event_paranoid)
      */
-    profilers = ['async:dir=build/results/jmh/profiler;output=jfr']
+//    profilers = ['async:dir=build/results/jmh/profiler;output=jfr']
 
     includeTests = true
     zip64 = true

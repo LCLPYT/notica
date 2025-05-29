@@ -4,6 +4,7 @@ import net.minecraft.client.sound.AudioStream;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.SongMixer;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -18,7 +19,7 @@ public class SongAudioStream implements AudioStream {
     private final AudioFormat format;
     private final Song song;
     private final SoundMixer soundMixer;
-    private final SimpleSongMixer songMixer;
+    private final SongMixer songMixer;
     private final ByteBuffer[] preparedBuffers;
     private final int bufferBytes;
     private final Object prepareLock = new Object[0];
@@ -32,7 +33,7 @@ public class SongAudioStream implements AudioStream {
     private int frameOffset = 0;
     private int loopCount;
 
-    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SimpleSongMixer songMixer, Song song, int bufferBytes) {
+    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;

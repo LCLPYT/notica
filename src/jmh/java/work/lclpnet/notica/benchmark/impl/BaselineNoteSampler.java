@@ -1,4 +1,4 @@
-package work.lclpnet.notica.impl.mix;
+package work.lclpnet.notica.benchmark.impl;
 
 import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.CustomInstrument;

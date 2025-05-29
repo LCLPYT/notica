@@ -90,12 +90,12 @@ public class BatchSongMixer implements SongMixer {
             BatchNote batchNote = batch.getKey();
             Note note = batchNote.note;
 
-            int frameCount = soundMixer.bindSample(note, batchNote.volume, batchNote.panning);
+            int frameCount = soundMixer.bindSample(note, batchNote.volume, batchNote.panning, soundMixer.getScope());
 
             if (frameCount < 0) continue;
 
             for (BatchNote inst : batch.getValue()) {
-                if (!soundMixer.mixSample(inst.frameOffset, frameCount)) {
+                if (!soundMixer.mixSample(inst.frameOffset, frameCount, soundMixer.getScope())) {
                     // TODO schedule long sound playback manually
                 }
             }

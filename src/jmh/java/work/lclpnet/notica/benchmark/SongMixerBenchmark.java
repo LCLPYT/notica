@@ -8,10 +8,7 @@ import work.lclpnet.notica.benchmark.impl.CRBaselineNoteSampler;
 import work.lclpnet.notica.benchmark.impl.LerpNoteSampler;
 import work.lclpnet.notica.impl.SongMixer;
 import work.lclpnet.notica.impl.SoundSampleManager;
-import work.lclpnet.notica.impl.mix.BatchSongMixer;
-import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
-import work.lclpnet.notica.impl.mix.SimpleSongMixer;
-import work.lclpnet.notica.impl.mix.SoundMixer;
+import work.lclpnet.notica.impl.mix.*;
 import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;
@@ -161,11 +158,41 @@ public class SongMixerBenchmark {
         }
     }
 
+    @State(Scope.Thread)
+    public static class ParallelBatchCRState {
+
+        SoundMixer soundMixer;
+        SongMixer songMixer;
+        int endTick, frames;
+
+        @Setup(Level.Trial)
+        public void setup() throws IOException {
+            Song song = TestUtil.loadSong("Driftveil City.nbs", SongMixerBenchmark.class);
+
+            TestUtil.initSoundRegistry();
+
+            SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+            sampleManager.loadAll();
+
+            float seconds = 5.f;
+            int bufferSize = TestUtil.getBufferByteSize(seconds);
+            frames = getFrames(bufferSize);
+
+            soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, false);
+
+            int workerCount = Runtime.getRuntime().availableProcessors();
+
+            songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
+
+            endTick = song.tempo().durationTicks(0, seconds);
+        }
+    }
+
 //    @Benchmark
     public void lerpBaseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
 
         blackhole.consume(res);
     }
@@ -174,7 +201,7 @@ public class SongMixerBenchmark {
     public void lerpSimd(LerpSimdState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
 
         blackhole.consume(res);
     }
@@ -183,7 +210,7 @@ public class SongMixerBenchmark {
     public void catmullRomBaseline(BaselineCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
 
         blackhole.consume(res);
     }
@@ -192,7 +219,7 @@ public class SongMixerBenchmark {
     public void catmullRomSimd(SimdCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
 
         blackhole.consume(res);
     }
@@ -201,7 +228,16 @@ public class SongMixerBenchmark {
     public void catmullRomBatched(BatchCRState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames);
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
+
+        blackhole.consume(res);
+    }
+
+    @Benchmark
+    public void catmullRomBatchedParallel(ParallelBatchCRState state, Blackhole blackhole) {
+        state.songMixer.mixTicks(0, state.endTick, 0);
+
+        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getScope());
 
         blackhole.consume(res);
     }

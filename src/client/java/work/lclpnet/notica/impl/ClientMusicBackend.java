@@ -120,7 +120,7 @@ public class ClientMusicBackend {
 
         int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
 
-        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes);
+        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, true);
         var songMixer = new BatchSongMixer(soundMixer, song);
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
 

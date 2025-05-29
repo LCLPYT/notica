@@ -41,7 +41,7 @@ public class BatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.applyCompressor(frames);
+        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getScope());
 
         if (!EXPORT) return;
 

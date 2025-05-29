@@ -34,9 +34,9 @@ class SoundMixerTest {
             sine[i + totalFrames] = v;
         }
 
-        mixer.mixSample(sine, totalFrames, 0, 0);
+        mixer.mixSample(sine, totalFrames, 0, 0, mixer.getScope());
 
-        ByteBuffer buf = mixer.applyClamping(totalFrames);
+        ByteBuffer buf = mixer.applyClamping(totalFrames, mixer.getScope());
 
         if (!EXPORT) return;
 
@@ -52,6 +52,6 @@ class SoundMixerTest {
     @SuppressWarnings("SameParameterValue")
     private @NotNull SoundMixer mockedMixer(int bufferSize) {
         AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, 48000, false);
-        return new SoundMixer(format, mock(), bufferSize);
+        return new SoundMixer(format, mock(), bufferSize, true);
     }
 }

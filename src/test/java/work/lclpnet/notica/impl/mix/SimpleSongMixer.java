@@ -48,7 +48,7 @@ public class SimpleSongMixer implements SongMixer {
 
                 short panning = layer.panning();
 
-                if (!mixer.putSound(note, volume, panning, frameOffset)) {
+                if (!mixer.putSound(note, volume, panning, frameOffset, mixer.getScope())) {
                     // TODO schedule long sound playback manually
                 }
             }

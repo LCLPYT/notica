@@ -177,6 +177,6 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames);
+        return soundMixer.applyCompressor(frames, soundMixer.getScope());
     }
 }

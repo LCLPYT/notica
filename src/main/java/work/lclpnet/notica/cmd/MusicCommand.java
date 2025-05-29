@@ -726,5 +726,5 @@ public class MusicCommand {
         }
     }
 
-    private enum TimeUnit { TICKS, SECONDS, MINUTES;}
+    private enum TimeUnit { TICKS, SECONDS, MINUTES }
 }

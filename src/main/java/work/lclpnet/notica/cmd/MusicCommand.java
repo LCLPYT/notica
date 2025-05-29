@@ -548,6 +548,7 @@ public class MusicCommand {
         List<IntObjectPair<TimeUnit>> offsets = new ArrayList<>();
         boolean firstMatch = true;
         boolean absolute = true;
+        boolean zero = false;
 
         while (matcher.find()) {
             String amountStr = matcher.group(1);
@@ -583,12 +584,15 @@ public class MusicCommand {
                 continue;
             }
 
-            if (amount == 0) continue;
+            if (amount == 0) {
+                zero = true;
+                continue;
+            }
 
             offsets.add(IntObjectPair.of(amount, unit));
         }
 
-        if (offsets.isEmpty()) {
+        if (offsets.isEmpty() && !(absolute && zero)) {
             return null;
         }
 

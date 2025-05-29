@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import lombok.Getter;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -30,6 +31,7 @@ public class NoticaImpl implements Notica {
     private static Path songsDir = null, playerConfigDir = null;
     private final MinecraftServer server;
     private final InstrumentSoundProvider soundProvider;
+    @Getter
     private final PlayerConfigContainer playerConfigs;
     private final Map<UUID, SongPlayerRef> playerRefs = new HashMap<>();
     private final Map<Identifier, Song> songsById = new HashMap<>();
@@ -152,10 +154,6 @@ public class NoticaImpl implements Notica {
 
     public boolean hasModInstalled(ServerPlayerEntity player) {
         return NoticaNetworking.getInstance().understandsProtocol(player);
-    }
-
-    public PlayerConfigContainer getPlayerConfigs() {
-        return playerConfigs;
     }
 
     public static NoticaImpl getInstance(MinecraftServer server) {

@@ -1,5 +1,7 @@
 package work.lclpnet.notica.impl.mix;
 
+import lombok.Getter;
+import lombok.Setter;
 import net.minecraft.client.sound.AudioStream;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopConfig;
@@ -21,9 +23,11 @@ public class SongAudioStream implements AudioStream {
     private final SoundMixer soundMixer;
     private final SongMixer songMixer;
     private final ByteBuffer[] preparedBuffers;
+    @Getter
     private final int bufferBytes;
     private final Object prepareLock = new Object[0];
 
+    @Setter
     private Runnable onUpdate = () -> {};
     private boolean first = true;
     private boolean ended = false;
@@ -59,10 +63,6 @@ public class SongAudioStream implements AudioStream {
 
     public static float getSeconds(AudioFormat format, int frameCount) {
         return frameCount / format.getSampleRate();
-    }
-
-    public int getBufferBytes() {
-        return bufferBytes;
     }
 
     @Override
@@ -233,9 +233,5 @@ public class SongAudioStream implements AudioStream {
         prepared = 0;
         prepareStart = 0;
         first = true;
-    }
-
-    public void setOnUpdate(Runnable onUpdate) {
-        this.onUpdate = onUpdate;
     }
 }

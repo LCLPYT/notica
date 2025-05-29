@@ -7,17 +7,7 @@ import static java.lang.Math.round;
 
 /// A feed-forward audio compressor inspired by the [openal-soft compressor](https://github.com/kcat/openal-soft/blob/master/core/mastering.cpp)
 /// and [Daniel Rudrich's compressor](https://github.com/DanielRudrich/SimpleCompressor/blob/master/src/SimpleCompressor.h).
-public class Compressor {
-
-    private final GainReduction gainReduction;
-
-    public Compressor(GainReduction gainReduction) {
-        this.gainReduction = gainReduction;
-    }
-
-    public GainReduction getGainReduction() {
-        return gainReduction;
-    }
+public record Compressor(GainReduction gainReduction) {
 
     public void process(final int frameCount, float[] samples, float[] next, ByteBuffer output) {
         final int lookaheadSamples = gainReduction.getLookaheadSamples();

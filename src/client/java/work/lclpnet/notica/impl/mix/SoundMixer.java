@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
@@ -19,10 +20,13 @@ public class SoundMixer {
     private static final int BASE_BUFFER_COUNT = 4;
     private static final float MAX_SOUND_SECONDS = 16.f;
 
+    @Getter
     private final AudioFormat format;
     private final NoteSampler noteSampler;
     private final Compressor compressor;
-    private final int bufferSize, bufferFrames;
+    private final int bufferSize;
+    @Getter
+    private final int bufferFrames;
     private final float[] sampleBuffer;
     private final ByteBuffer directBuffer;
     private final float[][] buffers;
@@ -76,12 +80,8 @@ public class SoundMixer {
         return new GainReduction(sampleRate, lookaheadSec, thresholdDb, attackSec, releaseSec, holdSec, ratio, crestReleaseSec, adaptationSec);
     }
 
-    public AudioFormat getFormat() {
-        return format;
-    }
-
     public float getCompressorLookAheadSeconds() {
-        return compressor.getGainReduction().getLookaheadSamples() / format.getSampleRate();
+        return compressor.gainReduction().getLookaheadSamples() / format.getSampleRate();
     }
 
     /**
@@ -313,10 +313,6 @@ public class SoundMixer {
 
         currentBuffer = (currentBuffer + 1) % buffers.length;
         remainingBuffers = max(0, remainingBuffers - 1);
-    }
-
-    public int getBufferFrames() {
-        return bufferFrames;
     }
 
     public boolean isDone() {

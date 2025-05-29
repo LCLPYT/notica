@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl;
 
+import lombok.Getter;
 import work.lclpnet.notica.api.Index;
 import work.lclpnet.notica.api.NoteEvent;
 import work.lclpnet.notica.api.SongSlice;
@@ -19,6 +20,7 @@ public class PendingSong implements Song {
     private final boolean stereo;
     private final byte signature;
     private final byte[] checksum;
+    @Getter
     private int startTick;
 
     public PendingSong(SongHeader header) {
@@ -109,7 +111,4 @@ public class PendingSong implements Song {
         }
     }
 
-    public int getStartTick() {
-        return startTick;
-    }
 }

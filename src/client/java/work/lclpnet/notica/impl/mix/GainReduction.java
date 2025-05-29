@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import static java.lang.Math.*;
@@ -14,6 +15,7 @@ public class GainReduction {
     private final float adaptCoeff;
     private final float attackSamples;
     private final float releaseSamples;
+    @Getter
     private final int lookaheadSamples;
     private final @Nullable Condensator condensator;
 
@@ -43,10 +45,6 @@ public class GainReduction {
         } else {
             condensator = null;
         }
-    }
-
-    public int getLookaheadSamples() {
-        return lookaheadSamples;
     }
 
     public void lookAheadGainReduction(float[] samples, float[] next, float[] sideChain) {

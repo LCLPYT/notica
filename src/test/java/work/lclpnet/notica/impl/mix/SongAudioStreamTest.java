@@ -34,7 +34,7 @@ class SongAudioStreamTest {
         int bufferBytes = getBufferByteSize(seconds);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(0.5f);
 
@@ -142,7 +142,7 @@ class SongAudioStreamTest {
         int bufferBytes = getBufferByteSize(seconds);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(volume);
 
@@ -169,7 +169,7 @@ class SongAudioStreamTest {
         int frames = getFrames(bufferBytes);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
-        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         int startTick = 0;
         int endTick = startTick + song.tempo().durationTicks(startTick, seconds * amount);

@@ -30,7 +30,7 @@ public class SimpleSongMixerTest {
         int frames = getFrames(bufferSize);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
-        SimpleSongMixer songMixer = TestUtil.createSongMixer(song, soundMixer);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(0.5f);
 

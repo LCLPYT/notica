@@ -47,7 +47,7 @@ public class SongMixerBenchmark {
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, BaselineNoteSampler::new);
-            songMixer = TestUtil.createSongMixer(song, soundMixer);
+            songMixer = new SimpleSongMixer(soundMixer, song);
 
             endTick = song.tempo().durationTicks(0, seconds);
         }
@@ -74,7 +74,7 @@ public class SongMixerBenchmark {
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, LerpNoteSampler::new);
-            songMixer = TestUtil.createSongMixer(song, soundMixer);
+            songMixer = new SimpleSongMixer(soundMixer, song);
 
             endTick = song.tempo().durationTicks(0, seconds);
         }
@@ -101,7 +101,7 @@ public class SongMixerBenchmark {
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CRBaselineNoteSampler::new);
-            songMixer = TestUtil.createSongMixer(song, soundMixer);
+            songMixer = new SimpleSongMixer(soundMixer, song);
 
             endTick = song.tempo().durationTicks(0, seconds);
         }
@@ -128,7 +128,7 @@ public class SongMixerBenchmark {
             frames = getFrames(bufferSize);
 
             soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new);
-            songMixer = TestUtil.createSongMixer(song, soundMixer);
+            songMixer = new SimpleSongMixer(soundMixer, song);
 
             endTick = song.tempo().durationTicks(0, seconds);
         }

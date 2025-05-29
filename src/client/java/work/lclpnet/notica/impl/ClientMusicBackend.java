@@ -120,7 +120,7 @@ public class ClientMusicBackend {
 
         int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
 
-        int workerCount = 4;//Runtime.getRuntime().availableProcessors();
+        int workerCount = Runtime.getRuntime().availableProcessors();
 
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);

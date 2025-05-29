@@ -87,7 +87,7 @@ public class ParallelBatchSongMixer implements SongMixer {
 
         final int jobCount = batches.size();
         final int assignedWorkers = min(workerCount, jobCount);
-        final int batchJobs = jobCount / assignedWorkers;
+        final int batchJobs = (int) ceil(jobCount / (float) assignedWorkers);
 
         final Thread[] workers = new Thread[assignedWorkers];
 

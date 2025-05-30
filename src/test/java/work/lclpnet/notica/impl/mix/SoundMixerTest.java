@@ -46,7 +46,7 @@ class SoundMixerTest {
 
         if (!OPEN) return;
 
-        Runtime.getRuntime().exec(new String[] {"xdg-open", path.getParent().toAbsolutePath().toString()});
+        TestUtil.openFile(path.getParent());
     }
 
     @SuppressWarnings("SameParameterValue")

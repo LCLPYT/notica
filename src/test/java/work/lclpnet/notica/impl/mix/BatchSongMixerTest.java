@@ -51,6 +51,6 @@ public class BatchSongMixerTest {
 
         if (!OPEN) return;
 
-        Runtime.getRuntime().exec(new String[] {"xdg-open", path.toAbsolutePath().toString()});
+        TestUtil.openFile(path);
     }
 }

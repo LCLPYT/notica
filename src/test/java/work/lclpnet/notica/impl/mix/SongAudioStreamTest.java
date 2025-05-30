@@ -82,7 +82,7 @@ class SongAudioStreamTest {
 
         if (!OPEN) return;
 
-        Runtime.getRuntime().exec(new String[] {"xdg-open", dir.toAbsolutePath().toString()});
+        TestUtil.openFile(dir);
     }
 
     private byte[] asByteArray(ByteBuffer buf) {

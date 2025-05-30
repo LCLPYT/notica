@@ -118,6 +118,25 @@ public class TestUtil {
         return (int) (bufferSize / (AUDIO_FORMAT.getChannels() * (AUDIO_FORMAT.getSampleSizeInBits() / 8.f)));
     }
 
+    public static void openFile(Path path) throws IOException {
+        String absPath = path.toAbsolutePath().toString();
+        String os = System.getProperty("os.name").toLowerCase();
+
+        String[] args;
+
+        if (os.contains("win")) {
+            args = new String[] {"cmd", "/c", "start", "\"\"", "\"" + absPath + "\"" };
+        } else if (os.contains("mac")) {
+            args = new String[] {"open", absPath};
+        } else if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
+            args = new String[]{"xdg-open", absPath};
+        } else {
+            throw new UnsupportedOperationException("Unsupported operating system: " + os);
+        }
+
+        Runtime.getRuntime().exec(args);
+    }
+
     public interface NoteSamplerFactory {
         NoteSampler create(SoundSampleManager sampleManager, AudioFormat format, StereoMode stereoMode, Instruments instruments);
     }

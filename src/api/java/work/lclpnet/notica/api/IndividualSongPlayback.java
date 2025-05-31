@@ -125,9 +125,11 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
 
             waitNs = max(0, min(999999, waitNs));
 
-            try {
-                sleep(waitMs, waitNs);
-            } catch (InterruptedException ignored) {}
+            if (waitMs > 0) {
+                try {
+                    sleep(waitMs, waitNs);
+                } catch (InterruptedException ignored) {}
+            }
         }
 
         if (onComplete != null) {

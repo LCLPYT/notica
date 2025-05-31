@@ -14,7 +14,7 @@ import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 public class SimpleSongMixerTest {
 
-    private static final boolean EXPORT = true, OPEN = true;
+    private static final boolean EXPORT = false, OPEN = false;
 
     @Test
     void test() throws IOException {

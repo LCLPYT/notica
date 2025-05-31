@@ -12,12 +12,13 @@ import java.nio.file.Path;
 
 public class SongExporterTest {
 
-    private static final boolean OPEN = true;
+    private static final boolean OPEN = false;
 
     @Test
     public void test() throws IOException {
-        String songName = "Driftveil City.nbs";
-        Song song = TestUtil.loadSong(songName, SimpleSongMixerTest.class);
+        String songName = "Driftveil City";
+        Song song = TestUtil.loadSong(songName + ".nbs", SimpleSongMixerTest.class);
+//        Song song = TestUtil.loadSong(Path.of("run", "config", "notica", "songs", songName + ".nbs"));
 
         TestUtil.initSoundRegistry();
 

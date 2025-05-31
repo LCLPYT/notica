@@ -11,6 +11,7 @@ import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SoundMixer;
+import work.lclpnet.notica.type.NoticaSource;
 import work.lclpnet.notica.type.NoticaSourceManager;
 
 import static java.lang.Math.max;
@@ -58,7 +59,7 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     private void prepareSync() {
-        audioStream.prepare(audioStream.getBufferBytes() * 4);
+        audioStream.prepare(audioStream.getBufferBytes());
     }
 
     @Override
@@ -123,6 +124,8 @@ public class StreamSongPlayback implements SongPlayback {
             ((NoticaSourceManager) sourceManager).notica$onStopped(onStopped);
 
             sourceManager.run(source -> {
+                ((NoticaSource) source).notica$setNoticaSource();
+
                 source.setRelative(true);
                 source.setPosition(Vec3d.ZERO);
                 source.setStream(audioStream);

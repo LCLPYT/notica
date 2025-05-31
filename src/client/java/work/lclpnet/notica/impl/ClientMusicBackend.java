@@ -125,7 +125,7 @@ public class ClientMusicBackend {
         var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
-        var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes);
+        var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song, bufferBytes, true);
 
         audioStream.setOnUpdate(() -> {
             float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);

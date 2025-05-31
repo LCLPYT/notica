@@ -8,7 +8,7 @@ import work.lclpnet.notica.api.SongDecoder;
 import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.NoteSampler;
+import work.lclpnet.notica.impl.NoteSamplerFactory;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
@@ -137,7 +137,4 @@ public class TestUtil {
         Runtime.getRuntime().exec(args);
     }
 
-    public interface NoteSamplerFactory {
-        NoteSampler create(SoundSampleManager sampleManager, AudioFormat format, StereoMode stereoMode, Instruments instruments);
-    }
 }

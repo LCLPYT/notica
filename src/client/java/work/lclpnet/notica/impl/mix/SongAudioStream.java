@@ -3,6 +3,7 @@ package work.lclpnet.notica.impl.mix;
 import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.sound.AudioStream;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
@@ -26,6 +27,7 @@ public class SongAudioStream implements AudioStream {
     @Getter
     private final int bufferBytes;
     private final Object prepareLock = new Object[0];
+    private final boolean loopEnabled;
 
     @Setter
     private Runnable onUpdate = () -> {};
@@ -37,7 +39,7 @@ public class SongAudioStream implements AudioStream {
     private int frameOffset = 0;
     private int loopCount;
 
-    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes) {
+    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes, boolean loopEnabled) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
@@ -50,6 +52,7 @@ public class SongAudioStream implements AudioStream {
             preparedBuffers[i] = BufferUtils.createByteBuffer(bufferBytes);
         }
 
+        this.loopEnabled = loopEnabled && song.loopConfig().enabled();
         loopCount = song.loopConfig().loopCount();
     }
 
@@ -71,7 +74,7 @@ public class SongAudioStream implements AudioStream {
     }
 
     @Override
-    public ByteBuffer read(int size) {
+    public @Nullable ByteBuffer read(int size) {
         boolean needsProcessing = false;
 
         synchronized (this) {
@@ -157,7 +160,7 @@ public class SongAudioStream implements AudioStream {
             // last segment of the song
             LoopConfig loop = song.loopConfig();
 
-            if (loop.enabled() && (loop.infinite() || loopCount > 0)) {
+            if (loopEnabled && (loop.infinite() || loopCount > 0)) {
                 loopCount = max(0, loopCount - 1);
 
                 int interval = max(2, min(8, song.signature())) * 4;

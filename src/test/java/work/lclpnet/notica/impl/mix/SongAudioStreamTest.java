@@ -39,7 +39,7 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes);
+        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes, false);
 
         Path dir;
 
@@ -147,7 +147,7 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes);
+        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes, false);
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 

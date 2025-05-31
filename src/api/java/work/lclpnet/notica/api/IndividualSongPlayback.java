@@ -10,7 +10,7 @@ import work.lclpnet.notica.api.data.Song;
 import java.util.Objects;
 
 import static java.lang.Math.*;
-import static java.lang.System.currentTimeMillis;
+import static java.lang.System.nanoTime;
 import static java.lang.Thread.sleep;
 
 public class IndividualSongPlayback implements Runnable, SongPlayback {
@@ -18,11 +18,10 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
     private final Song song;
     private final NotePlayer notePlayer;
     private final int durationTicks;
-    private int periodMs;
-    private double remainderMs;
     private boolean started = false;
     private int tick = 0;
-    private double extraMs = 0f;
+    private double tempoNs;
+    private double expectedNextNs = 0;
     private volatile Hook<Runnable> onComplete = null;
     private volatile Thread thread = null;
     private volatile boolean stopped = false;
@@ -37,10 +36,7 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
     }
 
     private void updateTempo(float ticksPerSecond) {
-        double exactTempoMs = 1000f / ticksPerSecond;
-
-        this.periodMs = (int) ceil(exactTempoMs);
-        this.remainderMs = max(0, periodMs - exactTempoMs);
+        this.tempoNs = 1.e+9 / ticksPerSecond;
     }
 
     @Override
@@ -51,7 +47,6 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         tick = startTick;
 
         thread = new Thread(this, "Song Player");
-        thread.setDaemon(true);
         thread.start();
     }
 
@@ -84,7 +79,6 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         }
 
         while (started && tick < endTick) {
-            final long before = currentTimeMillis();
             final int t = tick++;
 
             for (Layer layer : song.layers()) {
@@ -113,21 +107,26 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
                 updateTempo(song.tempo().tempoAt(t));
             }
 
-            long elapsed = currentTimeMillis() - before;
+            long after = nanoTime();
+            long delayNs;
 
-            if (extraMs >= 1.0) {
-                int w = (int) floor(extraMs);
-                elapsed += w;
-                extraMs -= w;
+            if (expectedNextNs > 0) {
+                delayNs = (long) (after - expectedNextNs);
+            } else {
+                delayNs = 0;
+                expectedNextNs = after;
             }
 
-            long waitMs = periodMs - elapsed;
-            extraMs += remainderMs;
+            expectedNextNs += tempoNs;
 
-            if (waitMs <= 0) continue;
+            double waitExact = tempoNs - delayNs;
+            long waitMs = round(waitExact * 1e-6);
+            int waitNs = (int) round(waitExact - waitMs * 1e+6);
+
+            waitNs = max(0, min(999999, waitNs));
 
             try {
-                sleep(periodMs);
+                sleep(waitMs, waitNs);
             } catch (InterruptedException ignored) {}
         }
 
@@ -171,7 +170,7 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         ticks = max(0, absolute ? ticks : this.tick + ticks);
 
         this.tick = ticks;
-        this.extraMs = 0;
+        this.expectedNextNs = 0;
 
         updateTempo(song.tempo().tempoAt(ticks));
     }

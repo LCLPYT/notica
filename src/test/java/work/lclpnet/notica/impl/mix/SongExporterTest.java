@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 public class SongExporterTest {
 
-    private static final boolean OPEN = true;
+    private static final boolean OPEN = false;
 
     @Test
     public void test() throws IOException {

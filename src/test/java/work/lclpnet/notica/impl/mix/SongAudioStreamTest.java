@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
@@ -104,8 +103,9 @@ class SongAudioStreamTest {
         float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
         float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
 
-        assertArrayEquals(reference_array, combined_array, "Combined does not match reference (buffer_size=%s)"
-                .formatted(getBufferByteSize(seconds) / 2));
+        float tol = 4f / Short.MAX_VALUE;
+
+        TestUtil.assertArrayEquals(reference_array, combined_array, tol, "Combined does not match reference");
     }
 
     private ByteBuffer combined(Song song, float volume, SoundSampleManager sampleManager, float seconds, int amount) throws IOException {

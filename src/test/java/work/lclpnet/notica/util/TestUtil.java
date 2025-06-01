@@ -28,6 +28,8 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
+import static java.lang.Math.abs;
+
 public class TestUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(TestUtil.class);
@@ -175,5 +177,24 @@ public class TestUtil {
         }
 
         return array;
+    }
+
+    public static void assertArrayEquals(float[] expected, float[] actual, float tol, String msg) {
+        if (expected.length != actual.length) {
+            throw new AssertionError("Array lengths differ: Expected: <%s> but was: <%s>".formatted(expected.length, actual.length));
+        }
+
+        float bufferSamples = AUDIO_FORMAT.getSampleRate() * AUDIO_FORMAT.getChannels();
+
+        for (int i = 0; i < expected.length; i++) {
+            float e = expected[i];
+            float a = actual[i];
+
+            if (abs(e - a) <= tol) continue;
+
+            throw new AssertionError("%s (buffer_size=%s, time=%.2fs, look_ahead=0.01s) ==> array contents differ at index [%s], expected: <%s> (<%s>) but was: <%s> (<%s>)"
+                    .formatted(msg, bufferSamples, i / bufferSamples,
+                            i, e, (int) (e * Short.MAX_VALUE), a, (int) (a * Short.MAX_VALUE)));
+        }
     }
 }

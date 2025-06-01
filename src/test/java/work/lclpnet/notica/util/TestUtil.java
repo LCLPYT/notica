@@ -9,8 +9,10 @@ import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.NoteSamplerFactory;
+import work.lclpnet.notica.impl.SoundRef;
 import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.impl.UnifiedSoundLoader;
+import work.lclpnet.notica.impl.data.ImmutableInstruments;
 import work.lclpnet.notica.impl.mix.CatmullRomNoteSampler;
 import work.lclpnet.notica.impl.mix.SoundMixer;
 
@@ -110,6 +112,14 @@ public class TestUtil {
         }
     }
 
+    public static float[] getSoundSample(int instrument) {
+        var provider = new TestSoundSampleProvider(ImmutableInstruments.DEFAULT, soundRegistry);
+
+        SoundRef ref = provider.getSample((byte) instrument).orElseThrow();
+
+        return soundLoader.getUnifiedSample(ref).join().orElseThrow();
+    }
+
     public static int getBufferByteSize(float seconds) {
         return (int) (AUDIO_FORMAT.getSampleRate() * seconds * AUDIO_FORMAT.getChannels() * (AUDIO_FORMAT.getSampleSizeInBits() / 8.f));
     }
@@ -137,4 +147,33 @@ public class TestUtil {
         Runtime.getRuntime().exec(args);
     }
 
+    public static byte[] asByteArray(ByteBuffer buf) {
+        byte[] array = new byte[buf.limit()];
+
+        for (int j = 0; j < array.length; j++) {
+            array[j] = buf.get();
+        }
+
+        return array;
+    }
+
+    public static short[] asShortArray(ByteBuffer buf) {
+        short[] array = new short[buf.limit() / 2];
+
+        for (int j = 0; j < array.length; j++) {
+            array[j] = buf.getShort();
+        }
+
+        return array;
+    }
+
+    public static float[] toFloatArray(short[] samples) {
+        float[] array = new float[samples.length];
+
+        for (int i = 0; i < array.length; i++) {
+            array[i] = samples[i] / (float) Short.MAX_VALUE;
+        }
+
+        return array;
+    }
 }

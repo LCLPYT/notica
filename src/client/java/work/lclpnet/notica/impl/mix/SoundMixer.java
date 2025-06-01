@@ -6,6 +6,7 @@ import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
 import work.lclpnet.notica.impl.NoteSampler;
+import work.lclpnet.notica.impl.UnifiedSoundLoader;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -46,7 +47,7 @@ public class SoundMixer {
 
         GainReduction gainReduction = createGainReduction(format);
 
-        compressor = new Compressor(gainReduction);
+        compressor = new Compressor(gainReduction, format);
 
         int sampleBytes = format.getSampleSizeInBits() / 8;
         int bufferSize = bufferBytes / sampleBytes;
@@ -62,14 +63,14 @@ public class SoundMixer {
         final int bufferCount = BASE_BUFFER_COUNT + extraBufferCount;
 
         if (scopeCount > 1) {
-            scope = new Scope(0, extraBufferCount, bufferSize);
+            scope = new Scope(0, bufferCount, bufferSize);
             workerScopes = new Scope[scopeCount];
 
             for (int i = 0; i < scopeCount; i++) {
                 workerScopes[i] = createScope();
             }
         } else {
-            scope = new Scope(bufferCount, extraBufferCount, bufferSize);
+            scope = new Scope(extraBufferCount, bufferCount, bufferSize);
             workerScopes = new Scope[0];
         }
     }
@@ -222,6 +223,7 @@ public class SoundMixer {
         }
     }
 
+    @Deprecated(forRemoval = true)
     public static ByteBuffer changePitch(ByteBuffer input, float pitch, AudioFormat format, IntFunction<ByteBuffer> outputFactory) {
         if (pitch == 1.0) {
             return input;
@@ -260,6 +262,7 @@ public class SoundMixer {
         return output;
     }
 
+    @Deprecated(forRemoval = true)
     public static void changeVolume(ByteBuffer samples, float volume) {
         if (volume == 1.0) return;
 
@@ -292,7 +295,7 @@ public class SoundMixer {
     @SuppressWarnings("SameParameterValue")
     @VisibleForTesting
     ByteBuffer applyClamping(final int frameCount, Scope scope) {
-        ByteBuffer buf = BufferUtils.createByteBuffer(frameCount * 4);
+        ByteBuffer buf = BufferUtils.createByteBuffer(frameCount * format.getFrameSize());
         buf.position(0);
 
         final float[][] buffers = scope.buffers;
@@ -302,16 +305,7 @@ public class SoundMixer {
             float[] samples = buffers[i];
             final int len = max(0, min(bufferFrames, frameCount - i * bufferFrames));
 
-            for (int j = 0; j < len; j++) {
-                float vl = samples[j];
-                float vr = samples[bufferFrames + j];
-
-                short ql = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vl * Short.MAX_VALUE));
-                short qr = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vr * Short.MAX_VALUE));
-
-                buf.putShort(ql);
-                buf.putShort(qr);
-            }
+            UnifiedSoundLoader.toInterleavedBytes(samples, len, buf, format);
         }
 
         buf.flip();

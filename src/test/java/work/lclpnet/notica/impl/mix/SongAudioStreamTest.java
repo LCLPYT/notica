@@ -58,7 +58,7 @@ class SongAudioStreamTest {
 
             if (buf == null) break;
 
-            parts[i] = asByteArray(buf);
+            parts[i] = TestUtil.asByteArray(buf);
 
             buf.flip();
 
@@ -85,36 +85,6 @@ class SongAudioStreamTest {
         TestUtil.openFile(dir);
     }
 
-    private byte[] asByteArray(ByteBuffer buf) {
-        byte[] array = new byte[buf.limit()];
-
-        for (int j = 0; j < array.length; j++) {
-            array[j] = buf.get();
-        }
-
-        return array;
-    }
-
-    private short[] asShortArray(ByteBuffer buf) {
-        short[] array = new short[buf.limit() / 2];
-
-        for (int j = 0; j < array.length; j++) {
-            array[j] = buf.getShort();
-        }
-
-        return array;
-    }
-
-    private float[] toFloatArray(short[] samples) {
-        float[] array = new float[samples.length];
-
-        for (int i = 0; i < array.length; i++) {
-            array[i] = i / (float) Short.MAX_VALUE;
-        }
-
-        return array;
-    }
-
     @Test
     void testSameAsContinuous() throws IOException {
         Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
@@ -131,8 +101,8 @@ class SongAudioStreamTest {
         ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount);
         ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount);
 
-        float[] reference_array = toFloatArray(asShortArray(reference));
-        float[] combined_array = toFloatArray(asShortArray(combined));
+        float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
+        float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
 
         assertArrayEquals(reference_array, combined_array, "Combined does not match reference (buffer_size=%s)"
                 .formatted(getBufferByteSize(seconds) / 2));

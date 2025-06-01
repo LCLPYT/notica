@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import static java.lang.Math.max;
+import static java.lang.Math.min;
+
 /**
  * Loads sound resources in a unified audio format.
  */
@@ -47,7 +50,7 @@ public class UnifiedSoundLoader {
         future = sound.load()
                 .thenCompose(this::recode)
                 .thenApply(sample -> transformSample(sample, sound))
-                .thenApply(this::toDeinterleavedFloats)
+                .thenApply(samples -> toDeinterleavedFloats(samples, targetFormat))
                 .thenApply(Optional::of)
                 .exceptionally(err -> {
                     logger.error("Failed to get unified sample for sound {}", sound, err);
@@ -66,9 +69,9 @@ public class UnifiedSoundLoader {
         return future;
     }
 
-    private float[] toDeinterleavedFloats(ByteBuffer samples) {
-        final int channels = 2;
-        int frameCount = samples.limit() / targetFormat.getFrameSize();
+    public static float[] toDeinterleavedFloats(ByteBuffer samples, AudioFormat format) {
+        final int channels = format.getChannels();
+        int frameCount = samples.limit() / format.getFrameSize();
 
         samples.position(0);
 
@@ -86,6 +89,22 @@ public class UnifiedSoundLoader {
         }
 
         return floatSamples;
+    }
+
+    public static void toInterleavedBytes(float[] floatSamples, int frames, ByteBuffer out, AudioFormat format) {
+        final int bufferFrames = out.limit() / format.getFrameSize();
+        final int len = min(bufferFrames, frames);
+
+        for (int i = 0; i < len; i++) {
+            float vl = floatSamples[i];
+            float vr = floatSamples[frames + i];
+
+            short ql = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vl * Short.MAX_VALUE));
+            short qr = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vr * Short.MAX_VALUE));
+
+            out.putShort(ql);
+            out.putShort(qr);
+        }
     }
 
     private CompletableFuture<ByteBuffer> recode(SoundSample sample) {

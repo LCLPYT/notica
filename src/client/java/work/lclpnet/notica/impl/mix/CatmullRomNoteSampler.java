@@ -66,8 +66,15 @@ public class CatmullRomNoteSampler implements NoteSampler {
         }
 
         float pitch = getPitch(note);
-        float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
+        int outFrames = resample(in, out, pitch, format);
 
+        float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
+        applyVolumePanning(out, outFrames, volume, panning);
+
+        return outFrames;
+    }
+
+    public static int resample(float[] in, float[] out, float pitch, AudioFormat format) {
         final int channels = format.getChannels();
         final int inFrames = (in.length - 8) / channels;  // don't count padding
         final int outFrames = (int) (inFrames / pitch);
@@ -79,6 +86,23 @@ public class CatmullRomNoteSampler implements NoteSampler {
             return -1;
         }
 
+        float[] xs = new float[outFrames];
+
+        for (int i = 0; i < xs.length; i++) {
+            xs[i] = i * pitch;
+        }
+
+        // transform left
+        resample(outFrames, xs, in, out, 0, 0);
+
+        // transform right
+        resample(outFrames, xs, in, out, inFrames + 4, outFrames);
+
+
+        return outFrames;
+    }
+
+    private void applyVolumePanning(float[] out, int outFrames, float volume, float panning) {
         // calculate panning
         float leftPanning;
         float rightPanning;
@@ -102,21 +126,11 @@ public class CatmullRomNoteSampler implements NoteSampler {
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
 
-        float[] xs = new float[outFrames];
-
-        for (int i = 0; i < xs.length; i++) {
-            xs[i] = i * pitch;
-        }
-
         // transform left
-        resample(outFrames, xs, in, out, 0, 0);
         mul(out, 0, outFrames, volume * leftPanning);
 
         // transform right
-        resample(outFrames, xs, in, out, inFrames + 4, outFrames);
         mul(out, outFrames, outFrames, volume * rightPanning);
-
-        return outFrames;
     }
 
     private static void resample(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {

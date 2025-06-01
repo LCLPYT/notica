@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 public class SongExporterTest {
 
-    private static final boolean OPEN = false;
+    private static final boolean OPEN = true;
 
     @Test
     public void test() throws IOException {
@@ -31,6 +31,8 @@ public class SongExporterTest {
         Path path = Files.createTempFile(songName, ".wav");
 
         exporter.export(song, 0.5f, StereoMode.SPATIAL, path);
+
+        System.out.println("Song exported to " + path.toAbsolutePath());
 
         if (OPEN) {
             TestUtil.openFile(path);

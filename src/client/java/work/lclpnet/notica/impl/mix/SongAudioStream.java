@@ -5,47 +5,57 @@ import lombok.Setter;
 import net.minecraft.client.sound.AudioStream;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
+import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class SongAudioStream implements AudioStream {
 
-    private static final int PREPARE_COUNT = 5;
+    private static final int
+            PREPARE_COUNT = 5,
+            TIMEOUT_MS = 10_000;
 
     private final AudioFormat format;
     private final Song song;
     private final SoundMixer soundMixer;
     private final SongMixer songMixer;
     private final BufferProcessor bufferProcessor;
+    private final Logger logger;
     private final ByteBuffer[] preparedBuffers;
     @Getter
     private final int bufferBytes;
-    private final Object prepareLock = new Object[0];
+    private final BlockingQueue<ByteBuffer> queue = new LinkedBlockingQueue<>(PREPARE_COUNT - 1);
     private final boolean loopEnabled;
 
+    private @Nullable Thread producer = null, watchdog = null;
     @Setter
     private Runnable onUpdate = () -> {};
     private boolean first = true;
     private boolean ended = false;
     private int tick = 0;
-    private int prepared = 0;
-    private int prepareStart = 0;
+    private int prepareIdx = 0;
     private int frameOffset = 0;
     private int loopCount;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song,
-                           BufferProcessor bufferProcessor, int bufferBytes, boolean loopEnabled) {
+                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, boolean loopEnabled) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
         this.song = song;
         this.bufferProcessor = bufferProcessor;
+        this.logger = logger;
         this.bufferBytes = bufferBytes;
 
         preparedBuffers = new ByteBuffer[PREPARE_COUNT];
@@ -77,72 +87,94 @@ public class SongAudioStream implements AudioStream {
 
     @Override
     public @Nullable ByteBuffer read(int size) {
-        boolean needsProcessing = false;
-
         synchronized (this) {
-            if (prepared <= 0) {
-                if (ended) {
-                    return null;
-                }
+            if (ended) {
+                logger.debug("Song has ended");
+                return null;
+            }
 
-                needsProcessing = true;
+            if (queue.isEmpty() && (producer == null || !producer.isAlive())) {
+                logger.error("No producer active");
+                return null;
             }
         }
 
-        if (needsProcessing) {
-            synchronized (prepareLock) {
-
-                // check if another thread prepared something in the meantime
-                synchronized (this) {
-                    if (prepared <= 0) {
-                        if (ended) {
-                            return null;
-                        }
-                    }
-                }
-
-                // prepare without locking this to prevent deadlock
-                _prepare(size);
-            }
-        }
-
-        ByteBuffer buf;
-
-        synchronized (this) {
-            if (prepared <= 0) {
-                throw new IllegalStateException("No buffer is prepared, likely a race-condition");
-            }
-
-            buf = preparedBuffers[prepareStart];
-
-            prepared--;
-            prepareStart = (prepareStart + 1) % PREPARE_COUNT;
-        }
-
-        // prepare next async
-        Thread.startVirtualThread(() -> prepare(size));
-
-        return buf;
-    }
-
-    public void prepare(int size) {
-        synchronized (prepareLock) {
-            int count = max(1, size / bufferBytes);
-            int remaining = size;
-
-            for (int i = 0; i < count; i++) {
-                int len = min(remaining, bufferBytes);
-
-                _prepare(len);
-
-                remaining -= len;
-            }
+        try {
+            return queue.take();
+        } catch (InterruptedException e) {
+            logger.debug("Interrupted while waiting for producer, ending...");
+            return null;
         }
     }
 
-    private void _prepare(int size) {
+    public CompletableFuture<Void> startProducer() {
+        logger.debug("Starting a new producer when the old one has shut down...");
+
+        return whenThreadsShutdown().thenCompose(nil -> startNewProducer());
+    }
+
+    private synchronized CompletableFuture<Void> startNewProducer() {
+        soundMixer.reset();
+        this.reset();
+
+        CompletableFuture<Void> firstBuffer = new CompletableFuture<>();
+
+        var crashed = new AtomicBoolean(false);
+
+        final Thread processor = Thread.ofVirtual().name("Song Audio Preprocessor").start(() -> {
+            logger.debug("New producer #{} has started", Thread.currentThread().threadId());
+
+            boolean active = true;
+
+            while (active && !Thread.currentThread().isInterrupted()) {
+                active = prepare(bufferBytes);
+
+                if (!active) {
+                    logger.debug("Producer #{} is done", Thread.currentThread().threadId());
+                }
+
+                crashed.set(false);
+
+                if (!firstBuffer.isDone()) {
+                    firstBuffer.complete(null);
+                }
+            }
+
+            logger.debug("Song audio producer shutdown: {}", Thread.currentThread());
+        });
+
+        watchdog = Thread.ofVirtual().name("Song Audio Preprocessor Watchdog").start(() -> {
+            while (processor.isAlive()) {
+                if (crashed.getAndSet(true)) {
+                    logger.debug("Song audio preprocessor seems to have crashed or is dead-locked, shutting it down...");
+                    processor.interrupt();
+                    break;
+                }
+
+                try {
+                    //noinspection BusyWait
+                    Thread.sleep(TIMEOUT_MS);
+                } catch (InterruptedException ignored) {
+                    logger.debug("Song watchdog got interrupted for producer #{}", processor.threadId());
+                    break;
+                }
+            }
+
+            logger.debug("Song audio watchdog for producer #{} shutdown: {}", processor.threadId(), Thread.currentThread());
+        });
+
+        producer = processor;
+
+        return firstBuffer;
+    }
+
+    private boolean prepare(int size) {
         synchronized (this) {
-            if (prepared >= PREPARE_COUNT || ended) return;  // cannot prepare any more elements
+            if (ended) {
+                // cannot prepare any more elements
+                logger.debug("Song has already ended (producer #{})", Thread.currentThread().threadId());
+                return false;
+            }
         }
 
         final int frameCount = getFrameCount(format, size);
@@ -191,7 +223,8 @@ public class SongAudioStream implements AudioStream {
                     ended = true;
                 }
 
-                return;
+                logger.debug("Song is done (producer #{})", Thread.currentThread().threadId());
+                return false;
             }
         } else {
             onUpdate.run();
@@ -200,16 +233,35 @@ public class SongAudioStream implements AudioStream {
 
         ByteBuffer buf = bufferProcessor.process(frameCount, soundMixer.getScope());
 
-        synchronized (this) {
-            int prepareIdx = (prepareStart + prepared) % PREPARE_COUNT;
+        ByteBuffer preparedBuffer;
 
-            copyBuffer(buf, preparedBuffers[prepareIdx]);
+        synchronized (this) {
+            if (Thread.currentThread().isInterrupted()) {
+                logger.debug("Song producer #{} was interrupted while processing", Thread.currentThread().threadId());
+                return false;
+            }
+
+            preparedBuffer = preparedBuffers[prepareIdx];
+            copyBuffer(buf, preparedBuffer);
 
             soundMixer.advanceBuffer();
             tick = endTick;
 
-            prepared++;
+            prepareIdx = (prepareIdx + 1) % preparedBuffers.length;
         }
+
+        try {
+            if (!queue.offer(preparedBuffer, TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                logger.debug("Song audio queue didn't get polled for the specified timeout. Shutting down producer...");
+                return false;
+            }
+        } catch (InterruptedException ignored) {
+            // assume sound was stopped
+            logger.debug("Song producer #{} was interrupted while waiting for the queue to be polled", Thread.currentThread().threadId());
+            return false;
+        }
+
+        return true;
     }
 
     private void copyBuffer(ByteBuffer src, ByteBuffer dst) {
@@ -226,17 +278,75 @@ public class SongAudioStream implements AudioStream {
     }
 
     @Override
-    public void close() {}
+    public synchronized void close() {
+        logger.debug("Closing song audio stream...");
 
-    public synchronized void setTick(int tick) {
-        this.tick = max(0, tick);
+        stopThreads();
+    }
 
-        reset();
+    public CompletableFuture<Void> setTick(int tick) {
+        logger.debug("Setting playback tick when the old producer has shut down...");
+
+        return whenThreadsShutdown().thenRun(() -> {
+            synchronized (this) {
+                reset();
+                this.tick = max(0, tick);
+            }
+        });
     }
 
     public synchronized void reset() {
-        prepared = 0;
-        prepareStart = 0;
+        prepareIdx = 0;
         first = true;
+        frameOffset = 0;
+        queue.clear();
+    }
+
+    private synchronized void stopThreads() {
+        if (producer != null && producer.isAlive()) {
+            logger.debug("Stopping producer #{}", producer.threadId());
+            producer.interrupt();
+        }
+
+        if (watchdog != null && watchdog.isAlive()) {
+            logger.debug("Stopping watchdog #{}", watchdog.threadId());
+            watchdog.interrupt();
+        }
+    }
+
+    private synchronized CompletableFuture<Void> whenThreadsShutdown() {
+        if ((producer == null || !producer.isAlive()) && (watchdog == null || !watchdog.isAlive())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        stopThreads();
+
+        return CompletableFuture.runAsync(this::waitForThreads);
+    }
+
+    private synchronized void waitForThreads() {
+        if (producer != null && producer.isAlive()) {
+            try {
+                logger.debug("Waiting for previous producer to shut down...");
+
+                producer.join();
+
+                logger.debug("Previous producer shut down");
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for previous producer to shut down", e);
+            }
+        }
+
+        if (watchdog != null && watchdog.isAlive()) {
+            try {
+                logger.debug("Waiting for previous watchdog to shut down...");
+
+                watchdog.join();
+
+                logger.debug("Previous watchdog shut down");
+            } catch (InterruptedException e) {
+                throw new RuntimeException("Interrupted while waiting for previous watchdog to shut down", e);
+            }
+        }
     }
 }

@@ -10,18 +10,17 @@ import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
-import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
 import work.lclpnet.notica.type.NoticaSource;
 import work.lclpnet.notica.type.NoticaSourceManager;
 
+import java.util.concurrent.CompletableFuture;
+
 import static java.lang.Math.max;
-import static java.util.concurrent.CompletableFuture.runAsync;
 
 public class StreamSongPlayback implements SongPlayback {
 
     private final SongAudioStream audioStream;
-    private final SoundMixer soundMixer;
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final Channel channel;
@@ -34,10 +33,9 @@ public class StreamSongPlayback implements SongPlayback {
     private long playbackStartMs = 0;
     private int playbackOffsetTicks = 0;
 
-    public StreamSongPlayback(SongAudioStream audioStream, SoundMixer soundMixer, SoundSampleManager sampleManager,
+    public StreamSongPlayback(SongAudioStream audioStream, SoundSampleManager sampleManager,
                               Song song, Channel channel, Logger logger) {
         this.audioStream = audioStream;
-        this.soundMixer = soundMixer;
         this.sampleManager = sampleManager;
         this.song = song;
         this.channel = channel;
@@ -48,19 +46,17 @@ public class StreamSongPlayback implements SongPlayback {
     public synchronized void start(int startTick) {
         playbackOffsetTicks = 0;
 
-        audioStream.setTick(startTick);
-
-        runAsync(sampleManager::loadAll).thenRun(() -> {
-            prepareSync();
-            playSound();
-        }).exceptionally(err -> {
-            logger.error("Failed to start playback", err);
-            return null;
-        });
+        audioStream.setTick(startTick).thenRun(sampleManager::loadAll)
+                .thenCompose(nil -> prepareFirstBuffer())
+                .thenRun(this::playSound)
+                .exceptionally(err -> {
+                    logger.error("Failed to start playback", err);
+                    return null;
+                });
     }
 
-    private void prepareSync() {
-        audioStream.prepare(audioStream.getBufferBytes());
+    private CompletableFuture<Void> prepareFirstBuffer() {
+        return audioStream.startProducer();
     }
 
     @Override
@@ -84,21 +80,18 @@ public class StreamSongPlayback implements SongPlayback {
             if (source.isStopped()) return;
 
             ((NoticaSourceManager) sourceManager).notica$onStopped(null);
+            ((NoticaSource) source).notica$setSeeking();
 
             source.stop();
 
             sourceManager = null;
             onStopped = null;
 
-            soundMixer.reset();
-
-            audioStream.setTick(startTick);
             playbackOffsetTicks = startTick;
 
-            Thread.startVirtualThread(() -> {
-                prepareSync();
-                playSound();
-            });
+            audioStream.setTick(startTick)
+                    .thenCompose(nil -> prepareFirstBuffer())
+                    .thenRun(this::playSound);
         });
     }
 

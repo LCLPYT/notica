@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl.mix;
 
+import org.slf4j.Logger;
 import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.Song;
 
@@ -19,20 +20,22 @@ public class SongExporter {
     private final SoundSampleManager sampleManager;
     private final NoteSamplerFactory noteSamplerFactory;
     private final AudioFormat inputFormat;
+    private final Logger logger;
     private final int workerCount;
     private final float chunkSeconds;
     private final float maxExportSeconds;
 
     public SongExporter(SoundSampleManager sampleManager, NoteSamplerFactory noteSamplerFactory,
-                        AudioFormat inputFormat, int workerCount) {
-        this(sampleManager, noteSamplerFactory, inputFormat, workerCount, 1f, 4 * 60 * 60);
+                        AudioFormat inputFormat, Logger logger, int workerCount) {
+        this(sampleManager, noteSamplerFactory, inputFormat, logger, workerCount, 1f, 4 * 60 * 60);
     }
 
     public SongExporter(SoundSampleManager sampleManager, NoteSamplerFactory noteSamplerFactory,
-                        AudioFormat inputFormat, int workerCount, float chunkSeconds, float maxExportSeconds) {
+                        AudioFormat inputFormat, Logger logger, int workerCount, float chunkSeconds, float maxExportSeconds) {
         this.sampleManager = sampleManager;
         this.noteSamplerFactory = noteSamplerFactory;
         this.inputFormat = inputFormat;
+        this.logger = logger;
         this.workerCount = workerCount;
         this.chunkSeconds = chunkSeconds;
         this.maxExportSeconds = maxExportSeconds;
@@ -49,7 +52,9 @@ public class SongExporter {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, bufferBytes, false);
+                soundMixer::applyCompressor, logger, bufferBytes, false);
+
+        stream.startProducer().join();
 
         // write raw samples to a tmp file first, as the total number of samples is unknown
         Path tmpFile = Files.createTempFile("notica_export", null);

@@ -123,7 +123,7 @@ public class ClientMusicBackend {
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
         var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, bufferBytes, true);
+                soundMixer::applyCompressor, logger, bufferBytes, true);
 
         audioStream.setOnUpdate(() -> {
             float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);
@@ -132,7 +132,7 @@ public class ClientMusicBackend {
             songMixer.setSongVolume(totalVolume);
         });
 
-        return new StreamSongPlayback(audioStream, soundMixer, sampleManager, song, channel, logger);
+        return new StreamSongPlayback(audioStream, sampleManager, song, channel, logger);
     }
 
     public void stopSong(Identifier songId) {

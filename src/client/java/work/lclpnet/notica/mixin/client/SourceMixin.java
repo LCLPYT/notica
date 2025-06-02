@@ -2,6 +2,7 @@ package work.lclpnet.notica.mixin.client;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.client.sound.AudioStream;
 import net.minecraft.client.sound.Source;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -15,7 +16,7 @@ import work.lclpnet.notica.type.NoticaSource;
 public abstract class SourceMixin implements NoticaSource {
 
     @Unique
-    private boolean noticaSource = false;
+    private boolean noticaSource = false, seeking = false;
 
     @Shadow public abstract boolean isStopped();
 
@@ -29,6 +30,19 @@ public abstract class SourceMixin implements NoticaSource {
     private void notica$preventReadingStoppedSources(int count, CallbackInfo ci) {
         if (noticaSource && isStopped()) {
             ci.cancel();
+        }
+    }
+
+    @WrapOperation(
+            method = "close",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/sound/AudioStream;close()V"
+            )
+    )
+    private void notica$preventClosingSeeking(AudioStream instance, Operation<Void> original) {
+        if (!noticaSource || !seeking) {
+            original.call(instance);
         }
     }
 
@@ -58,7 +72,7 @@ public abstract class SourceMixin implements NoticaSource {
     }
 
     @Override
-    public boolean notica$isNoticaSource() {
-        return noticaSource;
+    public void notica$setSeeking() {
+        seeking = true;
     }
 }

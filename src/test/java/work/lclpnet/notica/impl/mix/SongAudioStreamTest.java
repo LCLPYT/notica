@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 
+import static org.junit.jupiter.api.Assertions.fail;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
@@ -38,7 +39,9 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, bufferBytes, false);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, false);
+
+        stream.startProducer().join();
 
         Path dir;
 
@@ -55,7 +58,9 @@ class SongAudioStreamTest {
         for (int i = 0; i < amount; i++) {
             ByteBuffer buf = stream.read(bufferBytes);
 
-            if (buf == null) break;
+            if (buf == null) {
+                fail("Didn't expect song to have ended yet");
+            }
 
             parts[i] = TestUtil.asByteArray(buf);
 
@@ -118,14 +123,18 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyClamping, bufferBytes, false);
+                soundMixer::applyClamping, TestUtil.logger, bufferBytes, false);
+
+        stream.startProducer().join();
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 
         for (int i = 0; i < amount; i++) {
             ByteBuffer buf = stream.read(bufferBytes);
 
-            if (buf == null) break;
+            if (buf == null) {
+                fail("Didn't expect song to have ended yet");
+            }
 
             combined.put(buf);
         }

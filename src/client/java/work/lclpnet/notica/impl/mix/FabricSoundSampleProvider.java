@@ -1,4 +1,4 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import net.minecraft.client.sound.*;
 import net.minecraft.resource.ResourceFactory;
@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
+import work.lclpnet.notica.impl.DirectSoundManager;
 
 import javax.sound.sampled.UnsupportedAudioFileException;
 import java.io.IOException;

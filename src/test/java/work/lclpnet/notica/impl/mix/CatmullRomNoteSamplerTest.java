@@ -3,7 +3,6 @@ package work.lclpnet.notica.impl.mix;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.impl.FabricInstrumentSoundProvider;
-import work.lclpnet.notica.impl.UnifiedSoundLoader;
 import work.lclpnet.notica.util.NoteHelper;
 import work.lclpnet.notica.util.TestUtil;
 

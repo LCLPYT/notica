@@ -1,7 +1,6 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import org.slf4j.Logger;
-import work.lclpnet.notica.impl.mix.SoundMixer;
 import work.lclpnet.notica.util.ByteBufferInputStream;
 
 import javax.sound.sampled.AudioFormat;

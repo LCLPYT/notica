@@ -1,7 +1,5 @@
 package work.lclpnet.notica.impl.mix;
 
-import work.lclpnet.notica.impl.UnifiedSoundLoader;
-
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 

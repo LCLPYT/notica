@@ -3,7 +3,6 @@ package work.lclpnet.notica.impl.mix;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;
@@ -38,7 +37,8 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes, false);
+        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, bufferBytes, false);
 
         Path dir;
 
@@ -117,7 +117,8 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song, bufferBytes, false);
+        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyClamping, bufferBytes, false);
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 
@@ -147,6 +148,6 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames, soundMixer.getScope());
+        return soundMixer.applyClamping(frames, soundMixer.getScope());
     }
 }

@@ -5,8 +5,8 @@ import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import work.lclpnet.kibu.assets.AssetManager;
-import work.lclpnet.notica.impl.SoundRef;
-import work.lclpnet.notica.impl.SoundSample;
+import work.lclpnet.notica.impl.mix.SoundRef;
+import work.lclpnet.notica.impl.mix.SoundSample;
 
 import java.io.IOException;
 import java.nio.file.Files;

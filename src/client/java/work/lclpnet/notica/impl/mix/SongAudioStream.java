@@ -7,7 +7,6 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.SongMixer;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -23,6 +22,7 @@ public class SongAudioStream implements AudioStream {
     private final Song song;
     private final SoundMixer soundMixer;
     private final SongMixer songMixer;
+    private final BufferProcessor bufferProcessor;
     private final ByteBuffer[] preparedBuffers;
     @Getter
     private final int bufferBytes;
@@ -39,11 +39,13 @@ public class SongAudioStream implements AudioStream {
     private int frameOffset = 0;
     private int loopCount;
 
-    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song, int bufferBytes, boolean loopEnabled) {
+    public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song,
+                           BufferProcessor bufferProcessor, int bufferBytes, boolean loopEnabled) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
         this.song = song;
+        this.bufferProcessor = bufferProcessor;
         this.bufferBytes = bufferBytes;
 
         preparedBuffers = new ByteBuffer[PREPARE_COUNT];
@@ -196,7 +198,7 @@ public class SongAudioStream implements AudioStream {
             frameOffset = max(0, songMixer.mixTicks(tick, endTick, frameOffset) - soundMixer.getBufferFrames());
         }
 
-        ByteBuffer buf = soundMixer.applyCompressor(frameCount, soundMixer.getScope());
+        ByteBuffer buf = bufferProcessor.process(frameCount, soundMixer.getScope());
 
         synchronized (this) {
             int prepareIdx = (prepareStart + prepared) % PREPARE_COUNT;

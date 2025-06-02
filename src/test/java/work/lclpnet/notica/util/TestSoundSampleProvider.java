@@ -4,8 +4,8 @@ import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.SongDecoder;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
-import work.lclpnet.notica.impl.SoundRef;
-import work.lclpnet.notica.impl.SoundSampleProvider;
+import work.lclpnet.notica.impl.mix.SoundRef;
+import work.lclpnet.notica.impl.mix.SoundSampleProvider;
 
 import java.util.Optional;
 

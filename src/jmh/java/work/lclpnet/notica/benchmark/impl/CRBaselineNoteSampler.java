@@ -4,8 +4,8 @@ import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.CustomInstrument;
 import work.lclpnet.notica.api.data.Instruments;
 import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.impl.NoteSampler;
-import work.lclpnet.notica.impl.SoundSampleManager;
+import work.lclpnet.notica.impl.mix.NoteSampler;
+import work.lclpnet.notica.impl.mix.SoundSampleManager;
 import work.lclpnet.notica.util.NoteHelper;
 
 import javax.sound.sampled.AudioFormat;

@@ -3,7 +3,6 @@ package work.lclpnet.notica.impl.mix;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.SoundSampleManager;
 import work.lclpnet.notica.util.TestUtil;
 
 import java.io.IOException;

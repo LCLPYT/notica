@@ -2,9 +2,6 @@ package work.lclpnet.notica.impl.mix;
 
 import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.api.data.Song;
-import work.lclpnet.notica.impl.NoteSampler;
-import work.lclpnet.notica.impl.NoteSamplerFactory;
-import work.lclpnet.notica.impl.SoundSampleManager;
 
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
@@ -51,7 +48,8 @@ public class SongExporter {
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song, bufferBytes, false);
+        var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, bufferBytes, false);
 
         // write raw samples to a tmp file first, as the total number of samples is unknown
         Path tmpFile = Files.createTempFile("notica_export", null);

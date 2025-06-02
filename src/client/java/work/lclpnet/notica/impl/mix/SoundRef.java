@@ -1,4 +1,4 @@
-package work.lclpnet.notica.impl;
+package work.lclpnet.notica.impl.mix;
 
 import java.util.concurrent.CompletableFuture;
 

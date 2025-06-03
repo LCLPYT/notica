@@ -293,22 +293,16 @@ public class SoundMixer {
     @SuppressWarnings("SameParameterValue")
     @VisibleForTesting
     ByteBuffer applyClamping(final int frameCount, Scope scope) {
-        ByteBuffer buf = BufferUtils.createByteBuffer(frameCount * format.getFrameSize());
-        buf.position(0);
+        directBuffer.position(0);
+        directBuffer.limit(directBuffer.capacity());
 
-        final float[][] buffers = scope.buffers;
-        final int bufCount = (int) Math.ceil((float) frameCount / bufferFrames);
+        float[] samples = scope.buffers[currentBuffer];
 
-        for (int i = 0; i < bufCount; i++) {
-            float[] samples = buffers[i];
-            final int len = max(0, min(bufferFrames, frameCount - i * bufferFrames));
+        UnifiedSoundLoader.toInterleavedBytes(samples, frameCount, directBuffer, format);
 
-            UnifiedSoundLoader.toInterleavedBytes(samples, len, buf, format);
-        }
+        directBuffer.flip();
 
-        buf.flip();
-
-        return buf;
+        return directBuffer;
     }
 
     public void reset() {

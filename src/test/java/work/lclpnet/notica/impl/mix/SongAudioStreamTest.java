@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.fail;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
@@ -90,7 +91,7 @@ class SongAudioStreamTest {
     }
 
     @Test
-    void testSameAsContinuous() throws IOException {
+    void testClampedSameAsContinuous() throws IOException {
         Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
 
         TestUtil.initSoundRegistry();
@@ -102,8 +103,8 @@ class SongAudioStreamTest {
         int amount = 5;
         float volume = 1.5f;
 
-        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount);
-        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount);
+        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
+        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
 
         float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
         float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
@@ -113,7 +114,32 @@ class SongAudioStreamTest {
         TestUtil.assertArrayEquals(reference_array, combined_array, tol, "Combined does not match reference");
     }
 
-    private ByteBuffer combined(Song song, float volume, SoundSampleManager sampleManager, float seconds, int amount) throws IOException {
+    @Test
+    void testCompressorSameAsContinuous() throws IOException {
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
+
+        TestUtil.initSoundRegistry();
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        float seconds = 1.f;
+        int amount = 5;
+        float volume = 1.5f;
+
+        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyCompressor);
+        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyCompressor);
+
+        float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
+        float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
+
+        float tol = 4f / Short.MAX_VALUE;
+
+        TestUtil.assertArrayEquals(reference_array, combined_array, tol, "Combined does not match reference");
+    }
+
+    private ByteBuffer combined(Song song, float volume, SoundSampleManager sampleManager, float seconds, int amount,
+                                Function<SoundMixer, BufferProcessor> processor) throws IOException {
         int bufferBytes = getBufferByteSize(seconds);
 
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
@@ -123,7 +149,7 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyClamping, TestUtil.logger, bufferBytes, false);
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, false);
 
         stream.startProducer().join();
 
@@ -144,7 +170,8 @@ class SongAudioStreamTest {
         return combined;
     }
 
-    private ByteBuffer reference(Song song, float volume, SoundSampleManager sampleManager, float seconds, int amount) throws IOException {
+    private ByteBuffer reference(Song song, float volume, SoundSampleManager sampleManager, float seconds, int amount,
+                                 Function<SoundMixer, BufferProcessor> processor) throws IOException {
         int bufferBytes = getBufferByteSize(seconds) * amount;
         int frames = getFrames(bufferBytes);
 
@@ -157,6 +184,6 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyClamping(frames, soundMixer.getScope());
+        return processor.apply(soundMixer).process(frames, soundMixer.getScope());
     }
 }

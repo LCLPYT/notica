@@ -123,6 +123,48 @@ public class ParallelBatchSongMixerTest {
                 .formatted(bufferSize / 2));
     }
 
+    @Test
+    void testCombinedSameAsContinuousBatchSongMixer() throws IOException {
+        Song song = TestUtil.loadSong("Driftveil City.nbs", ParallelBatchSongMixerTest.class);
+
+        TestUtil.initSoundRegistry();
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        int chunks = 32;
+        float chunkSeconds = 1;
+        int bufferSize = getBufferByteSize(chunkSeconds);
+        int frames = getFrames(bufferSize);
+        float songVolume = 0.5f;
+
+        ByteBuffer sequentialContinuous = sequentialSample(song, bufferSize * chunks, sampleManager, songVolume, chunkSeconds * chunks, frames * chunks);
+        ByteBuffer parallelCombined = parallelChunked(song, bufferSize, sampleManager, songVolume, chunkSeconds, frames, chunks);
+
+        float[] sequential_array = TestUtil.toFloatArray(TestUtil.asShortArray(sequentialContinuous));
+        float[] parallel_array = TestUtil.toFloatArray(TestUtil.asShortArray(parallelCombined));
+
+        float tol = 2f / Short.MAX_VALUE;
+
+        if (EXPORT) {
+            sequentialContinuous.flip();
+            parallelCombined.flip();
+
+            Path seqPath = TestUtil.exportSound(sequentialContinuous);
+            Path parPath = TestUtil.exportSound(parallelCombined);
+
+            System.out.println("Sequential exported to " + seqPath.toAbsolutePath());
+            System.out.println("Parallel exported to " + parPath.toAbsolutePath());
+
+            if (OPEN) {
+                TestUtil.openFile(seqPath.getParent());
+            }
+        }
+
+        TestUtil.assertArrayEquals(sequential_array, parallel_array, tol, "Parallel does not match sequential (buffer_size=%s)"
+                .formatted(bufferSize / 2));
+    }
+
     private ByteBuffer sequentialSample(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume, float seconds, int frames) throws IOException {
         int workerCount = 1;
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, workerCount);

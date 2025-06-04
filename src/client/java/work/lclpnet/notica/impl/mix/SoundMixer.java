@@ -290,9 +290,7 @@ public class SoundMixer {
         return directBuffer;
     }
 
-    @SuppressWarnings("SameParameterValue")
-    @VisibleForTesting
-    ByteBuffer applyClamping(final int frameCount, Scope scope) {
+    public ByteBuffer applyClamping(final int frameCount, Scope scope) {
         directBuffer.position(0);
         directBuffer.limit(directBuffer.capacity());
 

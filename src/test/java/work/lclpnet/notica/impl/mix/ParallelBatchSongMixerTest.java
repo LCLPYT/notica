@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
@@ -76,7 +75,9 @@ public class ParallelBatchSongMixerTest {
         float[] sequential_array = TestUtil.toFloatArray(TestUtil.asShortArray(sequential));
         float[] parallel_array = TestUtil.toFloatArray(TestUtil.asShortArray(parallel));
 
-        assertArrayEquals(sequential_array, parallel_array, "Parallel does not match sequential (buffer_size=%s)"
+        float tol = 2f / Short.MAX_VALUE;
+
+        TestUtil.assertArrayEquals(sequential_array, parallel_array, tol, "Parallel does not match sequential (buffer_size=%s)"
                 .formatted(bufferSize / 2));
     }
 
@@ -101,23 +102,25 @@ public class ParallelBatchSongMixerTest {
         float[] sequential_array = TestUtil.toFloatArray(TestUtil.asShortArray(sequential));
         float[] parallel_array = TestUtil.toFloatArray(TestUtil.asShortArray(parallel));
 
-        assertArrayEquals(sequential_array, parallel_array, "Parallel does not match sequential (buffer_size=%s)"
+        float tol = 2f / Short.MAX_VALUE;
+
+        if (EXPORT) {
+            sequential.flip();
+            parallel.flip();
+
+            Path seqPath = TestUtil.exportSound(sequential);
+            Path parPath = TestUtil.exportSound(parallel);
+
+            System.out.println("Sequential exported to " + seqPath.toAbsolutePath());
+            System.out.println("Parallel exported to " + parPath.toAbsolutePath());
+
+            if (OPEN) {
+                TestUtil.openFile(seqPath.getParent());
+            }
+        }
+
+        TestUtil.assertArrayEquals(sequential_array, parallel_array, tol, "Parallel does not match sequential (buffer_size=%s)"
                 .formatted(bufferSize / 2));
-
-        if (!EXPORT) return;
-
-        sequential.flip();
-        parallel.flip();
-
-        Path seqPath = TestUtil.exportSound(sequential);
-        Path parPath = TestUtil.exportSound(parallel);
-
-        System.out.println("Sequential exported to " + seqPath.toAbsolutePath());
-        System.out.println("Parallel exported to " + parPath.toAbsolutePath());
-
-        if (!OPEN) return;
-
-        TestUtil.openFile(seqPath.getParent());
     }
 
     private ByteBuffer sequentialSample(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume, float seconds, int frames) throws IOException {

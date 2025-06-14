@@ -40,7 +40,7 @@ public class SimpleSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getScope());
+        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
 
         if (!EXPORT) return;
 

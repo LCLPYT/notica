@@ -231,7 +231,7 @@ public class SongAudioStream implements AudioStream {
             frameOffset = max(0, songMixer.mixTicks(tick, endTick, frameOffset) - soundMixer.getBufferFrames());
         }
 
-        ByteBuffer buf = bufferProcessor.process(frameCount, soundMixer.getScope());
+        ByteBuffer buf = bufferProcessor.process(frameCount, soundMixer.getRootScope());
 
         ByteBuffer preparedBuffer;
 

@@ -184,6 +184,6 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return processor.apply(soundMixer).process(frames, soundMixer.getScope());
+        return processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
     }
 }

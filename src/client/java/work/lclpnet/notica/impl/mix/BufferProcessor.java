@@ -4,5 +4,5 @@ import java.nio.ByteBuffer;
 
 public interface BufferProcessor {
 
-    ByteBuffer process(int frameCount, SoundMixer.Scope scope);
+    ByteBuffer process(int frameCount, Scope scope);
 }

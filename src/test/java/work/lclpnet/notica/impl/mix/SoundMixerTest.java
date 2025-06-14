@@ -37,14 +37,14 @@ class SoundMixerTest {
             sine[i + totalFrames] = v;
         }
 
-        mixer.mixSample(sine, totalFrames, 0, 0, mixer.getScope());
+        mixer.mixSample(sine, totalFrames, 0, mixer.getRootScope());
 
         ByteBuffer combined = BufferUtils.createByteBuffer(totalSamples * 2);
 
         int iterations = (int) ceil(totalFrames / (double) bufferFrames);
 
         for (int i = 0; i < iterations; i++) {
-            ByteBuffer buf = mixer.applyClamping(bufferFrames, mixer.getScope());
+            ByteBuffer buf = mixer.applyClamping(bufferFrames, mixer.getRootScope());
 
             combined.put(buf);
 

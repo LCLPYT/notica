@@ -9,7 +9,6 @@ import work.lclpnet.notica.api.data.Note;
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Arrays;
 import java.util.function.IntFunction;
 
 import static java.lang.Math.*;
@@ -28,7 +27,7 @@ public class SoundMixer {
     private final int bufferFrames;
     private final ByteBuffer directBuffer;
     @Getter
-    private final Scope scope;
+    private final Scope rootScope;
     private final Scope[] workerScopes;
     private final int extraBufferCount;
 
@@ -61,14 +60,14 @@ public class SoundMixer {
         final int bufferCount = BASE_BUFFER_COUNT + extraBufferCount;
 
         if (scopeCount > 1) {
-            scope = new Scope(0, bufferCount, bufferSize);
+            rootScope = new Scope(0, bufferCount, bufferSize);
             workerScopes = new Scope[scopeCount];
 
             for (int i = 0; i < scopeCount; i++) {
                 workerScopes[i] = createScope();
             }
         } else {
-            scope = new Scope(extraBufferCount, bufferCount, bufferSize);
+            rootScope = new Scope(extraBufferCount, bufferCount, bufferSize);
             workerScopes = new Scope[0];
         }
     }
@@ -92,9 +91,7 @@ public class SoundMixer {
     }
 
     private Scope createScope() {
-        int bufferCount = scope.buffers.length;
-
-        return new Scope(extraBufferCount, bufferCount, bufferSize);
+        return new Scope(extraBufferCount, rootScope.getBufferCount(), bufferSize);
     }
 
     /**
@@ -118,37 +115,32 @@ public class SoundMixer {
     }
 
     public int bindSample(Note note, float volume, short layerPanning, Scope scope) {
-        return noteSampler.sample(note, volume, layerPanning, scope.sampleBuffer);
+        return noteSampler.sample(note, volume, layerPanning, scope.getSampleBuffer());
     }
 
     public boolean mixSample(int frameOffset, int frameCount, Scope scope) {
-        if (frameCount < 0) {
+        if (frameCount <= 0) {
             return false;
         }
 
-        final int bufferIdx = currentBuffer;
-
-        if (notEnoughSpace(frameOffset, frameCount, bufferIdx, scope)) {
+        if (notEnoughSpace(frameOffset, frameCount, scope)) {
             return false;
         }
 
-        mixSample(scope.sampleBuffer, frameCount, bufferIdx, frameOffset, scope);
+        mixSample(scope.getSampleBuffer(), frameCount, frameOffset, scope);
 
         return true;
     }
 
-    private boolean notEnoughSpace(int frameOffset, int frameCount, int bufferIdx, Scope scope) {
+    @VisibleForTesting
+    boolean notEnoughSpace(int frameOffset, int frameCount, Scope scope) {
         int bufferSpan = bufferSpan(frameOffset, frameCount);
 
-        float[][] buffers = scope.buffers;
-
-        int distanceToCurrent = (bufferIdx - currentBuffer + buffers.length) % buffers.length;
-        int available = buffers.length - distanceToCurrent;
-
-        return bufferSpan > available;
+        return bufferSpan > scope.getBufferCount();
     }
 
-    private int bufferSpan(int frameOffset, int frameCount) {
+    @VisibleForTesting
+    int bufferSpan(int frameOffset, int frameCount) {
         final int channels = 2;
         final int sampleCount = frameCount * channels;
         final int sampleOffset = frameOffset * channels;
@@ -160,23 +152,23 @@ public class SoundMixer {
     }
 
     @VisibleForTesting
-    void mixSample(float[] sample, final int frameCount, int bufferIdx, final int totalFrameOffset, Scope scope) {
+    void mixSample(float[] sample, final int frameCount, final int totalFrameOffset, Scope scope) {
         final int bufferOffset = totalFrameOffset / bufferFrames;
         final int frameOffset = totalFrameOffset % bufferFrames;
 
         // figure out first buffer index
-        bufferIdx = (bufferIdx + bufferOffset) % scope.buffers.length;
+        int bufferIdx = (currentBuffer + bufferOffset) % scope.getBufferCount();
 
         // mix first part with offset into the first buffer
         int writtenFrames = mixOffset(sample, frameCount, bufferIdx, frameOffset, scope);
 
         // mix the rest into the following buffers
-        mixRest(sample, frameCount, bufferIdx, totalFrameOffset, writtenFrames, scope);
+        mixRest(sample, frameCount, bufferIdx, writtenFrames, scope);
     }
 
     private int mixOffset(float[] sample, int frameCount, int bufferIdx, int frameOffset, Scope scope) {
         final int len = max(0, min(frameCount, bufferFrames - frameOffset));
-        float[] buffer = scope.buffers[bufferIdx];
+        float[] buffer = scope.getBuffer(bufferIdx);
 
         // left
         for (int i = 0; i < len; i++) {
@@ -191,23 +183,21 @@ public class SoundMixer {
         return len;
     }
 
-    private void mixRest(float[] sample, int frameCount, int bufferIdx, int totalFrameOffset, final int writtenFrames, Scope scope) {
-        final int span = bufferSpan(totalFrameOffset, frameCount);
+    private void mixRest(float[] sample, int frameCount, int bufferIdx, final int writtenFrames, Scope scope) {
+        int remain = frameCount - writtenFrames;
+        final int span = bufferSpan(0, remain);
 
         synchronized (this) {
-            remainingBuffers = max(remainingBuffers, span);
+            remainingBuffers = max(remainingBuffers, span + 1);
         }
 
-        final float[][] buffers = scope.buffers;
-        final int restBufferSpan = span - 1;
-
-        for (int i = 1; i <= restBufferSpan; i++) {
+        for (int i = 1; i <= span; i++) {
             int writtenSoFar = writtenFrames + (i - 1) * bufferFrames;
             int remainingFrames = frameCount - writtenSoFar;
             int len = max(0, min(bufferFrames, remainingFrames));
 
-            int idx = (bufferIdx + i) % buffers.length;
-            float[] buffer = buffers[idx];
+            int idx = (bufferIdx + i) % scope.getBufferCount();
+            float[] buffer = scope.getBuffer(idx);
 
             // left
             for (int j = 0; j < len; j++) {
@@ -278,9 +268,8 @@ public class SoundMixer {
     }
 
     public ByteBuffer applyCompressor(final int frameCount, Scope scope) {
-        float[][] buffers = scope.buffers;
-        float[] samples = buffers[currentBuffer];
-        float[] next = buffers[(currentBuffer + 1) % buffers.length];
+        float[] samples = scope.getBuffer(currentBuffer);
+        float[] next = scope.getBuffer((currentBuffer + 1) % scope.getBufferCount());
 
         // floating point samples might be outside the playable 16-bit range
         // apply dynamic-range-compression in order to make everything playable
@@ -294,7 +283,7 @@ public class SoundMixer {
         directBuffer.position(0);
         directBuffer.limit(directBuffer.capacity());
 
-        float[] samples = scope.buffers[currentBuffer];
+        float[] samples = scope.getBuffer(currentBuffer);
 
         UnifiedSoundLoader.toInterleavedBytes(samples, frameCount, directBuffer, format);
 
@@ -306,21 +295,19 @@ public class SoundMixer {
     public void reset() {
         currentBuffer = 0;
 
-        for (float[] buffer : scope.buffers) {
-            Arrays.fill(buffer, 0f);
-        }
+        rootScope.reset();
 
         compressor.reset();
     }
 
     public void advanceBuffer() {
-        Arrays.fill(scope.buffers[currentBuffer], 0f);
+        rootScope.resetBuffer(currentBuffer);
 
         for (Scope workerScope : workerScopes) {
-            Arrays.fill(workerScope.buffers[currentBuffer], 0f);
+            workerScope.resetBuffer(currentBuffer);
         }
 
-        currentBuffer = (currentBuffer + 1) % scope.buffers.length;
+        currentBuffer = (currentBuffer + 1) % rootScope.getBufferCount();
         remainingBuffers = max(0, remainingBuffers - 1);
     }
 
@@ -330,7 +317,7 @@ public class SoundMixer {
 
     public Scope getWorkerScope(int i) {
         if (workerScopes.length == 0 && i == 0) {
-            return scope;
+            return rootScope;
         }
 
         return workerScopes[i];
@@ -339,7 +326,7 @@ public class SoundMixer {
     public void combineScopes(int workers) {
         if (workerScopes.length == 0) return;
 
-        var rootScope = scope;
+        var rootScope = this.rootScope;
 
         rootScope.copy(workerScopes[0]);
 
@@ -347,63 +334,6 @@ public class SoundMixer {
 
         for (int i = 1; i < workers; i++) {
             rootScope.add(workerScopes[i]);
-        }
-    }
-
-    public static class Scope {
-        private final float[] sampleBuffer;
-        private final float[][] buffers;
-
-        public Scope(int sampleBufferCount, int bufferCount, int bufferSize) {
-            sampleBuffer = new float[sampleBufferCount * bufferSize];
-
-            buffers = new float[bufferCount][0];
-
-            for (int i = 0; i < buffers.length; i++) {
-                buffers[i] = new float[bufferSize];
-            }
-        }
-
-        public void copy(Scope scope) {
-            final int bufferCount = scope.buffers.length;
-
-            if (bufferCount != this.buffers.length) {
-                throw new IllegalArgumentException("Buffer count mismatch");
-            }
-
-            for (int i = 0; i < bufferCount; i++) {
-                float[] src = scope.buffers[i];
-                float[] dst = this.buffers[i];
-
-                System.arraycopy(src, 0, dst, 0, src.length);
-            }
-        }
-
-        public void add(Scope scope) {
-            final int bufferCount = scope.buffers.length;
-
-            if (bufferCount != this.buffers.length) {
-                throw new IllegalArgumentException("Buffer count mismatch");
-            }
-
-            for (int i = 0; i < bufferCount; i++) {
-                final float[] src = scope.buffers[i];
-                final float[] dst = this.buffers[i];
-
-                add(src, dst);
-            }
-        }
-
-        private static void add(float[] src, float[] dst) {
-            final int len = src.length;
-
-            if (len != dst.length) {
-                throw new IllegalArgumentException("Buffer length mismatch");
-            }
-
-            for (int j = 0; j < len; j++) {
-                dst[j] += src[j];
-            }
         }
     }
 }

@@ -110,7 +110,7 @@ public class ParallelBatchSongMixer implements SongMixer {
         soundMixer.combineScopes(assignedWorkers);
     }
 
-    private @NotNull Thread createWorker(int jobStart, int jobEnd, SoundMixer.Scope scope,
+    private @NotNull Thread createWorker(int jobStart, int jobEnd, Scope scope,
                                          ArrayList<Map.Entry<BatchNote, List<BatchNote>>> jobs) {
 
         return Thread.startVirtualThread(() -> {

@@ -42,7 +42,7 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getScope());
+        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
 
         if (!EXPORT) return;
 
@@ -179,7 +179,7 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames, soundMixer.getScope());
+        return soundMixer.applyCompressor(frames, soundMixer.getRootScope());
     }
 
     private ByteBuffer parallelSample(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume, float seconds, int frames) throws IOException {
@@ -196,7 +196,7 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames, soundMixer.getScope());
+        return soundMixer.applyCompressor(frames, soundMixer.getRootScope());
     }
 
     private ByteBuffer sequentialChunked(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume,
@@ -221,7 +221,7 @@ public class ParallelBatchSongMixerTest {
 
             songMixer.mixTicks(startTick, endTick, 0);
 
-            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getScope());
+            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
             combined.put(buf);
 
             soundMixer.advanceBuffer();
@@ -256,7 +256,7 @@ public class ParallelBatchSongMixerTest {
 
             songMixer.mixTicks(startTick, endTick, 0);
 
-            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getScope());
+            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
             combined.put(buf);
 
             soundMixer.advanceBuffer();

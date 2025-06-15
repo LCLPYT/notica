@@ -88,7 +88,7 @@ public class SongAudioStream implements AudioStream {
     @Override
     public @Nullable ByteBuffer read(int size) {
         synchronized (this) {
-            if (ended) {
+            if (ended && queue.isEmpty()) {
                 logger.debug("Song has ended");
                 return null;
             }

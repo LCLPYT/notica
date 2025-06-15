@@ -107,7 +107,7 @@ public class ParallelBatchSongMixer implements SongMixer {
             }
         }
 
-        soundMixer.combineScopes(assignedWorkers);
+        soundMixer.combineScopes();
     }
 
     private @NotNull Thread createWorker(int jobStart, int jobEnd, Scope scope,

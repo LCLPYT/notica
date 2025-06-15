@@ -323,16 +323,14 @@ public class SoundMixer {
         return workerScopes[i];
     }
 
-    public void combineScopes(int workers) {
+    public void combineScopes() {
         if (workerScopes.length == 0) return;
 
         var rootScope = this.rootScope;
 
         rootScope.copy(workerScopes[0]);
 
-        workers = min(workerScopes.length, workers);
-
-        for (int i = 1; i < workers; i++) {
+        for (int i = 1; i < workerScopes.length; i++) {
             rootScope.add(workerScopes[i]);
         }
     }

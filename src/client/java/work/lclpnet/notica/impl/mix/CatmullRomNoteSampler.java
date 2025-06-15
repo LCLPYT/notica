@@ -135,8 +135,8 @@ public class CatmullRomNoteSampler implements NoteSampler {
                 leftPanning = 0;
                 rightPanning = 1.f - (panning / 8f);
             } else {
-                leftPanning = 1;
-                rightPanning = 1;
+                leftPanning = (float) cos(PI / 4);
+                rightPanning = (float) sin(PI / 4);
             }
         } else {
             leftPanning = (float) cos((panning + 1) * PI / 4);

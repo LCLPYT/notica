@@ -53,4 +53,26 @@ class CatmullRomNoteSamplerTest {
 
         TestUtil.openFile(path.getParent());
     }
+
+    @Test
+    void changePitch() throws IOException {
+        TestUtil.initSoundRegistry();
+
+        float pitch = 1.5f;
+
+        float[] baseSample = TestUtil.getSoundSample(FabricInstrumentSoundProvider.FLUTE);
+        float[] transformed = CatmullRomNoteSampler.changePitch(baseSample, pitch, AUDIO_FORMAT);
+
+        assertEquals((int) (baseSample.length / pitch), transformed.length);
+
+        if (!EXPORT) return;
+
+        var path = TestUtil.exportSound(transformed);
+
+        System.out.println(path);
+
+        if (!OPEN) return;
+
+        TestUtil.openFile(path);
+    }
 }

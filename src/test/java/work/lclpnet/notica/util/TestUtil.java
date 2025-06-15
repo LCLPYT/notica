@@ -1,6 +1,7 @@
 package work.lclpnet.notica.util;
 
 import org.jetbrains.annotations.NotNull;
+import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.assets.AssetManager;
@@ -172,6 +173,16 @@ public class TestUtil {
         }
 
         return array;
+    }
+
+    public static Path exportSound(float[] samples) throws IOException {
+        var buf = BufferUtils.createByteBuffer(samples.length * 2);
+
+        UnifiedSoundLoader.toInterleavedBytes(samples, samples.length / 2, buf, AUDIO_FORMAT);
+
+        buf.flip();
+
+        return exportSound(buf);
     }
 
     public static void assertArrayEquals(float[] expected, float[] actual, float tol, String msg) {

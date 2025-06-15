@@ -9,7 +9,6 @@ import work.lclpnet.notica.api.data.Note;
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.function.IntFunction;
 
 import static java.lang.Math.*;
 
@@ -208,62 +207,6 @@ public class SoundMixer {
             for (int j = 0; j < len; j++) {
                 buffer[bufferFrames + j] += sample[frameCount + j + writtenSoFar];
             }
-        }
-    }
-
-    @Deprecated(forRemoval = true)
-    public static ByteBuffer changePitch(ByteBuffer input, float pitch, AudioFormat format, IntFunction<ByteBuffer> outputFactory) {
-        if (pitch == 1.0) {
-            return input;
-        }
-
-        int channels = format.getChannels();
-        int frameSize = format.getFrameSize();
-        int sampleBytes = format.getSampleSizeInBits() / 8;  // support non-multiples of 8?
-
-        int baseFrameCount = input.limit() / frameSize;
-        int sampleFrameCount = (int) (baseFrameCount / pitch);
-
-        ByteBuffer output = outputFactory.apply(sampleFrameCount).order(ByteOrder.LITTLE_ENDIAN);
-
-        for (int frame = 0; frame < sampleFrameCount; frame++) {
-            double exactIdx = frame * pitch;
-            int idx = (int) exactIdx;
-            double delta = exactIdx - idx;
-
-            if (idx + 1 >= baseFrameCount) break;
-
-            for (int channel = 0; channel < channels; channel++) {
-                int leftIdx = (idx * channels + channel) * sampleBytes;
-                int rightIdx = ((idx + 1) * channels + channel) * sampleBytes;
-
-                short leftSample = input.getShort(leftIdx);
-                short rightSample = input.getShort(rightIdx);
-
-                short interpolatedSample = (short) ((1.d - delta) * leftSample + delta * rightSample);
-                output.putShort(interpolatedSample);
-            }
-        }
-
-        output.flip();
-
-        return output;
-    }
-
-    @Deprecated(forRemoval = true)
-    public static void changeVolume(ByteBuffer samples, float volume) {
-        if (volume == 1.0) return;
-
-        int len = samples.limit();
-
-        samples.position(0);
-
-        for (int i = 0; i < len; i++) {
-            short sample = samples.getShort();
-
-            sample = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, round(sample * volume)));
-
-            samples.putShort(sample);
         }
     }
 

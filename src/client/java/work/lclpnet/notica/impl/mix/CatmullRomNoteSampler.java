@@ -49,6 +49,22 @@ public class CatmullRomNoteSampler implements NoteSampler {
         return padded;
     }
 
+    public static float[] changePitch(float[] sample, float pitch, AudioFormat targetFormat) {
+        if (pitch == 1.f) {
+            return sample;
+        }
+
+        int baseSamples = sample.length;
+        int transformedSamples = (int) (baseSamples / pitch);
+
+        float[] paddedSrc = paddedSample(sample);
+        float[] transformed = new float[transformedSamples];
+
+        resample(paddedSrc, transformed, pitch, targetFormat);
+
+        return transformed;
+    }
+
     @Override
     public int sample(Note note, float volume, short layerPanning, float[] out) {
         float[] in = sampleManager.getSample(note.instrument());
@@ -67,7 +83,7 @@ public class CatmullRomNoteSampler implements NoteSampler {
         int outFrames = resample(in, out, pitch, format);
 
         float panning = NoteHelper.normalizePanning(layerPanning, note.panning());  // [-1, 1], 0=center
-        applyVolumePanning(out, outFrames, volume, panning);
+        applyVolumePanning(out, outFrames, volume, panning, stereoMode);
 
         return outFrames;
     }
@@ -96,11 +112,14 @@ public class CatmullRomNoteSampler implements NoteSampler {
         // transform right
         resample(outFrames, xs, in, out, inFrames + 4, outFrames);
 
-
         return outFrames;
     }
 
-    private void applyVolumePanning(float[] out, int outFrames, float volume, float panning) {
+    public static void applyVolumePanning(float[] out, int outFrames, float volume, float panning, StereoMode stereoMode) {
+        if (volume == 1.f && panning == 0.f) {
+            return;
+        }
+
         // calculate panning
         float leftPanning;
         float rightPanning;

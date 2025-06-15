@@ -1,6 +1,7 @@
 package work.lclpnet.notica.impl.mix;
 
 import org.slf4j.Logger;
+import work.lclpnet.notica.api.StereoMode;
 import work.lclpnet.notica.util.ByteBufferInputStream;
 
 import javax.sound.sampled.AudioFormat;
@@ -48,8 +49,8 @@ public class UnifiedSoundLoader {
 
         future = sound.load()
                 .thenCompose(this::recode)
-                .thenApply(sample -> transformSample(sample, sound))
                 .thenApply(samples -> toDeinterleavedFloats(samples, targetFormat))
+                .thenApply(sample -> transformSample(sample, sound))
                 .thenApply(Optional::of)
                 .exceptionally(err -> {
                     logger.error("Failed to get unified sample for sound {}", sound, err);
@@ -140,10 +141,12 @@ public class UnifiedSoundLoader {
      * @param sound The sound configuration from sounds.json.
      * @return The transformed sample.
      */
-    private ByteBuffer transformSample(ByteBuffer sample, SoundRef sound) {
-        sample = SoundMixer.changePitch(sample, sound.pitch(), targetFormat, ByteBuffer::allocate);
+    private float[] transformSample(float[] sample, SoundRef sound) {
+        sample = CatmullRomNoteSampler.changePitch(sample, sound.pitch(), targetFormat);
 
-        SoundMixer.changeVolume(sample, sound.volume());
+        int frames = sample.length / 2;
+
+        CatmullRomNoteSampler.applyVolumePanning(sample, frames, sound.volume(), 0f, StereoMode.EQUAL_POWER);
 
         return sample;
     }

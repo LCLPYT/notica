@@ -40,7 +40,8 @@ public class ClientMusicBackend {
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
     private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
-            48_000, 16, 2, 4, 48_000, false);
+            48_000, 16, 2, 4, 48_000, false,
+            Map.of("interpolation", "cubic"));
     private final UnifiedSoundLoader unifiedSoundLoader;
 
     public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,

@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 
 class SoundMixerTest {
 
-    private static final boolean EXPORT = true, OPEN = true;
+    private static final boolean EXPORT = false, OPEN = false;
 
     @Test
     void mixSample() throws IOException {

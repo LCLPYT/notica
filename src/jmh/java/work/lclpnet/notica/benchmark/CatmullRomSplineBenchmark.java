@@ -169,7 +169,7 @@ public class CatmullRomSplineBenchmark {
         }
     }
 
-    //@Benchmark
+    @Benchmark
     public void baseline(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -214,7 +214,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void lerpReference(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -243,7 +243,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void accumulateFloatIndex(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -291,7 +291,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void floatArray(FloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -331,7 +331,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void noIndexClamping(PaddedByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -375,7 +375,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void fma(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -417,7 +417,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void moreFMA(ByteBufferState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -464,7 +464,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void accumulateFloatArray(FloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -507,7 +507,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void accumulateFloatArrayNoClampFMA(PaddedFloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
         final int length = output.length;
@@ -546,7 +546,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(output);
     }
 
-    //@Benchmark
+    @Benchmark
     public void simd(SimdPaddedFloatArrayState state, Blackhole blackhole) {
         final float pitch = state.pitch;
         final float[] xs = state.xs;
@@ -585,7 +585,7 @@ public class CatmullRomSplineBenchmark {
         }
     }
 
-    //@Benchmark
+    @Benchmark
     @Threads(2)
     public void streams(PaddedFloatArrayState state, Blackhole blackhole) {
         final float[] output = state.output;
@@ -619,7 +619,7 @@ public class CatmullRomSplineBenchmark {
         blackhole.consume(buffer);
     }
 
-    //@Benchmark
+    @Benchmark
     @Threads(2)
     public void virtual_threads_simd(SimdPaddedFloatArrayState state, Blackhole blackhole) throws InterruptedException {
         final float pitch = state.pitch;

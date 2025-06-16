@@ -186,7 +186,7 @@ public class SongMixerBenchmark {
         }
     }
 
-//    @Benchmark
+    @Benchmark
     public void lerpBaseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
@@ -195,7 +195,7 @@ public class SongMixerBenchmark {
         blackhole.consume(res);
     }
 
-//    @Benchmark
+    @Benchmark
     public void lerpSimd(LerpSimdState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 

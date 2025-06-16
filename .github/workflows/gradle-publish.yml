@@ -12,12 +12,12 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: 21
           distribution: 'temurin'
 
-      - uses: gradle/actions/wrapper-validation@v3
+      - uses: gradle/actions/wrapper-validation@v4
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: '${{ github.event.repository != null && github.ref_name != github.event.repository.default_branch }}'
 

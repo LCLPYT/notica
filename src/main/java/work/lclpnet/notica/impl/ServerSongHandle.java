@@ -20,12 +20,12 @@ import java.util.*;
 public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListener {
 
     private final CheckedSong checkedSong;
-    private final float volume;
+    private final PlaybackOptions playbackOptions;
     private final int startTick;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private volatile boolean started = false;
     @Nullable
-    private SongPlayback serverPlayback = null;
+    private IndividualSongPlayback serverPlayback = null;
     @Nullable
     private ServerBasicNotePlayer serverNotePlayer = null;
     private final Hook<Runnable> onDestroy = HookFactory.createArrayBacked(Runnable.class, callbacks -> () -> {
@@ -34,9 +34,9 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         }
     });
 
-    public ServerSongHandle(CheckedSong checkedSong, float volume, int startTick) {
+    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick) {
         this.checkedSong = checkedSong;
-        this.volume = volume;
+        this.playbackOptions = playbackOptions;
         this.startTick = startTick;
     }
 
@@ -62,9 +62,9 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         if (vanillaPlayers.isEmpty()) return;
 
         // there are vanilla players, a server playback is needed
-        serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, volume);
+        serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, playbackOptions.volume());
 
-        final SongPlayback playback = new SongPlayback(checkedSong.song(), serverNotePlayer);
+        final IndividualSongPlayback playback = new IndividualSongPlayback(checkedSong.song(), serverNotePlayer);
 
         playback.whenDone(() -> {
             this.vanillaRefs.clear();
@@ -84,7 +84,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         SongSlice slice = SongSlicer.sliceSeconds(song, startTick, 5);
         boolean finished = SongSlicer.isFinished(song, slice);
 
-        var options = new SongPlayOptions(checkedSong.id(), volume, startTick);
+        var options = new SongPlayOptions(checkedSong.id(), playbackOptions, startTick);
         var packet = new PlaySongS2CPacket(options, header, slice, finished, checkedSong.checksum());
         ServerPlayNetworking.send(player, packet);
     }
@@ -206,7 +206,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     @Override
     public String toString() {
         return "ServerSongHandle{checkedSong=%s, volume=%s, vanillaPlayers=%s, moddedPlayers=%s, started=%s}"
-                .formatted(checkedSong, volume, vanillaRefs, moddedRefs, started);
+                .formatted(checkedSong, playbackOptions, vanillaRefs, moddedRefs, started);
     }
 
     @Override

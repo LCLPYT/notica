@@ -3,9 +3,9 @@ package work.lclpnet.notica.network;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
-import work.lclpnet.notica.api.Index;
-import work.lclpnet.notica.api.PlayerConfig;
-import work.lclpnet.notica.api.SongSlice;
+import net.minecraft.network.encoding.VarInts;
+import net.minecraft.util.function.ValueLists;
+import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
 import work.lclpnet.notica.impl.data.ImmutableCustomInstrument;
@@ -17,11 +17,12 @@ import work.lclpnet.notica.util.PlayerConfigEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 public class NoticaPacketCodecs {
 
     private NoticaPacketCodecs() {}
-
 
     public static final PacketCodec<PacketByteBuf, PlayerConfig> PLAYER_CONFIG_PACKET_CODEC = PacketCodec.tuple(
             PacketCodecs.FLOAT, PlayerConfig::getVolume,
@@ -120,4 +121,26 @@ public class NoticaPacketCodecs {
 
         return new ImmutableSongTempo(changes);
     });
+
+    public static final PacketCodec<PacketByteBuf, PlaybackOptions> PLAYBACK_OPTIONS = PacketCodec.tuple(
+            PacketCodecs.FLOAT, PlaybackOptions::volume,
+            indexed(
+                    ValueLists.createIndexToValueFunction(PlaybackVariant::ordinal, PlaybackVariant.values(), ValueLists.OutOfBoundsHandling.ZERO),
+                    PlaybackVariant::ordinal
+            ), PlaybackOptions::variant,
+            indexed(
+                    ValueLists.createIndexToValueFunction(StereoMode::ordinal, StereoMode.values(), ValueLists.OutOfBoundsHandling.ZERO),
+                    StereoMode::ordinal
+            ), PlaybackOptions::stereoMode,
+            PlaybackOptions::new);
+
+    private static <T> PacketCodec<PacketByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {
+        return PacketCodec.of((val, buf) -> {
+            int i = val2Idx.applyAsInt(val);
+            VarInts.write(buf, i);
+        }, buf -> {
+            int i = VarInts.read(buf);
+            return idx2Val.apply(i);
+        });
+    }
 }

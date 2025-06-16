@@ -1,0 +1,17 @@
+package work.lclpnet.notica.config;
+
+import com.electronwill.nightconfig.core.serde.annotations.SerdeComment;
+import lombok.Getter;
+import lombok.Setter;
+import org.jetbrains.annotations.ApiStatus;
+
+@ApiStatus.Internal
+@Getter @Setter
+public class NoticaClientConfig {
+
+    @SerdeComment("Allows you to force a playback variant. By default, the playback variant is defined by the server.")
+    private PlaybackVariantOverride playbackVariantOverride = PlaybackVariantOverride.USE_DEFAULT;
+
+    @SerdeComment("Allows you to force a stereo mixing mode for pre-processed songs. By default, the mixing mode is defined by the server.")
+    private StereoModeOverride stereoModeOverride = StereoModeOverride.USE_DEFAULT;
+}

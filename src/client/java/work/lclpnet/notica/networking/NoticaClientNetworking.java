@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import work.lclpnet.kibu.networking.protocol.ClientProtocolHandler;
 import work.lclpnet.notica.api.PlayerConfig;
 import work.lclpnet.notica.api.SongSlice;
+import work.lclpnet.notica.event.SongVolumeChangedCallback;
 import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
 import work.lclpnet.notica.impl.PendingSong;
@@ -43,6 +44,10 @@ public class NoticaClientNetworking {
     }
 
     private void onPlaySong(PlaySongS2CPacket payload, ClientPlayNetworking.Context context) {
+        Thread.startVirtualThread(() -> playSong(payload));
+    }
+
+    private void playSong(PlaySongS2CPacket payload) {
         Identifier songId = payload.getSongId();
         byte[] checksum = payload.checksum();
         int startTick = payload.getStartTick();
@@ -56,7 +61,7 @@ public class NoticaClientNetworking {
             acceptUnknownRegion(payload, song, songId);
         }
 
-        controller.playSong(song, songId, payload.getVolume(), startTick);
+        controller.playSong(song, songId, payload.getPlaybackOptions(), startTick);
     }
 
     private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
@@ -104,6 +109,8 @@ public class NoticaClientNetworking {
     private void onMusicOptionsSync(MusicOptionsS2CPacket payload, ClientPlayNetworking.Context context) {
         PlayerConfig config = payload.config();
         playerConfig.copyClient(config);
+
+        context.client().execute(() -> SongVolumeChangedCallback.EVENT.invoker().onVolumeChanged());
     }
 
     private void onSongSeek(SongSeekS2CPacket payload, ClientPlayNetworking.Context context) {
@@ -111,6 +118,10 @@ public class NoticaClientNetworking {
     }
 
     private void onRespondSong(RespondSongS2CPacket payload, ClientPlayNetworking.Context context) {
+        Thread.startVirtualThread(() -> receiveSong(payload));
+    }
+
+    private void receiveSong(RespondSongS2CPacket payload) {
         Identifier songId = payload.songId();
         SongSlice slice = payload.slice();
 

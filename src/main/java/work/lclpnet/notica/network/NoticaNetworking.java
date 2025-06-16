@@ -26,9 +26,9 @@ import java.util.UUID;
 
 public class NoticaNetworking {
 
-    public static final Protocol PROTOCOL = new Protocol(NoticaInit.identifier("version"), 2);
+    public static final Protocol PROTOCOL = new Protocol(NoticaInit.identifier("version"), 3);
     public static final int MAX_PACKET_BYTES = 0x800000;  // packet size limit imposed by mc
-    private static final int RESET_MILLIS = 20_000, MAX_REQUESTS = 40;
+    private static final int RESET_MILLIS = 15_000, MAX_REQUESTS = 40;
     private static NoticaNetworking instance = null;
 
     private final Logger logger;
@@ -73,7 +73,7 @@ public class NoticaNetworking {
         ServerPlayerEntity player = context.player();
         PlayerData data = getData(player);
 
-        if (data.throttle()) {
+        if (player.getPermissionLevel() < 2 && data.throttle()) {
             logger.warn("Player {} is sending too many requests", player.getNameForScoreboard());
             return;
         }

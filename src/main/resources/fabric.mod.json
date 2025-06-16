@@ -21,6 +21,9 @@
 		],
 		"client": [
 			"work.lclpnet.notica.NoticaClientInit"
+		],
+		"modmenu": [
+			"work.lclpnet.notica.NoticaModMenu"
 		]
 	},
 	"mixins": [
@@ -40,7 +43,11 @@
 		"kibu-translation-api": ">=0.21.0",
 		"kibu-access-lib": ">=0.15.0",
 		"kibu-networking-api": "*",
-		"fabric-permissions-api-v0": "*"
+		"kibu-config-api": "*",
+		"fabric-permissions-api-v0": "*",
+		"cloth-config": "*"
 	},
-	"suggests": {}
+	"suggests": {
+		"modmenu": "*"
+	}
 }

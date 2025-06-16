@@ -211,12 +211,13 @@ public class SongSlicer {
     }
 
     public static boolean isFinished(Song song, int tickOffset, int layerOffset) {
-        int ticks = song.durationTicks();
+        int lastTick = song.lastNoteTick().orElse(-1);
 
-        if (tickOffset > ticks) return true;
+        if (tickOffset > lastTick) return true;
 
-        if (tickOffset < ticks) return false;
+        if (tickOffset < lastTick) return false;
 
+        // tickOffset is at last tick, check layer
         var layers = song.layers();
 
         int lastLayer = layers.streamKeysOrdered()
@@ -225,7 +226,7 @@ public class SongSlicer {
 
                     if (layer == null) return false;
 
-                    return layer.notes().get(ticks) != null;
+                    return layer.notes().get(lastTick) != null;
                 })
                 .max()
                 .orElse(-1);

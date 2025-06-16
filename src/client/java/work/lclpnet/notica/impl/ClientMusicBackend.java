@@ -1,46 +1,86 @@
 package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.Channel;
+import net.minecraft.client.sound.SoundLoader;
+import net.minecraft.client.sound.SoundManager;
+import net.minecraft.client.sound.SoundSystem;
+import net.minecraft.resource.ResourceFactory;
+import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import work.lclpnet.notica.api.InstrumentSoundProvider;
-import work.lclpnet.notica.api.NotePlayer;
-import work.lclpnet.notica.api.SongPlayback;
+import org.slf4j.Logger;
+import work.lclpnet.kibu.config.ConfigManager;
+import work.lclpnet.notica.api.*;
+import work.lclpnet.notica.config.NoticaClientConfig;
+import work.lclpnet.notica.config.PlaybackVariantOverride;
+import work.lclpnet.notica.config.StereoModeOverride;
+import work.lclpnet.notica.impl.mix.*;
+import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
+import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
+import work.lclpnet.notica.mixin.client.SoundSystemAccessor;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import javax.sound.sampled.AudioFormat;
+import java.util.*;
+
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 public class ClientMusicBackend {
 
     private final ClientSongRepository songRepository;
     private final InstrumentSoundProvider soundProvider;
     private final PlayerConfigEntry playerConfig;
+    private final ConfigManager<NoticaClientConfig> configManager;
+    private final Logger logger;
     private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
+    private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
+            48_000, 16, 2, 4, 48_000, false);
+    private final UnifiedSoundLoader unifiedSoundLoader;
 
     public ClientMusicBackend(ClientSongRepository songRepository, InstrumentSoundProvider soundProvider,
-                              PlayerConfigEntry playerConfig) {
+                              PlayerConfigEntry playerConfig, ConfigManager<NoticaClientConfig> configManager,
+                              Logger logger) {
         this.songRepository = songRepository;
         this.soundProvider = soundProvider;
         this.playerConfig = playerConfig;
+        this.configManager = configManager;
+        this.logger = logger;
+        this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, Identifier songId, float volume, int startTick) {
+    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
         songRepository.bind(song, songId);
 
         stopSong(songId);
 
-        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
-        SongPlayback playback = new SongPlayback(song, notePlayer);
+        NoticaClientConfig config = configManager.config();
+
+        PlaybackVariant variant = Optional.ofNullable(config.getPlaybackVariantOverride())
+                .map(PlaybackVariantOverride::variant)
+                .orElseGet(options::variant);
+
+        SongPlayback playback;
+
+        if (variant == PlaybackVariant.STREAMED) {
+            StereoMode stereoMode = Optional.ofNullable(config.getStereoModeOverride())
+                    .map(StereoModeOverride::stereoMode)
+                    .orElseGet(options::stereoMode);
+
+            playback = createStreamPlayback(song, options.volume(), stereoMode);
+        } else {
+            playback = createIndividualPlayback(song, options.volume());
+        }
 
         playback.whenDone(() -> {
             songRepository.unbind(song, songId);
 
-            if (playback.isStopped()) return;
+            if (playback.wasStoppedManually()) return;
 
             removePlaying(songId);
             notifySongStopped(songId);
@@ -51,6 +91,49 @@ public class ClientMusicBackend {
         }
 
         playback.start(startTick);
+    }
+
+    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, float volume) {
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
+
+        return new IndividualSongPlayback(song, notePlayer);
+    }
+
+    private StreamSongPlayback createStreamPlayback(PendingSong song, float volume, StereoMode stereoMode) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        SoundManager soundManager = client.getSoundManager();
+        SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
+        var soundSystemAccess = (SoundSystemAccessor) soundSystem;
+
+        Channel channel = soundSystemAccess.getChannel();
+        SoundLoader soundLoader = soundSystemAccess.getSoundLoader();
+        ResourceFactory resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceFactory();
+
+        var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
+                directSoundManager, resourceFactory, logger);
+
+        var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
+        var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
+
+        return new StreamSongPlayback(() -> {
+            int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
+            int workerCount = Runtime.getRuntime().availableProcessors();
+
+            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
+            var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
+
+            var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
+                    soundMixer::applyCompressor, logger, bufferBytes, true, false);
+
+            audioStream.setOnUpdate(() -> {
+                float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);
+                float totalVolume = max(0.f, min(1.f, volume * categoryVolume * playerConfig.getVolume()));
+
+                songMixer.setSongVolume(totalVolume);
+            });
+
+            return audioStream;
+        }, sampleManager, song, channel);
     }
 
     public void stopSong(Identifier songId) {
@@ -89,5 +172,17 @@ public class ClientMusicBackend {
         if (playback == null) return;
 
         playback.seekTo(ticks, absolute);
+    }
+
+    public synchronized void reload() {
+        for (SongPlayback playback : playing.values()) {
+            if (playback instanceof StreamSongPlayback streamPlayback) {
+                streamPlayback.reload();
+            }
+        }
+    }
+
+    public boolean isSongPlaying() {
+        return !playing.isEmpty();
     }
 }

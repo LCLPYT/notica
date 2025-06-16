@@ -16,6 +16,8 @@ import work.lclpnet.notica.util.NoteHelper;
 
 import java.util.Set;
 
+import static java.lang.Math.abs;
+
 public class ServerBasicNotePlayer implements NotePlayer {
 
     private final InstrumentSoundProvider soundProvider;
@@ -49,7 +51,7 @@ public class ServerBasicNotePlayer implements NotePlayer {
         if (sound == null) return;
 
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume;
-        float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
+        float panning = NoteHelper.normalizePanning(layer.panning(), note.panning());
         short pitch = note.pitch();
 
         if (volume <= 0) return;
@@ -83,11 +85,11 @@ public class ServerBasicNotePlayer implements NotePlayer {
         double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
         double z = player.getZ();
 
-        if (Math.abs(panning) >= 1e-3) {
+        if (abs(panning) >= 1e-3) {
             double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
 
-            x += Math.sin(yaw) * panning;
-            z -= Math.cos(yaw) * panning;
+            x += Math.sin(yaw) * panning * 2;
+            z -= Math.cos(yaw) * panning * 2;
         }
 
         var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,

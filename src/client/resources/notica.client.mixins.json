@@ -7,7 +7,16 @@
   },
   "client": [
     "ClientPlayNetworkHandlerMixin",
+    "MinecraftClientAccessor",
     "MinecraftClientMixin",
-    "SoundSystemMixin"
+    "MusicTrackerMixin",
+    "SoundLoaderAccessor",
+    "SoundManagerAccessor",
+    "SoundManagerMixin",
+    "SoundSystemAccessor",
+    "SoundSystemMixin",
+    "SourceManagerMixin",
+    "SourceMixin",
+    "StaticSoundAccessor"
   ]
 }

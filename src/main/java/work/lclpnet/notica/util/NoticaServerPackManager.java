@@ -35,7 +35,7 @@ public class NoticaServerPackManager {
 
     public void sendServerPack(ServerPlayerEntity player) {
         UUID playerUuid = player.getUuid();
-        if (installed.contains(playerUuid) || requesting.contains(playerUuid)) return;
+        if (installed.contains(playerUuid) || !requesting.add(playerUuid)) return;
 
         URL url = configAccess.getConfig().extraNotesPackUrl;
 

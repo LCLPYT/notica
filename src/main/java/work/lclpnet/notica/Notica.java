@@ -4,6 +4,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
 import work.lclpnet.notica.api.CheckedSong;
+import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.SongHandle;
 import work.lclpnet.notica.impl.NoticaImpl;
 
@@ -16,11 +17,12 @@ public interface Notica {
     /**
      * Play a song to a collection of players.
      * @param song The {@link CheckedSong} to play.
-     * @param volume The playback volume of the song, ranges [0, 1].
+     * @param options The playback options, containing info for how to play the song.
+     * @param startTick The tick to start the playback at.
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
-    SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players);
+    SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players);
 
     /**
      * Get all currently playing {@link SongHandle}s.
@@ -59,6 +61,17 @@ public interface Notica {
      */
     default SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players) {
         return playSong(song, volume, 0, players);
+    }
+
+    /**
+     * Play a song to a collection of players.
+     * @param song The {@link CheckedSong} to play.
+     * @param volume The playback volume of the song, ranges [0, 1].
+     * @param players The song listeners.
+     * @return A {@link SongHandle} that can be used to control the song playback.
+     */
+    default SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players) {
+        return playSong(song, new PlaybackOptions(volume), startTick, players);
     }
 
     /**

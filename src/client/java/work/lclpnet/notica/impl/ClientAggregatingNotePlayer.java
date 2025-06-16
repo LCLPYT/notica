@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Math.max;
+import static work.lclpnet.notica.util.NoteHelper.normalizePanning;
 
 public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlayer {
 
@@ -64,14 +65,14 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
         float openAlPitch = NoteHelper.openAlPitch((short) (key * 100 + note.pitch()));  // (0.0, any]
         float volume = layer.volume() * note.velocity() * 1e-4f * this.volume * playerConfig.getVolume();
-        float panning = ((layer.panning() + note.panning()) * 0.5f - 100) / 100;  // [-1, 1], 0=center
+        float panning = normalizePanning(layer.panning(), note.panning());  // [-1, 1], 0=center
 
         if (volume <= 0) return;
 
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through
         var instance = new NbsSoundInstance(sound.id(), SoundCategory.RECORDS, volume, openAlPitch,
-                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, panning, 0, 0, true,
+                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, 2 * panning, 0, 0, true,
                 directSoundManager);
 
         synchronized (this) {

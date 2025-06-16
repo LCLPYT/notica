@@ -144,11 +144,7 @@ public class SongAudioStream implements AudioStream {
             boolean active = true;
 
             while (active && !Thread.currentThread().isInterrupted()) {
-                logger.debug("Preparing next segment ({} queued, producer #{})", queue.size(), Thread.currentThread().threadId());
-
                 active = prepare(bufferBytes);
-
-                logger.debug("Segment prepared ({} queued, producer #{})", queue.size(), Thread.currentThread().threadId());
 
                 if (!active) {
                     logger.debug("Producer #{} is done", Thread.currentThread().threadId());

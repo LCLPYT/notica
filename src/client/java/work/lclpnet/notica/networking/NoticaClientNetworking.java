@@ -44,12 +44,19 @@ public class NoticaClientNetworking {
     }
 
     private void onPlaySong(PlaySongS2CPacket payload, ClientPlayNetworking.Context context) {
+        Thread.startVirtualThread(() -> playSong(payload));
+    }
+
+    private void playSong(PlaySongS2CPacket payload) {
+        long startNs = System.nanoTime();
+
         Identifier songId = payload.getSongId();
         byte[] checksum = payload.checksum();
         int startTick = payload.getStartTick();
 
         PendingSong song = songRepository.get(checksum);
 
+        long before = System.nanoTime();
         if (song == null) {
             song = acceptUnknownSong(payload, songId, checksum, startTick);
         } else if (startTick < song.getStartTick()) {
@@ -57,7 +64,13 @@ public class NoticaClientNetworking {
             acceptUnknownRegion(payload, song, songId);
         }
 
+        logger.info("Accept took {} ns", System.nanoTime() - before);
+        before = System.nanoTime();
+
         controller.playSong(song, songId, payload.getPlaybackOptions(), startTick);
+
+        logger.info("play took {} ns", System.nanoTime() - before);
+        logger.info("total took {} ns", (System.nanoTime() - startNs));
     }
 
     private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
@@ -114,6 +127,10 @@ public class NoticaClientNetworking {
     }
 
     private void onRespondSong(RespondSongS2CPacket payload, ClientPlayNetworking.Context context) {
+        Thread.startVirtualThread(() -> receiveSong(payload));
+    }
+
+    private void receiveSong(RespondSongS2CPacket payload) {
         Identifier songId = payload.songId();
         SongSlice slice = payload.slice();
 

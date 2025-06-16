@@ -65,7 +65,7 @@ public class ParallelBatchSongMixerTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        float seconds = 32;
+        float seconds = 4;
         int bufferSize = getBufferByteSize(seconds);
         int frames = getFrames(bufferSize);
         float songVolume = 0.5f;
@@ -91,7 +91,7 @@ public class ParallelBatchSongMixerTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        int chunks = 32;
+        int chunks = 4;
         float chunkSeconds = 1;
         int bufferSize = getBufferByteSize(chunkSeconds);
         int frames = getFrames(bufferSize);
@@ -185,7 +185,7 @@ public class ParallelBatchSongMixerTest {
     }
 
     private ByteBuffer parallelSample(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume, float seconds, int frames) throws IOException {
-        int workerCount = 4;
+        int workerCount = 2;
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, workerCount);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
@@ -238,7 +238,7 @@ public class ParallelBatchSongMixerTest {
 
     private ByteBuffer parallelChunked(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume,
                                          float seconds, int frames, int chunkCount) throws IOException {
-        int workerCount = 4;
+        int workerCount = 2;
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, workerCount);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 

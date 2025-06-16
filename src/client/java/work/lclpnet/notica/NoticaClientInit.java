@@ -6,6 +6,7 @@ import work.lclpnet.kibu.config.ConfigManager;
 import work.lclpnet.notica.config.NoticaClientConfig;
 import work.lclpnet.notica.event.ClientDisconnectCallback;
 import work.lclpnet.notica.event.ClientJoinGameCallback;
+import work.lclpnet.notica.event.SongVolumeChangedCallback;
 import work.lclpnet.notica.impl.ClientInstrumentSoundProvider;
 import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
@@ -39,6 +40,8 @@ public class NoticaClientInit implements ClientModInitializer {
 			musicBackend.stopAll();
 			soundProvider.setRegistryManager(null);
         });
+
+		SongVolumeChangedCallback.EVENT.register(musicBackend::reload);
 	}
 
 	private ConfigManager<NoticaClientConfig> loadConfig() {

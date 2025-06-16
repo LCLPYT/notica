@@ -173,4 +173,12 @@ public class ClientMusicBackend {
 
         playback.seekTo(ticks, absolute);
     }
+
+    public synchronized void reload() {
+        for (SongPlayback playback : playing.values()) {
+            if (playback instanceof StreamSongPlayback streamPlayback) {
+                streamPlayback.reload();
+            }
+        }
+    }
 }

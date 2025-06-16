@@ -181,4 +181,8 @@ public class StreamSongPlayback implements SongPlayback {
 
         mutexNewPlayback(startTick);
     }
+
+    public void reload() {
+        seekTo(0, false);
+    }
 }

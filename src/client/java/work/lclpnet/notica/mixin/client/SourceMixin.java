@@ -46,26 +46,6 @@ public abstract class SourceMixin implements NoticaSource {
         }
     }
 
-//    @WrapOperation(
-//            method = "setStream",
-//            at = @At(
-//                    value = "INVOKE",
-//                    target = "Lnet/minecraft/client/sound/Source;read(I)V"
-//            )
-//    )
-//    private void notica$modifyPreloadAmount(Source instance, int count, Operation<Void> original) {
-//        if (!noticaSource) {
-//            original.call(instance, count);
-//            return;
-//        }
-//
-//        original.call(instance, 1);
-//
-//        // load the other 3 samples async, so that the playback can start more quickly
-//
-//        Thread.startVirtualThread(() -> read(3));
-//    }
-
     @Override
     public void notica$setNoticaSource() {
         noticaSource = true;

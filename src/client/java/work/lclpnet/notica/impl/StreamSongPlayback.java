@@ -4,7 +4,6 @@ import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.client.sound.Source;
 import net.minecraft.util.math.Vec3d;
-import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
@@ -15,16 +14,19 @@ import work.lclpnet.notica.type.NoticaSource;
 import work.lclpnet.notica.type.NoticaSourceManager;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 import static java.lang.Math.max;
 
 public class StreamSongPlayback implements SongPlayback {
 
-    private final SongAudioStream audioStream;
+    private final Supplier<SongAudioStream> streamSupplier;
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final Channel channel;
-    private final Logger logger;
+    private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
     private volatile Hook<Runnable> onComplete = null;
     private Channel.SourceManager sourceManager = null;
@@ -33,30 +35,21 @@ public class StreamSongPlayback implements SongPlayback {
     private long playbackStartMs = 0;
     private int playbackOffsetTicks = 0;
 
-    public StreamSongPlayback(SongAudioStream audioStream, SoundSampleManager sampleManager,
-                              Song song, Channel channel, Logger logger) {
-        this.audioStream = audioStream;
+    public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
+                              Song song, Channel channel) {
+        this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
         this.channel = channel;
-        this.logger = logger;
     }
 
     @Override
-    public synchronized void start(int startTick) {
-        playbackOffsetTicks = 0;
-
-        audioStream.setTick(startTick).thenRun(sampleManager::loadAll)
-                .thenCompose(nil -> prepareFirstBuffer())
-                .thenRun(this::playSound)
-                .exceptionally(err -> {
-                    logger.error("Failed to start playback", err);
-                    return null;
-                });
+    public void start(int startTick) {
+        mutexExecutor.execute(() -> mutexNewPlayback(startTick));
     }
 
-    private CompletableFuture<Void> prepareFirstBuffer() {
-        return audioStream.startProducer(4);
+    private CompletableFuture<Void> prepareFirstBuffer(SongAudioStream stream) {
+        return stream.startProducer(4);
     }
 
     @Override
@@ -70,31 +63,8 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     @Override
-    public synchronized void seekTo(int tick, boolean absolute) {
-        if (sourceManager == null) return;
-
-        final int currentPlaybackTick = currentPlaybackTick();
-        final int startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
-
-        var future = new CompletableFuture<>();
-
-        sourceManager.run(source -> {
-            if (source.isStopped()) return;
-
-            ((NoticaSourceManager) sourceManager).notica$onStopped(null);
-            ((NoticaSource) source).notica$setSeeking();
-
-            source.stop();
-
-            sourceManager = null;
-            onStopped = null;
-
-            playbackOffsetTicks = startTick;
-
-            audioStream.setTick(startTick)
-                    .thenCompose(nil -> prepareFirstBuffer())
-                    .thenRun(this::playSound);
-        });
+    public void seekTo(int tick, boolean absolute) {
+        mutexExecutor.execute(() -> mutexSeekTo(tick, absolute));
     }
 
     @Override
@@ -107,7 +77,9 @@ public class StreamSongPlayback implements SongPlayback {
         getOrCreateHook().register(action);
     }
 
-    private void playSound() {
+    private CompletableFuture<Void> playSound(SongAudioStream stream) {
+        var future = new CompletableFuture<Void>();
+
         channel.createSource(SoundEngine.RunMode.STREAMING).thenAccept(sourceManager -> {
             this.sourceManager = sourceManager;
 
@@ -124,13 +96,20 @@ public class StreamSongPlayback implements SongPlayback {
 
                 source.setRelative(true);
                 source.setPosition(Vec3d.ZERO);
-                source.setStream(audioStream);
+                source.setStream(stream);
 
                 playbackStartMs = milliTime();
 
                 source.play();
+
+                future.complete(null);
             });
+        }).exceptionally(err -> {
+            future.completeExceptionally(err);
+            return null;
         });
+
+        return future;
     }
 
     private Hook<Runnable> getOrCreateHook() {
@@ -157,5 +136,49 @@ public class StreamSongPlayback implements SongPlayback {
     private static long milliTime() {
         // nanoTime() instead of currentTimeMillis(), because it's monotonic and we only care about relative times
         return System.nanoTime() / 1_000_000;
+    }
+
+    private void mutexNewPlayback(int startTick) {
+        playbackOffsetTicks = 0;
+
+        SongAudioStream stream = streamSupplier.get();
+
+        stream.setTick(startTick).join();
+
+        sampleManager.loadAll();
+
+        prepareFirstBuffer(stream).join();
+
+        playSound(stream).join();
+    }
+
+    private void mutexSeekTo(int tick, boolean absolute) {
+        var future = new CompletableFuture<>();
+        int startTick;
+
+        synchronized (this) {
+            if (sourceManager == null) return;
+
+            final int currentPlaybackTick = currentPlaybackTick();
+            startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
+
+            sourceManager.run(source -> {
+                if (source.isStopped()) return;
+
+                ((NoticaSourceManager) sourceManager).notica$onStopped(null);
+                ((NoticaSource) source).notica$setStopped();
+
+                source.stop();
+
+                sourceManager = null;
+                onStopped = null;
+
+                future.complete(null);
+            });
+        }
+
+        future.join();
+
+        mutexNewPlayback(startTick);
     }
 }

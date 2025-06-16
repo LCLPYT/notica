@@ -4,5 +4,5 @@ public interface NoticaSource {
 
     void notica$setNoticaSource();
 
-    void notica$setSeeking();
+    void notica$setStopped();
 }

@@ -73,6 +73,10 @@ public class SongAudioStream implements AudioStream {
         loopCount = song.loopConfig().loopCount();
     }
 
+    public float getBufferSeconds() {
+        return getSeconds(format, getFrameCount(format, bufferBytes));
+    }
+
     public static int getByteSize(AudioFormat format, float seconds) {
         return (int) (seconds * format.getSampleSizeInBits() / 8.0F * format.getChannels() * format.getSampleRate());
     }

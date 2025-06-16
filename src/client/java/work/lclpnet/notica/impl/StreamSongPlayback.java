@@ -30,9 +30,9 @@ public class StreamSongPlayback implements SongPlayback {
 
     private volatile Hook<Runnable> onComplete = null;
     private Channel.SourceManager sourceManager = null;
+    private PlaybackTimeTracker timeTracker = null;
     private boolean stopped = false;
     private Runnable onStopped = null;
-    private long playbackStartMs = 0;
     private int playbackOffsetTicks = 0;
 
     public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
@@ -83,6 +83,11 @@ public class StreamSongPlayback implements SongPlayback {
         channel.createSource(SoundEngine.RunMode.STREAMING).thenAccept(sourceManager -> {
             this.sourceManager = sourceManager;
 
+            float bufferSeconds = stream.getBufferSeconds();
+
+            timeTracker = new PlaybackTimeTracker(sourceManager, bufferSeconds);
+            timeTracker.init();
+
             onStopped = () -> {
                 if (onComplete != null) {
                     onComplete.invoker().run();
@@ -97,8 +102,6 @@ public class StreamSongPlayback implements SongPlayback {
                 source.setRelative(true);
                 source.setPosition(Vec3d.ZERO);
                 source.setStream(stream);
-
-                playbackStartMs = milliTime();
 
                 source.play();
 
@@ -125,21 +128,17 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     private int currentPlaybackTick() {
-        long currentMs = milliTime();
-        long passedMs = max(0, currentMs - playbackStartMs);
+        if (timeTracker == null) return 0;
 
-        int passedTicks = song.tempo().durationTicks(playbackOffsetTicks, passedMs / 1000f);
+        float playbackSeconds = timeTracker.getPlaybackSeconds();
+
+        int passedTicks = song.tempo().durationTicks(playbackOffsetTicks, playbackSeconds);
 
         return (playbackOffsetTicks + passedTicks) % song.durationTicks();
     }
 
-    private static long milliTime() {
-        // nanoTime() instead of currentTimeMillis(), because it's monotonic and we only care about relative times
-        return System.nanoTime() / 1_000_000;
-    }
-
     private void mutexNewPlayback(int startTick) {
-        playbackOffsetTicks = 0;
+        playbackOffsetTicks = startTick;
 
         SongAudioStream stream = streamSupplier.get();
 
@@ -167,11 +166,13 @@ public class StreamSongPlayback implements SongPlayback {
 
                 ((NoticaSourceManager) sourceManager).notica$onStopped(null);
                 ((NoticaSource) source).notica$setStopped();
+                ((NoticaSource) source).notica$onTick(null);
 
                 source.stop();
 
                 sourceManager = null;
                 onStopped = null;
+                timeTracker = null;
 
                 future.complete(null);
             });

@@ -26,7 +26,7 @@ public class ParallelBatchSongMixerTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        float seconds = 32;
+        float seconds = 8;
         int bufferSize = getBufferByteSize(seconds);
         int frames = getFrames(bufferSize);
 

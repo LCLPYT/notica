@@ -56,7 +56,7 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players) {
+    public synchronized SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players) {
         if (players.isEmpty()) {
             throw new IllegalArgumentException("Listeners are empty");
         }
@@ -83,12 +83,14 @@ public class NoticaImpl implements Notica {
         }
 
         handle.onDestroy(() -> {
-            handles.remove(handle);
-            playbackListeners.remove(handle);
+            synchronized (this) {
+                handles.remove(handle);
+                playbackListeners.remove(handle);
 
-            handlesById.remove(id, handle);
+                handlesById.remove(id, handle);
 
-            cleanSong(id);
+                cleanSong(id);
+            }
         });
 
         handles.add(handle);
@@ -101,46 +103,53 @@ public class NoticaImpl implements Notica {
         return handle;
     }
 
-    private void cleanSong(Identifier id) {
+    private synchronized void cleanSong(Identifier id) {
         if (!handlesById.containsKey(id)) {
             songsById.remove(id);
         }
     }
 
     @Override
-    public Set<SongHandle> getPlayingSongs() {
+    public synchronized Set<SongHandle> getPlayingSongs() {
         return Collections.unmodifiableSet(handles);
     }
 
     @Override
-    public Set<SongHandle> getPlayingSongs(ServerPlayerEntity player) {
+    public synchronized Set<SongHandle> getPlayingSongs(ServerPlayerEntity player) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public Set<SongHandle> getPlayingSongs(Identifier songId) {
+    public synchronized Set<SongHandle> getPlayingSongs(Identifier songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.getSongId().equals(songId))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId) {
+    public synchronized Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
                 .findAny();
     }
 
     public void onPlayerJoin(ServerPlayerEntity player) {
-        playerConfigs.onPlayerJoin(player);
+        synchronized (this) {
+            playerConfigs.onPlayerJoin(player);
+        }
+
         syncPlayerConfig(player);
     }
 
-    public void onPlayerQuit(ServerPlayerEntity player) {
+    public synchronized void onPlayerQuit(ServerPlayerEntity player) {
         playerConfigs.onPlayerQuit(player);
         playerRefs.remove(player.getUuid());
+
+        for (SongHandle handle : handles) {
+            handle.remove(player);
+        }
     }
 
     public void onPlayerChange(ServerPlayerEntity to) {
@@ -174,7 +183,7 @@ public class NoticaImpl implements Notica {
         ServerPlayNetworking.send(player, packet);
     }
 
-    private SongPlayerRef createRef(ServerPlayerEntity player) {
+    private synchronized SongPlayerRef createRef(ServerPlayerEntity player) {
         return playerRefs.computeIfAbsent(player.getUuid(), uuid -> {
             PlayerConfigEntry config = playerConfigs.get(player);
             return new SongPlayerRef(player, config);

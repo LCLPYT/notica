@@ -115,14 +115,13 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
-        int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
-
-        int workerCount = Runtime.getRuntime().availableProcessors();
-
-        var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
-        var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
-
         return new StreamSongPlayback(() -> {
+            int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
+            int workerCount = Runtime.getRuntime().availableProcessors();
+
+            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
+            var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
+
             var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
                     soundMixer::applyCompressor, logger, bufferBytes, true, false);
 

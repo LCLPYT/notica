@@ -56,7 +56,7 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     private CompletableFuture<Void> prepareFirstBuffer() {
-        return audioStream.startProducer();
+        return audioStream.startProducer(4);
     }
 
     @Override
@@ -75,6 +75,8 @@ public class StreamSongPlayback implements SongPlayback {
 
         final int currentPlaybackTick = currentPlaybackTick();
         final int startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
+
+        var future = new CompletableFuture<>();
 
         sourceManager.run(source -> {
             if (source.isStopped()) return;

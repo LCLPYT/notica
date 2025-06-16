@@ -52,9 +52,9 @@ public class SongExporter {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, logger, bufferBytes, false);
+                soundMixer::applyCompressor, logger, bufferBytes, false, true);
 
-        stream.startProducer().join();
+        stream.startProducer(1).join();
 
         // write raw samples to a tmp file first, as the total number of samples is unknown
         Path tmpFile = Files.createTempFile("notica_export", null);

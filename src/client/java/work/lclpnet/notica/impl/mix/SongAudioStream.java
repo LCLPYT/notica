@@ -8,13 +8,13 @@ import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.ds.BlockingSendReceive;
+import work.lclpnet.notica.impl.ds.SemiBlockingSendReceive;
+import work.lclpnet.notica.impl.ds.SendReceive;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.lang.Math.max;
@@ -35,7 +35,7 @@ public class SongAudioStream implements AudioStream {
     private final ByteBuffer[] preparedBuffers;
     @Getter
     private final int bufferBytes;
-    private final BlockingQueue<ByteBuffer> queue = new LinkedBlockingQueue<>(PREPARE_COUNT - 1);
+    private final SendReceive<ByteBuffer> queue;
     private final boolean loopEnabled;
 
     private @Nullable Thread producer = null, watchdog = null;
@@ -49,7 +49,8 @@ public class SongAudioStream implements AudioStream {
     private int loopCount;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song,
-                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, boolean loopEnabled) {
+                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, boolean loopEnabled,
+                           boolean shouldBlock) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
@@ -57,6 +58,10 @@ public class SongAudioStream implements AudioStream {
         this.bufferProcessor = bufferProcessor;
         this.logger = logger;
         this.bufferBytes = bufferBytes;
+
+        this.queue = shouldBlock
+                ? new BlockingSendReceive<>(PREPARE_COUNT - 1, TIMEOUT_MS)
+                : new SemiBlockingSendReceive<>(PREPARE_COUNT - 1, TIMEOUT_MS);
 
         preparedBuffers = new ByteBuffer[PREPARE_COUNT];
 
@@ -99,25 +104,37 @@ public class SongAudioStream implements AudioStream {
             }
         }
 
+        ByteBuffer buf;
+
         try {
-            return queue.take();
+            buf = queue.take();
         } catch (InterruptedException e) {
             logger.debug("Interrupted while waiting for producer, ending...");
             return null;
         }
+
+        if (buf == null) {
+            logger.debug("No more elements in the queue, song will be stopped");
+        }
+
+        return buf;
     }
 
-    public CompletableFuture<Void> startProducer() {
+    public CompletableFuture<Void> startProducer(int initialSegments) {
         logger.debug("Starting a new producer when the old one has shut down...");
 
-        return whenThreadsShutdown().thenCompose(nil -> startNewProducer());
+        return whenThreadsShutdown().thenCompose(nil -> startNewProducer(initialSegments));
     }
 
-    private synchronized CompletableFuture<Void> startNewProducer() {
+    private synchronized CompletableFuture<Void> startNewProducer(final int segments) {
+        if (segments > PREPARE_COUNT) {
+            throw new IllegalStateException("Too much segments requested");
+        }
+
         soundMixer.reset();
         this.reset();
 
-        CompletableFuture<Void> firstBuffer = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
         var crashed = new AtomicBoolean(false);
 
@@ -127,7 +144,11 @@ public class SongAudioStream implements AudioStream {
             boolean active = true;
 
             while (active && !Thread.currentThread().isInterrupted()) {
+                logger.debug("Preparing next segment ({} queued, producer #{})", queue.size(), Thread.currentThread().threadId());
+
                 active = prepare(bufferBytes);
+
+                logger.debug("Segment prepared ({} queued, producer #{})", queue.size(), Thread.currentThread().threadId());
 
                 if (!active) {
                     logger.debug("Producer #{} is done", Thread.currentThread().threadId());
@@ -135,8 +156,8 @@ public class SongAudioStream implements AudioStream {
 
                 crashed.set(false);
 
-                if (!firstBuffer.isDone()) {
-                    firstBuffer.complete(null);
+                if (queue.size() >= segments && !future.isDone()) {
+                    future.complete(null);
                 }
             }
 
@@ -165,7 +186,7 @@ public class SongAudioStream implements AudioStream {
 
         producer = processor;
 
-        return firstBuffer;
+        return future;
     }
 
     private boolean prepare(int size) {
@@ -251,7 +272,7 @@ public class SongAudioStream implements AudioStream {
         }
 
         try {
-            if (!queue.offer(preparedBuffer, TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            if (!queue.offer(preparedBuffer)) {
                 logger.debug("Song audio queue didn't get polled for the specified timeout. Shutting down producer...");
                 return false;
             }
@@ -300,6 +321,7 @@ public class SongAudioStream implements AudioStream {
         first = true;
         frameOffset = 0;
         queue.clear();
+        soundMixer.reset();
     }
 
     private synchronized void stopThreads() {

@@ -40,9 +40,9 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, false);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, false, true);
 
-        stream.startProducer().join();
+        stream.startProducer(1).join();
 
         Path dir;
 
@@ -149,9 +149,9 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                processor.apply(soundMixer), TestUtil.logger, bufferBytes, false);
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, false, true);
 
-        stream.startProducer().join();
+        stream.startProducer(1).join();
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 

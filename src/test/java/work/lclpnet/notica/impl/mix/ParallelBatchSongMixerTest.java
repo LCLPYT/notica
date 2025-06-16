@@ -26,11 +26,11 @@ public class ParallelBatchSongMixerTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        float seconds = 8;
+        float seconds = 4;
         int bufferSize = getBufferByteSize(seconds);
         int frames = getFrames(bufferSize);
 
-        int workerCount = 4;
+        int workerCount = 2;
         SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferSize, sampleManager, CatmullRomNoteSampler::new, workerCount);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 

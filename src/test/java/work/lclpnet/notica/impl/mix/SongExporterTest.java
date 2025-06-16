@@ -24,7 +24,7 @@ public class SongExporterTest {
         SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
         sampleManager.loadAll();
 
-        int workerCount = Runtime.getRuntime().availableProcessors();
+        int workerCount = 4;
         var exporter = new SongExporter(sampleManager, CatmullRomNoteSampler::new, TestUtil.AUDIO_FORMAT, TestUtil.logger, workerCount);
 
         Path path = Files.createTempFile(songName, ".wav");

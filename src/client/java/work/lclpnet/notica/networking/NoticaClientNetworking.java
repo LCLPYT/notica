@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import work.lclpnet.kibu.networking.protocol.ClientProtocolHandler;
 import work.lclpnet.notica.api.PlayerConfig;
 import work.lclpnet.notica.api.SongSlice;
+import work.lclpnet.notica.event.SongVolumeChangedCallback;
 import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
 import work.lclpnet.notica.impl.PendingSong;
@@ -104,6 +105,8 @@ public class NoticaClientNetworking {
     private void onMusicOptionsSync(MusicOptionsS2CPacket payload, ClientPlayNetworking.Context context) {
         PlayerConfig config = payload.config();
         playerConfig.copyClient(config);
+
+        context.client().execute(() -> SongVolumeChangedCallback.EVENT.invoker().onVolumeChanged());
     }
 
     private void onSongSeek(SongSeekS2CPacket payload, ClientPlayNetworking.Context context) {

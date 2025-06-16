@@ -30,13 +30,13 @@ public class NoticaClientInit implements ClientModInitializer {
         var playerConfig = new PlayerConfigEntry();
 		playerConfig.setExtendedRangeSupported(true);
 
-        var controller = new ClientMusicBackend(songRepo, soundProvider, playerConfig, configManager, NoticaInit.LOGGER);
+        var musicBackend = new ClientMusicBackend(songRepo, soundProvider, playerConfig, configManager, NoticaInit.LOGGER);
 
-		new NoticaClientNetworking(songRepo, controller, playerConfig, NoticaInit.LOGGER).register();
+		new NoticaClientNetworking(songRepo, musicBackend, playerConfig, NoticaInit.LOGGER).register();
 
 		ClientJoinGameCallback.EVENT.register(networkHandler -> soundProvider.setRegistryManager(networkHandler.getRegistryManager()));
 		ClientDisconnectCallback.EVENT.register(() -> {
-			controller.stopAll();
+			musicBackend.stopAll();
 			soundProvider.setRegistryManager(null);
         });
 	}

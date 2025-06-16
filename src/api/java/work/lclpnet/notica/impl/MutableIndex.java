@@ -8,10 +8,13 @@ import work.lclpnet.notica.api.IndexPointer;
 import java.util.*;
 import java.util.function.Function;
 
+import static java.lang.Math.max;
+
 public class MutableIndex<T> implements Index<T> {
 
     private final Map<Integer, T> map = new HashMap<>();
     private final Map<T, Integer> indexMap = new HashMap<>();
+    private int maxIndex = -1;
 
     @Override
     public @Nullable T get(int i) {
@@ -75,25 +78,31 @@ public class MutableIndex<T> implements Index<T> {
                 .iterator();
     }
 
-    public void set(int i, T value) {
-        synchronized (this) {
-            if (value == null) {
-                value = map.remove(i);
+    @Override
+    public OptionalInt maxIndex() {
+        return maxIndex >= 0 ? OptionalInt.of(maxIndex) : OptionalInt.empty();
+    }
 
-                if (value == null) return;
+    public synchronized void set(int i, T value) {
+        if (value == null) {
+            value = map.remove(i);
 
-                indexMap.remove(value);
-                return;
-            }
+            if (value == null) return;
 
-            T oldValue = map.put(i, value);
+            indexMap.remove(value);
 
-            if (oldValue != null) {
-                indexMap.remove(oldValue);
-            }
-
-            indexMap.put(value, i);
+            maxIndex = map.keySet().stream().mapToInt(idx -> idx).max().orElse(-1);
+            return;
         }
+
+        T oldValue = map.put(i, value);
+
+        if (oldValue != null) {
+            indexMap.remove(oldValue);
+        }
+
+        indexMap.put(value, i);
+        maxIndex = max(maxIndex, i);
     }
 
     public T computeIfAbsent(int i, Function<Integer, T> mappingFunction) {

@@ -19,6 +19,8 @@ public interface Index<T> extends Iterable<T> {
 
     Iterable<IndexPointer<T>> iterateOrdered();
 
+    OptionalInt maxIndex();
+
     default Stream<T> stream() {
         return StreamSupport.stream(Spliterators.spliterator(iterator(), size(), 0), false);
     }

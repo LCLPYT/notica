@@ -2,6 +2,8 @@ package work.lclpnet.notica.api.data;
 
 import work.lclpnet.notica.api.Index;
 
+import java.util.OptionalInt;
+
 public interface Song {
 
     /**
@@ -59,5 +61,11 @@ public interface Song {
 
     default float paddedDurationSeconds() {
         return tempo().durationSeconds(0, paddedDurationTicks());
+    }
+
+    default OptionalInt lastNoteTick() {
+        return layers().stream()
+                .flatMapToInt(l -> l.notes().maxIndex().stream())
+                .max();
     }
 }

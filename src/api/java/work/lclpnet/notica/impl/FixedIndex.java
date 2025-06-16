@@ -12,7 +12,7 @@ public class FixedIndex<T> implements Index<T> {
     private final int[] indexMapping;
     private final int[] reverseIndexMapping;
     private final List<T> items;
-    private final int minIndex;
+    private final int minIndex, maxIndex;
 
     public FixedIndex(Map<Integer, ? extends T> map) {
         int minIndex = 0, maxIndex = -1;
@@ -30,6 +30,7 @@ public class FixedIndex<T> implements Index<T> {
         }
 
         this.minIndex = minIndex;
+        this.maxIndex = maxIndex;
 
         int width = maxIndex - minIndex + 1;
         this.indexMapping = new int[width];
@@ -95,6 +96,11 @@ public class FixedIndex<T> implements Index<T> {
     @Override
     public Iterable<IndexPointer<T>> iterateOrdered() {
         return IndexIterator::new;
+    }
+
+    @Override
+    public OptionalInt maxIndex() {
+        return maxIndex >= 0 ? OptionalInt.of(maxIndex) : OptionalInt.empty();
     }
 
     private int mapIndex(int i) {

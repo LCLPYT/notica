@@ -162,6 +162,8 @@ public class SongAudioStream implements AudioStream {
             }
 
             logger.debug("Song audio producer shutdown: {}", Thread.currentThread());
+
+            future.complete(null);
         });
 
         watchdog = Thread.ofVirtual().name("Song Audio Preprocessor Watchdog").start(() -> {

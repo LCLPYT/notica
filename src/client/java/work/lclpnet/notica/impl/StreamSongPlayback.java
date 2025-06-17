@@ -4,6 +4,7 @@ import net.minecraft.client.sound.Channel;
 import net.minecraft.client.sound.SoundEngine;
 import net.minecraft.client.sound.Source;
 import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
@@ -13,19 +14,20 @@ import work.lclpnet.notica.impl.mix.SoundSampleManager;
 import work.lclpnet.notica.type.NoticaSource;
 import work.lclpnet.notica.type.NoticaSourceManager;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 import static java.lang.Math.max;
 
 public class StreamSongPlayback implements SongPlayback {
 
+    private static final int TIMEOUT_MS = 10_000;
+
     private final Supplier<SongAudioStream> streamSupplier;
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final Channel channel;
+    private final Logger logger;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
     private volatile Hook<Runnable> onComplete = null;
@@ -36,11 +38,12 @@ public class StreamSongPlayback implements SongPlayback {
     private int playbackOffsetTicks = 0;
 
     public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
-                              Song song, Channel channel) {
+                              Song song, Channel channel, Logger logger) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
         this.channel = channel;
+        this.logger = logger;
     }
 
     @Override
@@ -146,7 +149,16 @@ public class StreamSongPlayback implements SongPlayback {
 
         sampleManager.loadAll();
 
-        prepareFirstBuffer(stream).join();
+        var firstBufferFuture = prepareFirstBuffer(stream);
+
+        try {
+            firstBufferFuture.get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Waiting for first buffer to be prepared", e);
+        } catch (TimeoutException e) {
+            logger.error("Preparing the first buffer took too long, aborting...", e);
+            return;
+        }
 
         playSound(stream).join();
     }

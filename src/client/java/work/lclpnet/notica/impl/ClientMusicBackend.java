@@ -133,7 +133,7 @@ public class ClientMusicBackend {
             });
 
             return audioStream;
-        }, sampleManager, song, channel);
+        }, sampleManager, song, channel, logger);
     }
 
     public void stopSong(Identifier songId) {

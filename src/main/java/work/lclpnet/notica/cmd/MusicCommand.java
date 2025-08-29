@@ -43,7 +43,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
@@ -65,6 +68,8 @@ public class MusicCommand {
     public static final Pattern
             TIME_SEGMENT = Pattern.compile("((?:[+-]\\s*)?\\d+)\\s*(sec|min|ticks|[smt])"),
             TIME_PATTERN = Pattern.compile("^(?:%s)+$".formatted(TIME_SEGMENT.pattern()));
+
+    public static final float DEFAULT_VOLUME = 0.5f;
 
     private final Path songDirectory;
     private final Translations translations;
@@ -150,7 +155,7 @@ public class MusicCommand {
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), List.of(player));
 
-        return playSong(source, List.of(player), path, id, new PlaybackOptions(1.f));
+        return playSong(source, List.of(player), path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
     private int playSongAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -163,7 +168,7 @@ public class MusicCommand {
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
 
-        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(1.f));
+        return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
     private int playSongVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
@@ -317,16 +322,6 @@ public class MusicCommand {
         });
 
         return 1;
-    }
-
-    private CompletableFuture<Suggestions> suggestValues(SuggestionsBuilder builder, Class<? extends Enum<?>> enumClass) {
-        Enum<?>[] constants = enumClass.getEnumConstants();
-
-        for (var constant : constants) {
-            builder.suggest(constant.name().toLowerCase(Locale.ROOT));
-        }
-
-        return builder.buildFuture();
     }
 
     private Text getPlayingMessage(ServerCommandSource source, Path relativePath, CheckedSong checkedSong) {

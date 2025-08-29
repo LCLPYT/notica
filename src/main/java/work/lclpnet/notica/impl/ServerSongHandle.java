@@ -3,6 +3,7 @@ package work.lclpnet.notica.impl;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.kibu.hook.HookFactory;
@@ -33,6 +34,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             callback.run();
         }
     });
+    private boolean destroyed = false;
 
     public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick) {
         this.checkedSong = checkedSong;
@@ -59,11 +61,15 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             this.vanillaRefs.put(uuid, playerRef);
         }
 
-        if (vanillaPlayers.isEmpty()) return;
-
-        // there are vanilla players, a server playback is needed
         serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, playbackOptions.volume());
 
+        final IndividualSongPlayback playback = createServerPlayback();
+
+        serverPlayback = playback;
+        playback.start(startTick);
+    }
+
+    private @NotNull IndividualSongPlayback createServerPlayback() {
         final IndividualSongPlayback playback = new IndividualSongPlayback(
                 checkedSong.song(),
                 serverNotePlayer,
@@ -74,10 +80,21 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             this.vanillaRefs.clear();
 
             checkDestroyed();
+
+            if (destroyed) return;
+
+            // modded clients remain; normally clients should send a stopped packet,
+            // but in case clients misbehave, force stop the song after a timeout
+            Thread.startVirtualThread(() -> {
+                try {
+                    Thread.sleep(500L);
+                } catch (InterruptedException ignored) {}
+
+                stop();
+            });
         });
 
-        serverPlayback = playback;
-        playback.start(startTick);
+        return playback;
     }
 
     private void sendPlayPacket(ServerPlayerEntity player) {
@@ -131,6 +148,16 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         vanillaRefs.clear();
 
         serverNotePlayer = null;
+
+        destroy();
+    }
+
+    private void destroy() {
+        synchronized (this) {
+            if (destroyed) return;
+
+            destroyed = true;
+        }
 
         onDestroy.invoker().run();
     }
@@ -204,7 +231,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private void checkDestroyed() {
         if (!moddedRefs.isEmpty() || !vanillaRefs.isEmpty()) return;
 
-        onDestroy.invoker().run();
+        destroy();
     }
 
     @Override

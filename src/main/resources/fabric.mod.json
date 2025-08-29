@@ -1,53 +1,53 @@
 {
-	"schemaVersion": 1,
-	"id": "notica",
-	"version": "${version}",
-	"name": "Notica",
-	"description": "Play Note Block songs in-game! Vanilla and modded players are supported. Extends the note octave range.",
-	"authors": [
-		"LCLP"
-	],
-	"contact": {
-		"homepage": "https://github.com/LCLPYT/notica",
-		"sources": "https://github.com/LCLPYT/notica",
-		"issues": "https://github.com/LCLPYT/notica/issues"
-	},
-	"license": "MIT",
-	"icon": "assets/notica/icon.png",
-	"environment": "*",
-	"entrypoints": {
-		"main": [
-			"work.lclpnet.notica.NoticaInit"
-		],
-		"client": [
-			"work.lclpnet.notica.NoticaClientInit"
-		],
-		"modmenu": [
-			"work.lclpnet.notica.NoticaModMenu"
-		]
-	},
-	"mixins": [
-		"notica.mixins.json",
-		{
-			"config": "notica.client.mixins.json",
-			"environment": "client"
-		}
-	],
-	"depends": {
-		"fabricloader": ">=0.16.14",
-		"minecraft": "~1.21.6",
-		"java": ">=21",
-		"fabric-api": "*",
-		"kibu-hook-api": ">=1.4.0",
-		"kibu-hooks": ">=0.60.0",
-		"kibu-translation-api": ">=0.23.0",
-		"kibu-access-lib": ">=0.16.0",
-		"kibu-networking-api": "*",
-		"kibu-config-api": "*",
-		"fabric-permissions-api-v0": "*",
-		"cloth-config": "*"
-	},
-	"suggests": {
-		"modmenu": "*"
-	}
+  "schemaVersion": 1,
+  "id": "notica",
+  "version": "${version}",
+  "name": "Notica",
+  "description": "Play Note Block songs in-game! Vanilla and modded players are supported. Extends the note octave range.",
+  "authors": [
+    "LCLP"
+  ],
+  "contact": {
+    "homepage": "https://github.com/LCLPYT/notica",
+    "sources": "https://github.com/LCLPYT/notica",
+    "issues": "https://github.com/LCLPYT/notica/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/notica/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "work.lclpnet.notica.NoticaInit"
+    ],
+    "client": [
+      "work.lclpnet.notica.NoticaClientInit"
+    ],
+    "modmenu": [
+      "work.lclpnet.notica.NoticaModMenu"
+    ]
+  },
+  "mixins": [
+    "notica.mixins.json",
+    {
+      "config": "notica.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "~1.21.6",
+    "java": ">=21",
+    "fabric-api": "*",
+    "kibu-hook-api": ">=1.4.0",
+    "kibu-hooks": ">=0.60.0",
+    "kibu-translation-api": ">=0.23.0",
+    "kibu-access-lib": ">=0.16.0",
+    "kibu-networking-api": "*",
+    "kibu-config-api": "*",
+    "fabric-permissions-api-v0": "*",
+    "cloth-config": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
 }

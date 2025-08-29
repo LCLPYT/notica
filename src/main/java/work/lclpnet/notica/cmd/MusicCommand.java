@@ -30,7 +30,6 @@ import work.lclpnet.kibu.translate.text.RootText;
 import work.lclpnet.kibu.translate.text.TextTranslatable;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.api.*;
-import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.api.data.SongMeta;
 import work.lclpnet.notica.impl.NoticaImpl;
@@ -318,7 +317,7 @@ public class MusicCommand {
             source.sendMessage(msg);
 
             Notica api = Notica.getInstance(source.getServer());
-            api.playSong(song, options.withLoopOverride(LoopOverride.DEFAULT.withEnabled(false)), 0, listeners);
+            api.playSong(song, options, 0, listeners);
         });
 
         return 1;

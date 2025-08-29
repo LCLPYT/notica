@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.LoopConfig;
+import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.ds.BlockingSendReceive;
 import work.lclpnet.notica.impl.ds.SemiBlockingSendReceive;
@@ -36,7 +37,7 @@ public class SongAudioStream implements AudioStream {
     @Getter
     private final int bufferBytes;
     private final SendReceive<ByteBuffer> queue;
-    private final boolean loopEnabled;
+    private final LoopConfig loopConfig;
 
     private @Nullable Thread producer = null, watchdog = null;
     @Setter
@@ -49,7 +50,7 @@ public class SongAudioStream implements AudioStream {
     private int loopCount;
 
     public SongAudioStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song,
-                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, boolean loopEnabled,
+                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, LoopOverride loopOverride,
                            boolean shouldBlock) {
         this.format = format;
         this.soundMixer = soundMixer;
@@ -69,8 +70,8 @@ public class SongAudioStream implements AudioStream {
             preparedBuffers[i] = BufferUtils.createByteBuffer(bufferBytes);
         }
 
-        this.loopEnabled = loopEnabled && song.loopConfig().enabled();
-        loopCount = song.loopConfig().loopCount();
+        this.loopConfig = loopOverride.override(song.loopConfig());
+        loopCount = loopConfig.loopCount();
     }
 
     public float getBufferSeconds() {
@@ -215,9 +216,7 @@ public class SongAudioStream implements AudioStream {
 
         if (endTick > songDurationTicks) {
             // last segment of the song
-            LoopConfig loop = song.loopConfig();
-
-            if (loopEnabled && (loop.infinite() || loopCount > 0)) {
+            if (loopConfig.enabled() && (loopConfig.infinite() || loopCount > 0)) {
                 loopCount = max(0, loopCount - 1);
 
                 int interval = max(2, min(8, song.signature())) * 4;
@@ -230,7 +229,7 @@ public class SongAudioStream implements AudioStream {
 
                 frameOffset %= soundMixer.getBufferFrames();
 
-                tick = loop.loopStartTick();
+                tick = loopConfig.loopStartTick();
 
                 float remainingSeconds = max(0.f, bufferSeconds - endSeconds);
                 int remainingTicks = song.tempo().durationTicks(tick, remainingSeconds);

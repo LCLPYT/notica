@@ -63,18 +63,14 @@ public class ClientMusicBackend {
 
         PlaybackVariant variant = Optional.ofNullable(config.getPlaybackVariantOverride())
                 .map(PlaybackVariantOverride::variant)
-                .orElseGet(options::variant);
+                .orElseGet(options::playbackVariant);
 
         SongPlayback playback;
 
         if (variant == PlaybackVariant.STREAMED) {
-            StereoMode stereoMode = Optional.ofNullable(config.getStereoModeOverride())
-                    .map(StereoModeOverride::stereoMode)
-                    .orElseGet(options::stereoMode);
-
-            playback = createStreamPlayback(song, options.volume(), stereoMode);
+            playback = createStreamPlayback(song, options);
         } else {
-            playback = createIndividualPlayback(song, options.volume());
+            playback = createIndividualPlayback(song, options);
         }
 
         playback.whenDone(() -> {
@@ -93,13 +89,17 @@ public class ClientMusicBackend {
         playback.start(startTick);
     }
 
-    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, float volume) {
-        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, volume, playerConfig, directSoundManager);
+    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, PlaybackOptions options) {
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, options.volume(), playerConfig, directSoundManager);
 
-        return new IndividualSongPlayback(song, notePlayer);
+        return new IndividualSongPlayback(song, notePlayer, options.loopOverride());
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song, float volume, StereoMode stereoMode) {
+    private StreamSongPlayback createStreamPlayback(PendingSong song, PlaybackOptions options) {
+        StereoMode stereoMode = Optional.ofNullable(configManager.config().getStereoModeOverride())
+                .map(StereoModeOverride::stereoMode)
+                .orElseGet(options::stereoMode);
+
         MinecraftClient client = MinecraftClient.getInstance();
         SoundManager soundManager = client.getSoundManager();
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
@@ -123,11 +123,11 @@ public class ClientMusicBackend {
             var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
             var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
-                    soundMixer::applyCompressor, logger, bufferBytes, true, false);
+                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false);
 
             audioStream.setOnUpdate(() -> {
                 float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);
-                float totalVolume = max(0.f, min(1.f, volume * categoryVolume * playerConfig.getVolume()));
+                float totalVolume = max(0.f, min(1.f, options.volume() * categoryVolume * playerConfig.getVolume()));
 
                 songMixer.setSongVolume(totalVolume);
             });

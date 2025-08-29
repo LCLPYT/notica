@@ -122,16 +122,24 @@ public class NoticaPacketCodecs {
         return new ImmutableSongTempo(changes);
     });
 
+    public static final PacketCodec<PacketByteBuf, LoopOverride> LOOP_OVERRIDE = PacketCodec.tuple(
+            PacketCodecs.optional(PacketCodecs.BOOLEAN), LoopOverride::enabled,
+            PacketCodecs.optional(PacketCodecs.INTEGER), LoopOverride::loopCount,
+            PacketCodecs.optional(PacketCodecs.INTEGER), LoopOverride::loopStartTick,
+            LoopOverride::new
+    );
+
     public static final PacketCodec<PacketByteBuf, PlaybackOptions> PLAYBACK_OPTIONS = PacketCodec.tuple(
             PacketCodecs.FLOAT, PlaybackOptions::volume,
             indexed(
                     ValueLists.createIndexToValueFunction(PlaybackVariant::ordinal, PlaybackVariant.values(), ValueLists.OutOfBoundsHandling.ZERO),
                     PlaybackVariant::ordinal
-            ), PlaybackOptions::variant,
+            ), PlaybackOptions::playbackVariant,
             indexed(
                     ValueLists.createIndexToValueFunction(StereoMode::ordinal, StereoMode.values(), ValueLists.OutOfBoundsHandling.ZERO),
                     StereoMode::ordinal
             ), PlaybackOptions::stereoMode,
+            LOOP_OVERRIDE, PlaybackOptions::loopOverride,
             PlaybackOptions::new);
 
     private static <T> PacketCodec<PacketByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {

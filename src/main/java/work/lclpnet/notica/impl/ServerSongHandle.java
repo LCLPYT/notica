@@ -64,7 +64,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         // there are vanilla players, a server playback is needed
         serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, playbackOptions.volume());
 
-        final IndividualSongPlayback playback = new IndividualSongPlayback(checkedSong.song(), serverNotePlayer);
+        final IndividualSongPlayback playback = new IndividualSongPlayback(
+                checkedSong.song(),
+                serverNotePlayer,
+                playbackOptions.loopOverride()
+        );
 
         playback.whenDone(() -> {
             this.vanillaRefs.clear();

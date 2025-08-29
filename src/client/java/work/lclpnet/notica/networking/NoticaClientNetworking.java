@@ -5,8 +5,10 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.networking.protocol.ClientProtocolHandler;
+import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.PlayerConfig;
 import work.lclpnet.notica.api.SongSlice;
+import work.lclpnet.notica.api.data.LoopConfig;
 import work.lclpnet.notica.event.SongVolumeChangedCallback;
 import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
@@ -52,19 +54,21 @@ public class NoticaClientNetworking {
         byte[] checksum = payload.checksum();
         int startTick = payload.getStartTick();
 
+        PlaybackOptions playbackOptions = payload.getPlaybackOptions();
         PendingSong song = songRepository.get(checksum);
 
         if (song == null) {
-            song = acceptUnknownSong(payload, songId, checksum, startTick);
+            song = acceptUnknownSong(payload, songId, checksum, startTick, playbackOptions);
         } else if (startTick < song.getStartTick()) {
             // the cached song is missing parts before its old start
             acceptUnknownRegion(payload, song, songId);
         }
 
-        controller.playSong(song, songId, payload.getPlaybackOptions(), startTick);
+        controller.playSong(song, songId, playbackOptions, startTick);
     }
 
-    private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum, int startTick) {
+    private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum,
+                                                   int startTick, PlaybackOptions playbackOptions) {
         logger.debug("Song {} ({}) is not cached, requesting it...", songId, ByteHelper.toHexString(checksum, 32));
 
         // song is not cached, create a new instance
@@ -76,7 +80,9 @@ public class NoticaClientNetworking {
 
         song.accept(slice);
 
-        if (song.loopConfig().enabled() && startTick > 0) {
+        LoopConfig loopConfig = playbackOptions.loopOverride().override(song.loopConfig());
+
+        if (loopConfig.enabled() && startTick > 0) {
             // songs with looping enabled that start with an offset need to be fetched completely
             request(songId, 0, 0);
         } else if (!packet.last()) {

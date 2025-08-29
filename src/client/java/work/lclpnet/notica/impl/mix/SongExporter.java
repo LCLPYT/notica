@@ -2,6 +2,7 @@ package work.lclpnet.notica.impl.mix;
 
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.StereoMode;
+import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
 
 import javax.sound.sampled.AudioFileFormat;
@@ -52,7 +53,7 @@ public class SongExporter {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, logger, bufferBytes, false, true);
+                soundMixer::applyCompressor, logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
 
         stream.startProducer(1).join();
 

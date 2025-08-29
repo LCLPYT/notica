@@ -3,6 +3,7 @@ package work.lclpnet.notica.impl.mix;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
+import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.util.TestUtil;
 
@@ -41,7 +42,7 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, false, true);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
 
         stream.startProducer(1).join();
 
@@ -151,7 +152,7 @@ class SongAudioStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                processor.apply(soundMixer), TestUtil.logger, bufferBytes, false, true);
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
 
         stream.startProducer(1).join();
 

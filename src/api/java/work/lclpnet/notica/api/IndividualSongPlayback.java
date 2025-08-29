@@ -2,10 +2,7 @@ package work.lclpnet.notica.api;
 
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.kibu.hook.HookFactory;
-import work.lclpnet.notica.api.data.Layer;
-import work.lclpnet.notica.api.data.LoopConfig;
-import work.lclpnet.notica.api.data.Note;
-import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.api.data.*;
 
 import java.util.Objects;
 
@@ -18,6 +15,7 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
     private final Song song;
     private final NotePlayer notePlayer;
     private final int durationTicks;
+    private final LoopConfig loopConfig;
     private boolean started = false;
     private int tick = 0;
     private double tempoNs;
@@ -27,10 +25,15 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
     private volatile boolean stopped = false;
 
     public IndividualSongPlayback(Song song, NotePlayer notePlayer) {
+        this(song, notePlayer, LoopOverride.DEFAULT);
+    }
+
+    public IndividualSongPlayback(Song song, NotePlayer notePlayer, LoopOverride loopOverride) {
         this.song = Objects.requireNonNull(song, "Song must not be null");
         this.notePlayer = Objects.requireNonNull(notePlayer, "NotePlayer must not be null");
 
         this.durationTicks = song.durationTicks();
+        this.loopConfig = loopOverride.override(song.loopConfig());
 
         updateTempo(song.tempo().tempoAt(0));
     }
@@ -65,8 +68,6 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
     @SuppressWarnings("BusyWait")
     @Override
     public void run() {
-        LoopConfig loopConfig = song.loopConfig();
-
         int loopAmount = loopConfig.loopCount();
         final boolean shouldLoop = loopConfig.enabled();
         final int endTick;

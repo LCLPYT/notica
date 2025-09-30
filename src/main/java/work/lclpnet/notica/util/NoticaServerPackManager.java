@@ -82,7 +82,7 @@ public class NoticaServerPackManager {
         installed.add(uuid);
         requesting.remove(uuid);
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(true);
 
@@ -95,7 +95,7 @@ public class NoticaServerPackManager {
         installed.remove(uuid);
         requesting.remove(uuid);
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(false);
 

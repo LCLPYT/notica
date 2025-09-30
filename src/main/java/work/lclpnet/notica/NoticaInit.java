@@ -59,16 +59,16 @@ public class NoticaInit implements ModInitializer {
 	}
 
 	private void onPlayerJoin(ServerPlayerEntity player) {
-		NoticaImpl.getInstance(player.getServer()).onPlayerJoin(player);
+		NoticaImpl.getInstance(player.getEntityWorld().getServer()).onPlayerJoin(player);
 	}
 
 	private void onPlayerQuit(ServerPlayerEntity player) {
-		NoticaImpl.getInstance(player.getServer()).onPlayerQuit(player);
+		NoticaImpl.getInstance(player.getEntityWorld().getServer()).onPlayerQuit(player);
 		serverPackManager.onPlayerQuit(player);
 	}
 
 	private void copyFromPlayer(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
-		NoticaImpl.getInstance(newPlayer.getServer()).onPlayerChange(newPlayer);
+		NoticaImpl.getInstance(newPlayer.getEntityWorld().getServer()).onPlayerChange(newPlayer);
 	}
 
 	private static Translations getTranslations() {

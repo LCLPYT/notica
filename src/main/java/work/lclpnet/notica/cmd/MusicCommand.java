@@ -237,7 +237,7 @@ public class MusicCommand {
             return 1;
         }
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(enabled);
@@ -256,7 +256,7 @@ public class MusicCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
         float percent = FloatArgumentType.getFloat(ctx, "percent");
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setVolume(percent / 100);
@@ -464,7 +464,7 @@ public class MusicCommand {
             return 0;
         }
         
-        Set<SongHandle> songHandles = Notica.getInstance(player.getServer()).getPlayingSongs(player);
+        Set<SongHandle> songHandles = Notica.getInstance(player.getEntityWorld().getServer()).getPlayingSongs(player);
 
         return seekAllWithOffsets(source, songHandles, timeOffsets);
     }
@@ -674,7 +674,7 @@ public class MusicCommand {
             return false;
         }
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
 
         return !instance.hasModInstalled(player);
     }

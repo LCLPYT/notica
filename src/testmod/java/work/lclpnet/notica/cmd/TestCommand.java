@@ -50,7 +50,7 @@ public class TestCommand {
             return 0;
         }
 
-        Notica notica = Notica.getInstance(player.getServer());
+        Notica notica = Notica.getInstance(player.getEntityWorld().getServer());
         notica.playSong(song, 1.f, 200, Set.of(player));
 
         player.sendMessage(Text.literal("Playing song \"%s\"".formatted(name)).formatted(GREEN));

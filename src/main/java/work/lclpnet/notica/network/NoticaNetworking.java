@@ -66,7 +66,7 @@ public class NoticaNetworking {
         GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getProfile();
         if (profile == null) return;
 
-        onQuit(profile.getId());
+        onQuit(profile.id());
     }
 
     private void onRequestSong(RequestSongC2SPacket payload, ServerPlayNetworking.Context context) {
@@ -79,7 +79,7 @@ public class NoticaNetworking {
         }
 
         Identifier songId = payload.songId();
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
         var optSong = instance.getSong(songId);
 
         if (optSong.isEmpty()) {
@@ -117,7 +117,7 @@ public class NoticaNetworking {
         ServerPlayerEntity player = context.player();
         Identifier songId = payload.songId();
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
 
         instance.notifySongStopped(player, songId);
     }

@@ -27,7 +27,7 @@ public abstract class ServerCommonNetworkHandlerMixin {
             method = "onResourcePackStatus",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/util/thread/ThreadExecutor;)V",
+                    target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/network/PacketApplyBatcher;)V",
                     shift = At.Shift.AFTER
             )
     )
@@ -37,7 +37,7 @@ public abstract class ServerCommonNetworkHandlerMixin {
         PlayerManager playerManager = server.getPlayerManager();
         if (playerManager == null) return;
 
-        UUID uuid = getProfile().getId();
+        UUID uuid = getProfile().id();
         if (uuid == null) return;
 
         ServerPlayerEntity player = playerManager.getPlayer(uuid);

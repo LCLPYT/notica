@@ -17,7 +17,7 @@ public class SoundManagerMixin {
     private final Debounce debounce = new Debounce(500);
 
     @Inject(
-            method = "updateSourceVolume",
+            method = "refreshCategoryVolume",
             at = @At("TAIL")
     )
     public void notica$onUpdateSoundVolume(SoundSource soundCategory, CallbackInfo ci) {

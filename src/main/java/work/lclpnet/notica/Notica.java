@@ -1,6 +1,6 @@
 package work.lclpnet.notica;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import work.lclpnet.notica.api.CheckedSong;
@@ -42,7 +42,7 @@ public interface Notica {
      * @param songId The songId that identifies a song.
      * @return A set of all {@link SongHandle} that play the referenced song.
      */
-    Set<SongHandle> getPlayingSongs(ResourceLocation songId);
+    Set<SongHandle> getPlayingSongs(Identifier songId);
 
     /**
      * Get the {@link SongHandle} that plays a song, referenced by the given songId to a given player.
@@ -50,7 +50,7 @@ public interface Notica {
      * @param songId The songId that identifies a song.
      * @return An optional {@link SongHandle}.
      */
-    Optional<SongHandle> getPlayingSong(ServerPlayer player, ResourceLocation songId);
+    Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId);
 
     /**
      * Play a song to a collection of players.

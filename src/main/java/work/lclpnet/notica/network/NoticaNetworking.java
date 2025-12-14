@@ -4,7 +4,8 @@ import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerLoginConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.commands.Commands;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
@@ -73,12 +74,12 @@ public class NoticaNetworking {
         ServerPlayer player = context.player();
         PlayerData data = getData(player);
 
-        if (player.getPermissionLevel() < 2 && data.throttle()) {
+        if (!Commands.LEVEL_GAMEMASTERS.check(player.permissions()) && data.throttle()) {
             logger.warn("Player {} is sending too many requests", player.getScoreboardName());
             return;
         }
 
-        ResourceLocation songId = payload.songId();
+        Identifier songId = payload.songId();
         NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
         var optSong = instance.getSong(songId);
 
@@ -115,7 +116,7 @@ public class NoticaNetworking {
 
     private void onSongStopped(StopSongBidiPacket payload, ServerPlayNetworking.Context context) {
         ServerPlayer player = context.player();
-        ResourceLocation songId = payload.songId();
+        Identifier songId = payload.songId();
 
         NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
 

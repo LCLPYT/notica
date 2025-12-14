@@ -1,7 +1,7 @@
 package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -121,7 +121,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
-    public ResourceLocation getSongId() {
+    public Identifier getSongId() {
         return checkedSong.id();
     }
 

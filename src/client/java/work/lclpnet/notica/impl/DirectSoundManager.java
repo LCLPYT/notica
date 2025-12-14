@@ -3,7 +3,7 @@ package work.lclpnet.notica.impl;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.Sound;
 import net.minecraft.client.sounds.WeighedSoundEvents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.valueproviders.ConstantFloat;
 import net.minecraft.util.valueproviders.FloatProvider;
@@ -21,20 +21,20 @@ import java.util.Map;
 public class DirectSoundManager {
 
     private static final FloatProvider ONE = ConstantFloat.of(1.0F);
-    private final Map<ResourceLocation, WeighedSoundEvents> soundSetOverrides = new HashMap<>();
+    private final Map<Identifier, WeighedSoundEvents> soundSetOverrides = new HashMap<>();
 
     @Nullable
-    public synchronized WeighedSoundEvents getSoundSet(ResourceLocation id) {
+    public synchronized WeighedSoundEvents getSoundSet(Identifier id) {
         return soundSetOverrides.computeIfAbsent(id, this::tryParseDirect);
     }
 
     @Nullable
-    private WeighedSoundEvents tryParseDirect(ResourceLocation id) {
+    private WeighedSoundEvents tryParseDirect(Identifier id) {
         if (!"minecraft".equals(id.getNamespace())) {
             return null;
         }
 
-        ResourceLocation directId = parseAsPathSegment(id.getPath());
+        Identifier directId = parseAsPathSegment(id.getPath());
 
         if (directId == null) {
             return null;
@@ -49,8 +49,8 @@ public class DirectSoundManager {
     }
 
     @Nullable
-    private Sound fetchSound(ResourceLocation id) {
-        ResourceLocation resource = Sound.SOUND_LISTER.idToFile(id);
+    private Sound fetchSound(Identifier id) {
+        Identifier resource = Sound.SOUND_LISTER.idToFile(id);
 
         ResourceManager resourceManager = Minecraft.getInstance().getResourceManager();
 
@@ -62,7 +62,7 @@ public class DirectSoundManager {
         return new Sound(id, ONE, ONE, 1, Sound.Type.FILE, false, false, 16);
     }
 
-    private @Nullable ResourceLocation parseAsPathSegment(String str) {
+    private @Nullable Identifier parseAsPathSegment(String str) {
         int firstSlash = str.indexOf('/');
 
         if (firstSlash == -1 || firstSlash >= str.length() - 1) return null;
@@ -70,6 +70,6 @@ public class DirectSoundManager {
         String namespace = str.substring(0, firstSlash);
         String path = str.substring(firstSlash + 1);
 
-        return ResourceLocation.tryBuild(namespace, path);
+        return Identifier.tryBuild(namespace, path);
     }
 }

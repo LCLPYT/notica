@@ -4,7 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.SongSlice;
@@ -29,7 +29,7 @@ public record PlaySongS2CPacket(SongPlayOptions playOptions, SongHeader header, 
         return ID;
     }
 
-    public ResourceLocation getSongId() {
+    public Identifier getSongId() {
         return playOptions.songId();
     }
 

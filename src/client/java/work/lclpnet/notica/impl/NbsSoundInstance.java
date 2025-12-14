@@ -4,7 +4,7 @@ import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
@@ -12,7 +12,7 @@ public class NbsSoundInstance extends AbstractSoundInstance {
 
     private final DirectSoundManager directSoundManager;
 
-    public NbsSoundInstance(ResourceLocation id, SoundSource category, float volume, float pitch, RandomSource random, boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType, double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
+    public NbsSoundInstance(Identifier id, SoundSource category, float volume, float pitch, RandomSource random, boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType, double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
         super(id, category, random);
         this.volume = volume;
         this.pitch = pitch;
@@ -35,7 +35,7 @@ public class NbsSoundInstance extends AbstractSoundInstance {
         }
 
         // sound is missing, maybe a custom instrument referencing a direct sound file
-        set = directSoundManager.getSoundSet(location);
+        set = directSoundManager.getSoundSet(identifier);
 
         if (set != null) {
             this.sound = set.getSound(random);

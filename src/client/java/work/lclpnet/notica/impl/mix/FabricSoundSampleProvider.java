@@ -5,7 +5,7 @@ import net.minecraft.client.sounds.FiniteAudioStream;
 import net.minecraft.client.sounds.JOrbisAudioStream;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceProvider;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.RandomSource;
@@ -92,11 +92,11 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
 
     private class Ref implements SoundRef {
 
-        private final ResourceLocation location;
+        private final Identifier location;
         private final float volume;
         private final float pitch;
 
-        private Ref(ResourceLocation location, float volume, float pitch) {
+        private Ref(Identifier location, float volume, float pitch) {
             this.location = location;
             this.volume = volume;
             this.pitch = pitch;

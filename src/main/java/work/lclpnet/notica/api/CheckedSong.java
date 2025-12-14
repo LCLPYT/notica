@@ -1,13 +1,13 @@
 package work.lclpnet.notica.api;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import work.lclpnet.notica.api.data.Song;
 
 import java.util.Random;
 
-public record CheckedSong(Song song, ResourceLocation id, byte[] checksum) {
+public record CheckedSong(Song song, Identifier id, byte[] checksum) {
 
-    public static CheckedSong ofRandomChecksum(Song song, ResourceLocation id, Random random) {
+    public static CheckedSong ofRandomChecksum(Song song, Identifier id, Random random) {
         byte[] checksum = new byte[8];
         random.nextBytes(checksum);
 

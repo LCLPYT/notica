@@ -1,6 +1,6 @@
 package work.lclpnet.notica.api;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import work.lclpnet.notica.api.data.Song;
 
@@ -12,7 +12,7 @@ import java.util.Set;
  */
 public interface SongHandle {
 
-    ResourceLocation getSongId();
+    Identifier getSongId();
 
     Song getSong();
 

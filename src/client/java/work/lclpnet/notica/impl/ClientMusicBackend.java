@@ -6,7 +6,7 @@ import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.client.sounds.SoundBufferLibrary;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceProvider;
 import net.minecraft.sounds.SoundSource;
 import org.jetbrains.annotations.NotNull;
@@ -37,7 +37,7 @@ public class ClientMusicBackend {
     private final PlayerConfigEntry playerConfig;
     private final ConfigManager<NoticaClientConfig> configManager;
     private final Logger logger;
-    private final Map<ResourceLocation, SongPlayback> playing = new HashMap<>();
+    private final Map<Identifier, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
     private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
             48_000, 16, 2, 4, 48_000, false);
@@ -54,7 +54,7 @@ public class ClientMusicBackend {
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, ResourceLocation songId, PlaybackOptions options, int startTick) {
+    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
         songRepository.bind(song, songId);
 
         stopSong(songId);
@@ -136,7 +136,7 @@ public class ClientMusicBackend {
         }, sampleManager, song, channel, logger);
     }
 
-    public void stopSong(ResourceLocation songId) {
+    public void stopSong(Identifier songId) {
         SongPlayback playback = removePlaying(songId);
 
         if (playback == null) return;
@@ -145,28 +145,28 @@ public class ClientMusicBackend {
     }
 
     @Nullable
-    private synchronized SongPlayback removePlaying(ResourceLocation songId) {
+    private synchronized SongPlayback removePlaying(Identifier songId) {
         return playing.remove(songId);
     }
 
-    private void notifySongStopped(ResourceLocation songId) {
+    private void notifySongStopped(Identifier songId) {
         if (!ClientPlayNetworking.canSend(StopSongBidiPacket.ID)) return;
 
         var packet = new StopSongBidiPacket(songId);
         ClientPlayNetworking.send(packet);
     }
 
-    public Set<ResourceLocation> getPlayingSongs() {
+    public Set<Identifier> getPlayingSongs() {
         return new HashSet<>(playing.keySet());
     }
 
     public void stopAll() {
-        for (ResourceLocation songId : getPlayingSongs()) {
+        for (Identifier songId : getPlayingSongs()) {
             stopSong(songId);
         }
     }
 
-    public synchronized void seekSongTo(ResourceLocation songId, int ticks, boolean absolute) {
+    public synchronized void seekSongTo(Identifier songId, int ticks, boolean absolute) {
         SongPlayback playback = playing.get(songId);
 
         if (playback == null) return;

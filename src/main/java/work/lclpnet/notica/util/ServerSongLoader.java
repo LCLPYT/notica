@@ -1,6 +1,6 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import work.lclpnet.notica.api.CheckedSong;
 import work.lclpnet.notica.api.SongDecoder;
 import work.lclpnet.notica.api.data.Song;
@@ -13,7 +13,7 @@ import java.util.zip.CheckedInputStream;
 
 public class ServerSongLoader {
 
-    public static CheckedSong load(InputStream input, ResourceLocation id) throws IOException {
+    public static CheckedSong load(InputStream input, Identifier id) throws IOException {
         CheckedInputStream in = new CheckedInputStream(input, new CRC32());
 
         Song song = SongDecoder.parse(in);

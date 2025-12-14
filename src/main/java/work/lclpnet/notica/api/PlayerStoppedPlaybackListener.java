@@ -1,11 +1,11 @@
 package work.lclpnet.notica.api;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 
 public interface PlayerStoppedPlaybackListener {
 
-    ResourceLocation getSongId();
+    Identifier getSongId();
 
     boolean isListener(ServerPlayer player);
 

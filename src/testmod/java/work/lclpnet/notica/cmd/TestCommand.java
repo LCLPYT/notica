@@ -4,8 +4,9 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.api.CheckedSong;
@@ -24,7 +25,7 @@ public class TestCommand {
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(literal(identifier("test").toString())
-                .requires(s -> s.hasPermission(2))
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(literal("play_with_offset")
                         .executes(this::playWithOffset)));
     }
@@ -40,7 +41,7 @@ public class TestCommand {
             return 0;
         }
 
-        ResourceLocation playWithOffset = identifier("play_with_offset");
+        Identifier playWithOffset = identifier("play_with_offset");
         CheckedSong song;
 
         try (in) {

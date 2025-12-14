@@ -1,6 +1,6 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
@@ -8,8 +8,8 @@ import java.util.*;
 public class ClientSongRepository {
 
     private final Map<Checksum, PendingSong> byChecksum = new HashMap<>();
-    private final Map<ResourceLocation, Checksum> byId = new HashMap<>();
-    private final Map<Checksum, List<ResourceLocation>> references = new HashMap<>();
+    private final Map<Identifier, Checksum> byId = new HashMap<>();
+    private final Map<Checksum, List<Identifier>> references = new HashMap<>();
 
     @Nullable
     public synchronized PendingSong get(byte[] checksum) {
@@ -17,7 +17,7 @@ public class ClientSongRepository {
     }
 
     @Nullable
-    public synchronized PendingSong get(ResourceLocation id) {
+    public synchronized PendingSong get(Identifier id) {
         Checksum checksum = byId.get(id);
 
         if (checksum == null) return null;
@@ -31,7 +31,7 @@ public class ClientSongRepository {
         byChecksum.put(key, pendingSong);
     }
 
-    public synchronized void bind(PendingSong song, ResourceLocation id) {
+    public synchronized void bind(PendingSong song, Identifier id) {
         var key = new Checksum(song.checksum());
 
         if (!byChecksum.containsKey(key)) {
@@ -45,10 +45,10 @@ public class ClientSongRepository {
         boundIds.add(id);
     }
 
-    public synchronized void unbind(PendingSong song, ResourceLocation id) {
+    public synchronized void unbind(PendingSong song, Identifier id) {
         var key = new Checksum(song.checksum());
 
-        List<ResourceLocation> boundIds = references.get(key);
+        List<Identifier> boundIds = references.get(key);
 
         if (boundIds == null || !boundIds.remove(id)) return;
 

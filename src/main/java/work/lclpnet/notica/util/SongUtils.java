@@ -1,6 +1,6 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.NotNull;
 import work.lclpnet.notica.NoticaInit;
 
@@ -10,7 +10,7 @@ import java.util.Locale;
 public class SongUtils {
 
     @NotNull
-    public static ResourceLocation createSongId(Path path) {
+    public static Identifier createSongId(Path path) {
         String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
 
         // remove file extension

@@ -3,7 +3,7 @@ package work.lclpnet.notica.impl;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -106,7 +106,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // create a new sound event
-        ResourceLocation id = ResourceLocation.parse(name);
+        Identifier id = Identifier.parse(name);
 
         extendedSound = sound.fixedRange()
                 .map(fixedRanged -> SoundEvent.createFixedRangeEvent(id, fixedRanged))
@@ -137,7 +137,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // try to parse filename as sound id
-        ResourceLocation idFromFile = ResourceLocation.tryParse(file);
+        Identifier idFromFile = Identifier.tryParse(file);
 
         if (idFromFile != null) {
             SoundEvent sound = soundRegistry.getValue(idFromFile);
@@ -148,7 +148,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // try the sound name instead
-        ResourceLocation idFromName = ResourceLocation.tryParse(name);
+        Identifier idFromName = Identifier.tryParse(name);
 
         if (idFromName != null) {
             SoundEvent sound = soundRegistry.getValue(idFromName);

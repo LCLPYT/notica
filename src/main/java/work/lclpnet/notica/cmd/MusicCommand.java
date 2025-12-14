@@ -16,11 +16,11 @@ import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -103,24 +103,24 @@ public class MusicCommand {
                                                 .executes(this::playSongVolume)
                                                 .then(literal("individual")
                                                         .executes(ctx -> playSongVariant(ctx, PlaybackVariant.INDIVIDUAL))
-                                                        .then(argument("id", ResourceLocationArgument.id())
+                                                        .then(argument("id", IdentifierArgument.id())
                                                                 .executes(ctx -> playSongId(ctx, PlaybackVariant.INDIVIDUAL, StereoMode.SPATIAL))))
                                                 .then(literal("streamed")
                                                         .executes(ctx -> playSongVariant(ctx, PlaybackVariant.STREAMED))
                                                         .then(literal("spatial")
                                                                 .executes(ctx -> playSongStereo(ctx, StereoMode.SPATIAL))
-                                                                .then(argument("id", ResourceLocationArgument.id())
+                                                                .then(argument("id", IdentifierArgument.id())
                                                                         .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.SPATIAL))))
                                                         .then(literal("equal_power")
                                                                 .executes(ctx -> playSongStereo(ctx, StereoMode.EQUAL_POWER))
-                                                                .then(argument("id", ResourceLocationArgument.id())
+                                                                .then(argument("id", IdentifierArgument.id())
                                                                         .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.EQUAL_POWER)))))))))
                 .then(literal("stop")
                         .requires(require(permission("command.music.stop"), 2))
                         .executes(this::stopAllSelf)
                         .then(argument("listeners", EntityArgument.players())
                                 .executes(this::stopAll)
-                                .then(argument("id", ResourceLocationArgument.id())
+                                .then(argument("id", IdentifierArgument.id())
                                         .suggests(this::commonPlayingSongIds)
                                         .executes(this::stopSong))))
                 .then(literal("set")
@@ -138,7 +138,7 @@ public class MusicCommand {
                                 .executes(this::seekAutoSelf)
                                 .then(argument("listeners", EntityArgument.players())
                                         .executes(this::seekAuto)
-                                        .then(argument("id", ResourceLocationArgument.id())
+                                        .then(argument("id", IdentifierArgument.id())
                                                 .suggests(this::commonPlayingSongIds)
                                                 .executes(this::seekId)))));
     }
@@ -149,7 +149,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        ResourceLocation id = SongUtils.createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), List.of(player));
@@ -162,7 +162,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        ResourceLocation id = SongUtils.createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -176,7 +176,7 @@ public class MusicCommand {
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        ResourceLocation id = SongUtils.createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -190,7 +190,7 @@ public class MusicCommand {
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        ResourceLocation id = SongUtils.createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -205,7 +205,7 @@ public class MusicCommand {
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        ResourceLocation id = SongUtils.createSongId(path);
+        Identifier id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -218,7 +218,7 @@ public class MusicCommand {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-        ResourceLocation id = ResourceLocationArgument.getId(ctx, "id");
+        Identifier id = IdentifierArgument.getId(ctx, "id");
 
         Path path = songDirectory.resolve(songFile);
 
@@ -281,7 +281,7 @@ public class MusicCommand {
         return players.stream().anyMatch(player -> !executor.equals(player));
     }
 
-    private int playSong(CommandSourceStack source, Collection<? extends ServerPlayer> listeners, Path path, ResourceLocation id, PlaybackOptions options) throws CommandSyntaxException {
+    private int playSong(CommandSourceStack source, Collection<? extends ServerPlayer> listeners, Path path, Identifier id, PlaybackOptions options) throws CommandSyntaxException {
         if (involvesOther(source, listeners) && !Permissions.check(source, permission("command.music.play.other"), 2)) {
             throw errorNoPermissionPlayOther.create();
         }
@@ -415,7 +415,7 @@ public class MusicCommand {
 
     private int stopSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
-        ResourceLocation id = ResourceLocationArgument.getId(ctx, "id");
+        Identifier id = IdentifierArgument.getId(ctx, "id");
 
         CommandSourceStack source = ctx.getSource();
 
@@ -493,7 +493,7 @@ public class MusicCommand {
     private int seekId(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         String time = StringArgumentType.getString(ctx, "time");
         var players = EntityArgument.getPlayers(ctx, "listeners");
-        ResourceLocation songId = ResourceLocationArgument.getId(ctx, "id");
+        Identifier songId = IdentifierArgument.getId(ctx, "id");
 
         CommandSourceStack source = ctx.getSource();
 
@@ -638,7 +638,7 @@ public class MusicCommand {
         api.getPlayingSongs().stream()
                 .filter(handle -> listeners.stream().allMatch(handle::isListener))
                 .map(SongHandle::getSongId)
-                .map(ResourceLocation::toString)
+                .map(Identifier::toString)
                 .forEach(builder::suggest);
 
         return builder.buildFuture();

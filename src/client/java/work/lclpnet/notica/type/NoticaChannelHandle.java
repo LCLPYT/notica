@@ -2,7 +2,7 @@ package work.lclpnet.notica.type;
 
 import org.jetbrains.annotations.Nullable;
 
-public interface NoticaSourceManager {
+public interface NoticaChannelHandle {
 
     void notica$onStopped(@Nullable Runnable runnable);
 }

@@ -3,8 +3,8 @@
   "package": "work.lclpnet.notica.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ServerCommonNetworkHandlerMixin",
-    "ServerLoginNetworkHandlerAccessor"
+    "ServerCommonPacketListenerMixin",
+    "ServerLoginPacketListenerImplAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

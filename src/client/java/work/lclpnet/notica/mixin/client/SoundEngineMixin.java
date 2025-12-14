@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import work.lclpnet.notica.impl.NbsSoundInstance;
 
 @Mixin(SoundEngine.class)
-public class SoundSystemMixin {
+public class SoundEngineMixin {
 
     @Inject(
             method = "calculatePitch",

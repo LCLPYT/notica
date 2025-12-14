@@ -7,10 +7,10 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import work.lclpnet.notica.type.NoticaSourceManager;
+import work.lclpnet.notica.type.NoticaChannelHandle;
 
 @Mixin(ChannelAccess.ChannelHandle.class)
-public class SourceManagerMixin implements NoticaSourceManager {
+public class ChannelHandleMixin implements NoticaChannelHandle {
 
     @Unique @Nullable
     private Runnable onStopped = null;

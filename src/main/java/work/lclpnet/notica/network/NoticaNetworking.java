@@ -17,7 +17,7 @@ import work.lclpnet.notica.NoticaInit;
 import work.lclpnet.notica.api.SongSlice;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.NoticaImpl;
-import work.lclpnet.notica.mixin.ServerLoginNetworkHandlerAccessor;
+import work.lclpnet.notica.mixin.ServerLoginPacketListenerImplAccessor;
 import work.lclpnet.notica.network.packet.*;
 
 import java.util.HashMap;
@@ -63,7 +63,7 @@ public class NoticaNetworking {
     }
 
     private void onLoginDisconnect(ServerLoginPacketListenerImpl handler, MinecraftServer server) {
-        GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getAuthenticatedProfile();
+        GameProfile profile = ((ServerLoginPacketListenerImplAccessor) handler).getAuthenticatedProfile();
         if (profile == null) return;
 
         onQuit(profile.id());

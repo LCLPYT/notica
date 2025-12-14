@@ -11,8 +11,8 @@ import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
-import work.lclpnet.notica.type.NoticaSource;
-import work.lclpnet.notica.type.NoticaSourceManager;
+import work.lclpnet.notica.type.NoticaChannel;
+import work.lclpnet.notica.type.NoticaChannelHandle;
 
 import java.util.concurrent.*;
 import java.util.function.Supplier;
@@ -97,10 +97,10 @@ public class StreamSongPlayback implements SongPlayback {
                 }
             };
 
-            ((NoticaSourceManager) sourceManager).notica$onStopped(onStopped);
+            ((NoticaChannelHandle) sourceManager).notica$onStopped(onStopped);
 
             sourceManager.execute(source -> {
-                ((NoticaSource) source).notica$setNoticaSource();
+                ((NoticaChannel) source).notica$setNoticaSource();
 
                 source.setRelative(true);
                 source.setSelfPosition(Vec3.ZERO);
@@ -176,9 +176,9 @@ public class StreamSongPlayback implements SongPlayback {
             sourceManager.execute(source -> {
                 if (source.stopped()) return;
 
-                ((NoticaSourceManager) sourceManager).notica$onStopped(null);
-                ((NoticaSource) source).notica$setStopped();
-                ((NoticaSource) source).notica$onTick(null);
+                ((NoticaChannelHandle) sourceManager).notica$onStopped(null);
+                ((NoticaChannel) source).notica$setStopped();
+                ((NoticaChannel) source).notica$onTick(null);
 
                 source.stop();
 

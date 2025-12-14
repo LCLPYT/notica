@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import work.lclpnet.notica.type.NoticaMusicTracker;
+import work.lclpnet.notica.type.NoticaMusicManager;
 
 import java.util.function.BooleanSupplier;
 
 @Mixin(MusicManager.class)
-public abstract class MusicTrackerMixin implements NoticaMusicTracker {
+public abstract class MusicManagerMixin implements NoticaMusicManager {
 
     @Shadow private @Nullable SoundInstance currentMusic;
     @Shadow @Final private Minecraft minecraft;

@@ -11,9 +11,9 @@ import work.lclpnet.notica.event.SongVolumeChangedCallback;
 import work.lclpnet.notica.impl.ClientInstrumentSoundProvider;
 import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
-import work.lclpnet.notica.mixin.client.MinecraftClientAccessor;
+import work.lclpnet.notica.mixin.client.MinecraftAccessor;
 import work.lclpnet.notica.networking.NoticaClientNetworking;
-import work.lclpnet.notica.type.NoticaMusicTracker;
+import work.lclpnet.notica.type.NoticaMusicManager;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
 import java.nio.file.Path;
@@ -45,8 +45,8 @@ public class NoticaClientInit implements ClientModInitializer {
         });
 
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-			var musicTracker = ((MinecraftClientAccessor) client).getMusicManager();
-			((NoticaMusicTracker) musicTracker).notica$setMusicInhibitor(musicBackend::isSongPlaying);
+			var musicTracker = ((MinecraftAccessor) client).getMusicManager();
+			((NoticaMusicManager) musicTracker).notica$setMusicInhibitor(musicBackend::isSongPlaying);
 		});
 
 		SongVolumeChangedCallback.EVENT.register(musicBackend::reload);

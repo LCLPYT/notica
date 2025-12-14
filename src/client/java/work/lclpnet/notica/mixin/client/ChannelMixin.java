@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import work.lclpnet.notica.type.NoticaSource;
+import work.lclpnet.notica.type.NoticaChannel;
 
 import java.util.function.Consumer;
 
@@ -17,7 +17,7 @@ import static org.lwjgl.openal.AL10.*;
 import static org.lwjgl.openal.AL11.AL_SEC_OFFSET;
 
 @Mixin(Channel.class)
-public abstract class SourceMixin implements NoticaSource {
+public abstract class ChannelMixin implements NoticaChannel {
 
     @Unique private boolean noticaSource = false, stopped = false;
     @Unique private @Nullable Consumer<Channel> tickAction = null;

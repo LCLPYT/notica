@@ -6,17 +6,17 @@
     "defaultRequire": 1
   },
   "client": [
-    "ClientPlayNetworkHandlerMixin",
-    "MinecraftClientAccessor",
-    "MinecraftClientMixin",
-    "MusicTrackerMixin",
-    "SoundLoaderAccessor",
+    "ChannelHandleMixin",
+    "ChannelMixin",
+    "ClientPacketListenerMixin",
+    "MinecraftAccessor",
+    "MinecraftMixin",
+    "MusicManagerMixin",
+    "SoundBufferAccessor",
+    "SoundBufferLibraryAccessor",
+    "SoundEngineAccessor",
+    "SoundEngineMixin",
     "SoundManagerAccessor",
-    "SoundManagerMixin",
-    "SoundSystemAccessor",
-    "SoundSystemMixin",
-    "SourceManagerMixin",
-    "SourceMixin",
-    "StaticSoundAccessor"
+    "SoundManagerMixin"
   ]
 }

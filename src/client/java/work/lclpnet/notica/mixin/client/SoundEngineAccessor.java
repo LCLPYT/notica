@@ -7,7 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(SoundEngine.class)
-public interface SoundSystemAccessor {
+public interface SoundEngineAccessor {
 
     @Accessor
     SoundBufferLibrary getSoundBuffers();

@@ -17,7 +17,7 @@ import work.lclpnet.notica.event.ResourcePackStatusCallback;
 import java.util.UUID;
 
 @Mixin(ServerCommonPacketListenerImpl.class)
-public abstract class ServerCommonNetworkHandlerMixin {
+public abstract class ServerCommonPacketListenerMixin {
 
     @Shadow protected abstract GameProfile playerProfile();
 
@@ -35,7 +35,6 @@ public abstract class ServerCommonNetworkHandlerMixin {
         if (server == null) return;
 
         PlayerList playerManager = server.getPlayerList();
-        if (playerManager == null) return;
 
         UUID uuid = playerProfile().id();
         if (uuid == null) return;

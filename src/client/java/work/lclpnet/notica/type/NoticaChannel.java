@@ -5,7 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
 
-public interface NoticaSource {
+public interface NoticaChannel {
 
     void notica$setNoticaSource();
 

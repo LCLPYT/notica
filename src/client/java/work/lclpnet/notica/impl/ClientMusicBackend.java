@@ -18,9 +18,9 @@ import work.lclpnet.notica.config.NoticaClientConfig;
 import work.lclpnet.notica.config.PlaybackVariantOverride;
 import work.lclpnet.notica.config.StereoModeOverride;
 import work.lclpnet.notica.impl.mix.*;
-import work.lclpnet.notica.mixin.client.SoundLoaderAccessor;
+import work.lclpnet.notica.mixin.client.SoundBufferLibraryAccessor;
+import work.lclpnet.notica.mixin.client.SoundEngineAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
-import work.lclpnet.notica.mixin.client.SoundSystemAccessor;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
@@ -103,11 +103,11 @@ public class ClientMusicBackend {
         Minecraft client = Minecraft.getInstance();
         SoundManager soundManager = client.getSoundManager();
         SoundEngine soundSystem = ((SoundManagerAccessor) soundManager).getSoundEngine();
-        var soundSystemAccess = (SoundSystemAccessor) soundSystem;
+        var soundSystemAccess = (SoundEngineAccessor) soundSystem;
 
         ChannelAccess channel = soundSystemAccess.getChannelAccess();
         SoundBufferLibrary soundLoader = soundSystemAccess.getSoundBuffers();
-        ResourceProvider resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceManager();
+        ResourceProvider resourceFactory = ((SoundBufferLibraryAccessor) soundLoader).getResourceManager();
 
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);

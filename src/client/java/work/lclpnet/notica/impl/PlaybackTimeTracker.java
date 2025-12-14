@@ -3,7 +3,7 @@ package work.lclpnet.notica.impl;
 import com.mojang.blaze3d.audio.Channel;
 import lombok.Getter;
 import net.minecraft.client.sounds.ChannelAccess;
-import work.lclpnet.notica.type.NoticaSource;
+import work.lclpnet.notica.type.NoticaChannel;
 
 public class PlaybackTimeTracker {
 
@@ -20,11 +20,11 @@ public class PlaybackTimeTracker {
     }
 
     public void init() {
-        sourceManager.execute(src -> ((NoticaSource) src).notica$onTick(this::tick));
+        sourceManager.execute(src -> ((NoticaChannel) src).notica$onTick(this::tick));
     }
 
     private void tick(Channel src) {
-        NoticaSource noticaSrc = (NoticaSource) src;
+        NoticaChannel noticaSrc = (NoticaChannel) src;
 
         int completedBuffers = noticaSrc.notica$getCompletedBuffers();
         float offsetSeconds = noticaSrc.notica$getOffsetSeconds();

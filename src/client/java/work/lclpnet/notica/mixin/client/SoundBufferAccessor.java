@@ -9,7 +9,7 @@ import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
 
 @Mixin(SoundBuffer.class)
-public interface StaticSoundAccessor {
+public interface SoundBufferAccessor {
 
     @Accessor
     @Nullable ByteBuffer getData();

@@ -1,14 +1,14 @@
 package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.Channel;
-import net.minecraft.client.sound.SoundLoader;
-import net.minecraft.client.sound.SoundManager;
-import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.resource.ResourceFactory;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.sounds.ChannelAccess;
+import net.minecraft.client.sounds.SoundBufferLibrary;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceProvider;
+import net.minecraft.sounds.SoundSource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ public class ClientMusicBackend {
     private final PlayerConfigEntry playerConfig;
     private final ConfigManager<NoticaClientConfig> configManager;
     private final Logger logger;
-    private final Map<Identifier, SongPlayback> playing = new HashMap<>();
+    private final Map<ResourceLocation, SongPlayback> playing = new HashMap<>();
     private final DirectSoundManager directSoundManager = new DirectSoundManager();
     private final AudioFormat unifiedAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,
             48_000, 16, 2, 4, 48_000, false);
@@ -54,7 +54,7 @@ public class ClientMusicBackend {
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
+    public void playSong(PendingSong song, ResourceLocation songId, PlaybackOptions options, int startTick) {
         songRepository.bind(song, songId);
 
         stopSong(songId);
@@ -100,14 +100,14 @@ public class ClientMusicBackend {
                 .map(StereoModeOverride::stereoMode)
                 .orElseGet(options::stereoMode);
 
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         SoundManager soundManager = client.getSoundManager();
-        SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).getSoundSystem();
+        SoundEngine soundSystem = ((SoundManagerAccessor) soundManager).getSoundEngine();
         var soundSystemAccess = (SoundSystemAccessor) soundSystem;
 
-        Channel channel = soundSystemAccess.getChannel();
-        SoundLoader soundLoader = soundSystemAccess.getSoundLoader();
-        ResourceFactory resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceFactory();
+        ChannelAccess channel = soundSystemAccess.getChannelAccess();
+        SoundBufferLibrary soundLoader = soundSystemAccess.getSoundBuffers();
+        ResourceProvider resourceFactory = ((SoundLoaderAccessor) soundLoader).getResourceManager();
 
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
@@ -126,7 +126,7 @@ public class ClientMusicBackend {
                     soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false);
 
             audioStream.setOnUpdate(() -> {
-                float categoryVolume = client.options.getSoundVolume(SoundCategory.RECORDS);
+                float categoryVolume = client.options.getFinalSoundSourceVolume(SoundSource.RECORDS);
                 float totalVolume = max(0.f, min(1.f, options.volume() * categoryVolume * playerConfig.getVolume()));
 
                 songMixer.setSongVolume(totalVolume);
@@ -136,7 +136,7 @@ public class ClientMusicBackend {
         }, sampleManager, song, channel, logger);
     }
 
-    public void stopSong(Identifier songId) {
+    public void stopSong(ResourceLocation songId) {
         SongPlayback playback = removePlaying(songId);
 
         if (playback == null) return;
@@ -145,28 +145,28 @@ public class ClientMusicBackend {
     }
 
     @Nullable
-    private synchronized SongPlayback removePlaying(Identifier songId) {
+    private synchronized SongPlayback removePlaying(ResourceLocation songId) {
         return playing.remove(songId);
     }
 
-    private void notifySongStopped(Identifier songId) {
+    private void notifySongStopped(ResourceLocation songId) {
         if (!ClientPlayNetworking.canSend(StopSongBidiPacket.ID)) return;
 
         var packet = new StopSongBidiPacket(songId);
         ClientPlayNetworking.send(packet);
     }
 
-    public Set<Identifier> getPlayingSongs() {
+    public Set<ResourceLocation> getPlayingSongs() {
         return new HashSet<>(playing.keySet());
     }
 
     public void stopAll() {
-        for (Identifier songId : getPlayingSongs()) {
+        for (ResourceLocation songId : getPlayingSongs()) {
             stopSong(songId);
         }
     }
 
-    public synchronized void seekSongTo(Identifier songId, int ticks, boolean absolute) {
+    public synchronized void seekSongTo(ResourceLocation songId, int ticks, boolean absolute) {
         SongPlayback playback = playing.get(songId);
 
         if (playback == null) return;

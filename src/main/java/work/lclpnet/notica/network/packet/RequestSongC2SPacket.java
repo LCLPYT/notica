@@ -1,24 +1,24 @@
 package work.lclpnet.notica.network.packet;
 
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import work.lclpnet.notica.NoticaInit;
 
-public record RequestSongC2SPacket(Identifier songId, int tickOffset, int layerOffset) implements CustomPayload {
+public record RequestSongC2SPacket(ResourceLocation songId, int tickOffset, int layerOffset) implements CustomPacketPayload {
 
-    public static final Id<RequestSongC2SPacket> ID = new Id<>(NoticaInit.identifier("request"));
+    public static final Type<RequestSongC2SPacket> ID = new Type<>(NoticaInit.identifier("request"));
 
-    public static final PacketCodec<PacketByteBuf, RequestSongC2SPacket> CODEC = PacketCodec.tuple(
-            Identifier.PACKET_CODEC, RequestSongC2SPacket::songId,
-            PacketCodecs.VAR_INT, RequestSongC2SPacket::tickOffset,
-            PacketCodecs.VAR_INT, RequestSongC2SPacket::layerOffset,
+    public static final StreamCodec<FriendlyByteBuf, RequestSongC2SPacket> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC, RequestSongC2SPacket::songId,
+            ByteBufCodecs.VAR_INT, RequestSongC2SPacket::tickOffset,
+            ByteBufCodecs.VAR_INT, RequestSongC2SPacket::layerOffset,
             RequestSongC2SPacket::new);
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

@@ -1,12 +1,12 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.util.Identifier;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
@@ -42,11 +42,11 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
     private final Map<String, SoundEvent> extended = new HashMap<>();
 
     public FabricInstrumentSoundProvider(MinecraftServer server) {
-        this(server.getRegistryManager());
+        this(server.registryAccess());
     }
 
-    public FabricInstrumentSoundProvider(DynamicRegistryManager registryManager) {
-        this(registryManager.getOrThrow(RegistryKeys.SOUND_EVENT));
+    public FabricInstrumentSoundProvider(RegistryAccess registryManager) {
+        this(registryManager.lookupOrThrow(Registries.SOUND_EVENT));
     }
 
     public FabricInstrumentSoundProvider(Registry<SoundEvent> soundRegistry) {
@@ -57,22 +57,22 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
     @Nullable
     public SoundEvent getVanillaInstrumentSound(byte instrument) {
         return switch (instrument) {
-            case HARP           -> SoundEvents.BLOCK_NOTE_BLOCK_HARP.value();
-            case BASS           -> SoundEvents.BLOCK_NOTE_BLOCK_BASS.value();
-            case BASEDRUM       -> SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM.value();
-            case SNARE          -> SoundEvents.BLOCK_NOTE_BLOCK_SNARE.value();
-            case HAT            -> SoundEvents.BLOCK_NOTE_BLOCK_HAT.value();
-            case GUITAR         -> SoundEvents.BLOCK_NOTE_BLOCK_GUITAR.value();
-            case FLUTE          -> SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value();
-            case BELL           -> SoundEvents.BLOCK_NOTE_BLOCK_BELL.value();
-            case CHIME          -> SoundEvents.BLOCK_NOTE_BLOCK_CHIME.value();
-            case XYLOPHONE      -> SoundEvents.BLOCK_NOTE_BLOCK_XYLOPHONE.value();
-            case IRON_XYLOPHONE -> SoundEvents.BLOCK_NOTE_BLOCK_IRON_XYLOPHONE.value();
-            case COW_BELL       -> SoundEvents.BLOCK_NOTE_BLOCK_COW_BELL.value();
-            case DIDGERIDOO     -> SoundEvents.BLOCK_NOTE_BLOCK_DIDGERIDOO.value();
-            case BIT            -> SoundEvents.BLOCK_NOTE_BLOCK_BIT.value();
-            case BANJO          -> SoundEvents.BLOCK_NOTE_BLOCK_BANJO.value();
-            case PLING          -> SoundEvents.BLOCK_NOTE_BLOCK_PLING.value();
+            case HARP           -> SoundEvents.NOTE_BLOCK_HARP.value();
+            case BASS           -> SoundEvents.NOTE_BLOCK_BASS.value();
+            case BASEDRUM       -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
+            case SNARE          -> SoundEvents.NOTE_BLOCK_SNARE.value();
+            case HAT            -> SoundEvents.NOTE_BLOCK_HAT.value();
+            case GUITAR         -> SoundEvents.NOTE_BLOCK_GUITAR.value();
+            case FLUTE          -> SoundEvents.NOTE_BLOCK_FLUTE.value();
+            case BELL           -> SoundEvents.NOTE_BLOCK_BELL.value();
+            case CHIME          -> SoundEvents.NOTE_BLOCK_CHIME.value();
+            case XYLOPHONE      -> SoundEvents.NOTE_BLOCK_XYLOPHONE.value();
+            case IRON_XYLOPHONE -> SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value();
+            case COW_BELL       -> SoundEvents.NOTE_BLOCK_COW_BELL.value();
+            case DIDGERIDOO     -> SoundEvents.NOTE_BLOCK_DIDGERIDOO.value();
+            case BIT            -> SoundEvents.NOTE_BLOCK_BIT.value();
+            case BANJO          -> SoundEvents.NOTE_BLOCK_BANJO.value();
+            case PLING          -> SoundEvents.NOTE_BLOCK_PLING.value();
             default             -> null;
         };
     }
@@ -98,7 +98,7 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
     @NotNull
     @Override
     public SoundEvent getExtendedSound(final @NotNull SoundEvent sound, byte key, short pitch) {
-        String name = NoteHelper.getExtendedSoundName(sound.id().toString(), key, pitch);
+        String name = NoteHelper.getExtendedSoundName(sound.location().toString(), key, pitch);
         SoundEvent extendedSound = this.extended.get(name);
 
         if (extendedSound != null) {
@@ -106,11 +106,11 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // create a new sound event
-        Identifier id = Identifier.of(name);
+        ResourceLocation id = ResourceLocation.parse(name);
 
         extendedSound = sound.fixedRange()
-                .map(fixedRanged -> SoundEvent.of(id, fixedRanged))
-                .orElseGet(() -> SoundEvent.of(id));
+                .map(fixedRanged -> SoundEvent.createFixedRangeEvent(id, fixedRanged))
+                .orElseGet(() -> SoundEvent.createVariableRangeEvent(id));
 
         this.extended.put(name, extendedSound);
 
@@ -133,14 +133,14 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
 
         // support for old nbs files that encoded the pling sound as custom instrument
         if (file.equalsIgnoreCase("pling")) {
-            return SoundEvents.BLOCK_NOTE_BLOCK_PLING.value();
+            return SoundEvents.NOTE_BLOCK_PLING.value();
         }
 
         // try to parse filename as sound id
-        Identifier idFromFile = Identifier.tryParse(file);
+        ResourceLocation idFromFile = ResourceLocation.tryParse(file);
 
         if (idFromFile != null) {
-            SoundEvent sound = soundRegistry.get(idFromFile);
+            SoundEvent sound = soundRegistry.getValue(idFromFile);
 
             if (sound != null) {
                 return sound;
@@ -148,10 +148,10 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
         }
 
         // try the sound name instead
-        Identifier idFromName = Identifier.tryParse(name);
+        ResourceLocation idFromName = ResourceLocation.tryParse(name);
 
         if (idFromName != null) {
-            SoundEvent sound = soundRegistry.get(idFromName);
+            SoundEvent sound = soundRegistry.getValue(idFromName);
 
             if (sound != null) {
                 return sound;
@@ -160,11 +160,11 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
 
         // fallback for non-vanilla custom sounds
         if (idFromFile != null) {
-            return SoundEvent.of(idFromFile);
+            return SoundEvent.createVariableRangeEvent(idFromFile);
         }
 
         if (idFromName != null) {
-            return SoundEvent.of(idFromName);
+            return SoundEvent.createVariableRangeEvent(idFromName);
         }
 
         return null;

@@ -1,6 +1,6 @@
 package work.lclpnet.notica.api;
 
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.sounds.SoundEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.data.CustomInstrument;

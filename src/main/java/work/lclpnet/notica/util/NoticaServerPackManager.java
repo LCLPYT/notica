@@ -1,8 +1,8 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.network.packet.c2s.common.ResourcePackStatusC2SPacket;
-import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
 import work.lclpnet.notica.config.ConfigAccess;
@@ -15,8 +15,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static net.minecraft.util.Formatting.GREEN;
-import static net.minecraft.util.Formatting.RED;
+import static net.minecraft.ChatFormatting.GREEN;
+import static net.minecraft.ChatFormatting.RED;
 
 public class NoticaServerPackManager {
 
@@ -33,8 +33,8 @@ public class NoticaServerPackManager {
         this.logger = logger;
     }
 
-    public void sendServerPack(ServerPlayerEntity player) {
-        UUID playerUuid = player.getUuid();
+    public void sendServerPack(ServerPlayer player) {
+        UUID playerUuid = player.getUUID();
         if (installed.contains(playerUuid) || !requesting.add(playerUuid)) return;
 
         URL url = configAccess.getConfig().extraNotesPackUrl;
@@ -48,27 +48,27 @@ public class NoticaServerPackManager {
 
         UUID packUuid = UUID.nameUUIDFromBytes(urlString.getBytes(StandardCharsets.UTF_8));
         var prompt = translations.translateText(player, "notica.music.server_pack_prompt").formatted(GREEN);
-        var packet = new ResourcePackSendS2CPacket(packUuid, urlString, "", false, Optional.of(prompt));
+        var packet = new ClientboundResourcePackPushPacket(packUuid, urlString, "", false, Optional.of(prompt));
 
         this.packUuid = packUuid;
-        player.networkHandler.sendPacket(packet);
+        player.connection.send(packet);
     }
 
-    public boolean hasServerPackInstalled(ServerPlayerEntity player) {
-        return installed.contains(player.getUuid());
+    public boolean hasServerPackInstalled(ServerPlayer player) {
+        return installed.contains(player.getUUID());
     }
 
-    public void onPlayerQuit(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    public void onPlayerQuit(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         requesting.remove(uuid);
         installed.remove(uuid);
     }
 
-    public void onResourcePackStatus(ServerPlayerEntity player, ResourcePackStatusC2SPacket packet) {
+    public void onResourcePackStatus(ServerPlayer player, ServerboundResourcePackPacket packet) {
         if (packUuid == null || !packUuid.equals(packet.id())) return;
 
-        var status = packet.status();
-        logger.debug("Player {} sent server resource pack status {}", player.getNameForScoreboard(), status);
+        var status = packet.action();
+        logger.debug("Player {} sent server resource pack status {}", player.getScoreboardName(), status);
 
         switch (status) {
             case SUCCESSFULLY_LOADED -> onSuccess(player);
@@ -77,34 +77,34 @@ public class NoticaServerPackManager {
         }
     }
 
-    private void onSuccess(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    private void onSuccess(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         installed.add(uuid);
         requesting.remove(uuid);
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(true);
 
         var msg = translations.translateText(player, "notica.music.server_pack_success").formatted(GREEN);
-        player.sendMessage(msg);
+        player.sendSystemMessage(msg);
     }
 
-    private void onFail(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    private void onFail(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         installed.remove(uuid);
         requesting.remove(uuid);
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(false);
 
         sendError(player);
     }
 
-    private void sendError(ServerPlayerEntity player) {
+    private void sendError(ServerPlayer player) {
         var msg = translations.translateText(player, "notica.music.server_pack_failed").formatted(RED);
-        player.sendMessage(msg);
+        player.sendSystemMessage(msg);
     }
 
     public boolean isEnabled() {

@@ -2,7 +2,7 @@ package work.lclpnet.notica.util;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 import work.lclpnet.notica.api.MutablePlayerConfig;
 import work.lclpnet.notica.api.PlayerConfig;
 
@@ -48,11 +48,11 @@ public class PlayerConfigEntry implements PlayerConfig, MutablePlayerConfig {
         dirty = false;
     }
 
-    public void writeNbt(NbtCompound nbt) {
+    public void writeNbt(CompoundTag nbt) {
         nbt.putFloat(VOLUME_KEY, volume);
     }
 
-    public void readNbt(NbtCompound nbt) {
+    public void readNbt(CompoundTag nbt) {
         if (nbt.contains(VOLUME_KEY)) {
             this.volume = nbt.getFloat(VOLUME_KEY).orElse(1.f);
         }

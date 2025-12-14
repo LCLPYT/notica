@@ -4,8 +4,8 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
@@ -58,17 +58,17 @@ public class NoticaInit implements ModInitializer {
 		LOGGER.info("Initialized.");
 	}
 
-	private void onPlayerJoin(ServerPlayerEntity player) {
-		NoticaImpl.getInstance(player.getEntityWorld().getServer()).onPlayerJoin(player);
+	private void onPlayerJoin(ServerPlayer player) {
+		NoticaImpl.getInstance(player.level().getServer()).onPlayerJoin(player);
 	}
 
-	private void onPlayerQuit(ServerPlayerEntity player) {
-		NoticaImpl.getInstance(player.getEntityWorld().getServer()).onPlayerQuit(player);
+	private void onPlayerQuit(ServerPlayer player) {
+		NoticaImpl.getInstance(player.level().getServer()).onPlayerQuit(player);
 		serverPackManager.onPlayerQuit(player);
 	}
 
-	private void copyFromPlayer(ServerPlayerEntity oldPlayer, ServerPlayerEntity newPlayer, boolean alive) {
-		NoticaImpl.getInstance(newPlayer.getEntityWorld().getServer()).onPlayerChange(newPlayer);
+	private void copyFromPlayer(ServerPlayer oldPlayer, ServerPlayer newPlayer, boolean alive) {
+		NoticaImpl.getInstance(newPlayer.level().getServer()).onPlayerChange(newPlayer);
 	}
 
 	private static Translations getTranslations() {
@@ -111,8 +111,8 @@ public class NoticaInit implements ModInitializer {
 	 * @param path The path.
 	 * @return An identifier of this mod with the given path.
 	 */
-	public static Identifier identifier(String path) {
-		return Identifier.of(MOD_ID, path);
+	public static ResourceLocation identifier(String path) {
+		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	public static String permission(String suffix) {

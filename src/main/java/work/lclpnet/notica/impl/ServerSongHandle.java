@@ -1,8 +1,8 @@
 package work.lclpnet.notica.impl;
 
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.kibu.hook.Hook;
@@ -49,15 +49,15 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         this.moddedRefs.clear();
 
         for (SongPlayerRef playerRef : moddedPlayers) {
-            ServerPlayerEntity player = playerRef.getPlayer();
+            ServerPlayer player = playerRef.getPlayer();
             sendPlayPacket(player);
-            this.moddedRefs.put(player.getUuid(), playerRef);
+            this.moddedRefs.put(player.getUUID(), playerRef);
         }
 
         this.vanillaRefs.clear();
 
         for (SongPlayerRef playerRef : vanillaPlayers) {
-            UUID uuid = playerRef.getPlayer().getUuid();
+            UUID uuid = playerRef.getPlayer().getUUID();
             this.vanillaRefs.put(uuid, playerRef);
         }
 
@@ -97,7 +97,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         return playback;
     }
 
-    private void sendPlayPacket(ServerPlayerEntity player) {
+    private void sendPlayPacket(ServerPlayer player) {
         Song song = checkedSong.song();
         SongHeader header = new SongHeader(song);
 
@@ -110,18 +110,18 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         ServerPlayNetworking.send(player, packet);
     }
 
-    private void sendStopPacket(ServerPlayerEntity player) {
+    private void sendStopPacket(ServerPlayer player) {
         var packet = new StopSongBidiPacket(checkedSong.id());
         ServerPlayNetworking.send(player, packet);
     }
 
-    private void sendSeekPacket(ServerPlayerEntity player, int ticks, boolean absolute) {
+    private void sendSeekPacket(ServerPlayer player, int ticks, boolean absolute) {
         var packet = new SongSeekS2CPacket(checkedSong.id(), ticks, absolute);
         ServerPlayNetworking.send(player, packet);
     }
 
     @Override
-    public Identifier getSongId() {
+    public ResourceLocation getSongId() {
         return checkedSong.id();
     }
 
@@ -163,8 +163,8 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
-    public synchronized Set<ServerPlayerEntity> getListeners() {
-        Set<ServerPlayerEntity> listeners = new HashSet<>();
+    public synchronized Set<ServerPlayer> getListeners() {
+        Set<ServerPlayer> listeners = new HashSet<>();
 
         for (SongPlayerRef playerRef : moddedRefs.values()) {
             listeners.add(playerRef.getPlayer());
@@ -178,15 +178,15 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
-    public synchronized boolean isListener(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    public synchronized boolean isListener(ServerPlayer player) {
+        UUID uuid = player.getUUID();
 
         return moddedRefs.containsKey(uuid) || vanillaRefs.containsKey(uuid);
     }
 
     @Override
-    public synchronized void remove(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    public synchronized void remove(ServerPlayer player) {
+        UUID uuid = player.getUUID();
 
         if (moddedRefs.remove(uuid) != null) {
             sendStopPacket(player);
@@ -222,8 +222,8 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
-    public synchronized void onStoppedPlayback(ServerPlayerEntity player) {
-        moddedRefs.remove(player.getUuid());
+    public synchronized void onStoppedPlayback(ServerPlayer player) {
+        moddedRefs.remove(player.getUUID());
 
         checkDestroyed();
     }

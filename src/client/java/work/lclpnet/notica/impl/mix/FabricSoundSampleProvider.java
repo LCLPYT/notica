@@ -1,10 +1,14 @@
 package work.lclpnet.notica.impl.mix;
 
-import net.minecraft.client.sound.*;
-import net.minecraft.resource.ResourceFactory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.FiniteAudioStream;
+import net.minecraft.client.sounds.JOrbisAudioStream;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceProvider;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
@@ -25,13 +29,13 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
     private final InstrumentSoundProvider soundProvider;
     private final SoundManager soundManager;
     private final DirectSoundManager directSoundManager;
-    private final ResourceFactory resourceFactory;
+    private final ResourceProvider resourceFactory;
     private final Logger logger;
-    private final Random random = Random.create(42);
+    private final RandomSource random = RandomSource.create(42);
 
     public FabricSoundSampleProvider(Instruments instruments, InstrumentSoundProvider soundProvider,
                                      SoundManager soundManager, DirectSoundManager directSoundManager,
-                                     ResourceFactory resourceFactory, Logger logger) {
+                                     ResourceProvider resourceFactory, Logger logger) {
         this.instruments = instruments;
         this.soundProvider = soundProvider;
         this.soundManager = soundManager;
@@ -48,15 +52,15 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
             return Optional.empty();
         }
 
-        if (sound.isStreamed()) {
-            logger.warn("Instrument sound {} is a streamed sound and will not be loaded into memory", sound.getLocation());
+        if (sound.shouldStream()) {
+            logger.warn("Instrument sound {} is a streamed sound and will not be loaded into memory", sound.getPath());
             return Optional.empty();
         }
 
-        float volume = sound.getVolume().get(random);
-        float pitch = sound.getPitch().get(random);
+        float volume = sound.getVolume().sample(random);
+        float pitch = sound.getPitch().sample(random);
 
-        return Optional.of(new Ref(sound.getLocation(), volume, pitch));
+        return Optional.of(new Ref(sound.getPath(), volume, pitch));
     }
 
     private @Nullable Sound getSound(byte instrument) {
@@ -73,10 +77,10 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
             return null;
         }
 
-        WeightedSoundSet soundSet = soundManager.get(soundEvent.id());
+        WeighedSoundEvents soundSet = soundManager.getSoundEvent(soundEvent.location());
 
         if (soundSet == null) {
-            soundSet = directSoundManager.getSoundSet(soundEvent.id());
+            soundSet = directSoundManager.getSoundSet(soundEvent.location());
         }
 
         if (soundSet == null) {
@@ -88,11 +92,11 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
 
     private class Ref implements SoundRef {
 
-        private final Identifier location;
+        private final ResourceLocation location;
         private final float volume;
         private final float pitch;
 
-        private Ref(Identifier location, float volume, float pitch) {
+        private Ref(ResourceLocation location, float volume, float pitch) {
             this.location = location;
             this.volume = volume;
             this.pitch = pitch;
@@ -110,7 +114,7 @@ public class FabricSoundSampleProvider implements SoundSampleProvider {
         }
 
         private SoundSample loadUnifiedSoundSync() throws IOException, UnsupportedAudioFileException {
-            try (NonRepeatingAudioStream audioIn = new OggAudioStream(resourceFactory.open(location))) {
+            try (FiniteAudioStream audioIn = new JOrbisAudioStream(resourceFactory.open(location))) {
                 ByteBuffer sample = audioIn.readAll();
 
                 return new SoundSample(sample, audioIn.getFormat());

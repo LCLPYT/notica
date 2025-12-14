@@ -1,6 +1,6 @@
 package work.lclpnet.notica.network;
 
-import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import work.lclpnet.notica.api.NoteEvent;
 import work.lclpnet.notica.api.SongSlice;
 import work.lclpnet.notica.api.data.Layer;
@@ -111,7 +111,7 @@ public class SongSlicer {
         return totalBytes;
     }
 
-    public static void writeSlice(PacketByteBuf buf, SongSlice slice) {
+    public static void writeSlice(FriendlyByteBuf buf, SongSlice slice) {
         int tickStart = slice.tickStart();
         int tickEnd = slice.tickEnd();
         int layerStart = slice.layerStart();
@@ -167,7 +167,7 @@ public class SongSlicer {
         buf.writeShort(0);
     }
 
-    public static SongSlice readSlice(PacketByteBuf buf) {
+    public static SongSlice readSlice(FriendlyByteBuf buf) {
         int tickStart = buf.readInt();
         int tickEnd = buf.readInt();
         int layerStart = buf.readInt();

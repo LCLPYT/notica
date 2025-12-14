@@ -1,8 +1,8 @@
 package work.lclpnet.notica;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import work.lclpnet.notica.api.CheckedSong;
 import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.SongHandle;
@@ -22,7 +22,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
-    SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players);
+    SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players);
 
     /**
      * Get all currently playing {@link SongHandle}s.
@@ -35,14 +35,14 @@ public interface Notica {
      * @param player The player.
      * @return A set of all {@link SongHandle}s the player is a listener of.
      */
-    Set<SongHandle> getPlayingSongs(ServerPlayerEntity player);
+    Set<SongHandle> getPlayingSongs(ServerPlayer player);
 
     /**
      * Get all {@link SongHandle} that play a song with the given songId.
      * @param songId The songId that identifies a song.
      * @return A set of all {@link SongHandle} that play the referenced song.
      */
-    Set<SongHandle> getPlayingSongs(Identifier songId);
+    Set<SongHandle> getPlayingSongs(ResourceLocation songId);
 
     /**
      * Get the {@link SongHandle} that plays a song, referenced by the given songId to a given player.
@@ -50,7 +50,7 @@ public interface Notica {
      * @param songId The songId that identifies a song.
      * @return An optional {@link SongHandle}.
      */
-    Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId);
+    Optional<SongHandle> getPlayingSong(ServerPlayer player, ResourceLocation songId);
 
     /**
      * Play a song to a collection of players.
@@ -59,7 +59,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
-    default SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayerEntity> players) {
+    default SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayer> players) {
         return playSong(song, volume, 0, players);
     }
 
@@ -70,7 +70,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
-    default SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayerEntity> players) {
+    default SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayer> players) {
         return playSong(song, new PlaybackOptions(volume), startTick, players);
     }
 

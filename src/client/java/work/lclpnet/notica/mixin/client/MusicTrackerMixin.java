@@ -1,8 +1,8 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.MusicTracker;
-import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.MusicManager;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -15,13 +15,13 @@ import work.lclpnet.notica.type.NoticaMusicTracker;
 
 import java.util.function.BooleanSupplier;
 
-@Mixin(MusicTracker.class)
+@Mixin(MusicManager.class)
 public abstract class MusicTrackerMixin implements NoticaMusicTracker {
 
-    @Shadow private @Nullable SoundInstance current;
-    @Shadow @Final private MinecraftClient client;
+    @Shadow private @Nullable SoundInstance currentMusic;
+    @Shadow @Final private Minecraft minecraft;
 
-    @Shadow public abstract void stop();
+    @Shadow public abstract void stopPlaying();
 
     @Unique
     private BooleanSupplier musicInhibitor = () -> false;
@@ -39,8 +39,8 @@ public abstract class MusicTrackerMixin implements NoticaMusicTracker {
     public void notica$shouldInhibitMusic(CallbackInfo ci) {
         if (!musicInhibitor.getAsBoolean()) return;
 
-        if (current != null && client.getSoundManager().isPlaying(current)) {
-            stop();
+        if (currentMusic != null && minecraft.getSoundManager().isActive(currentMusic)) {
+            stopPlaying();
         }
 
         ci.cancel();

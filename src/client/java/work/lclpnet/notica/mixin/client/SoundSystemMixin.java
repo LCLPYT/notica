@@ -1,18 +1,18 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.client.sound.SoundSystem;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundEngine;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import work.lclpnet.notica.impl.NbsSoundInstance;
 
-@Mixin(SoundSystem.class)
+@Mixin(SoundEngine.class)
 public class SoundSystemMixin {
 
     @Inject(
-            method = "getAdjustedPitch",
+            method = "calculatePitch",
             at = @At("HEAD"),
             cancellable = true
     )

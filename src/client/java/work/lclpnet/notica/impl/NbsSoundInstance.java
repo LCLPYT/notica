@@ -1,41 +1,41 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.client.sound.AbstractSoundInstance;
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.client.sound.SoundManager;
-import net.minecraft.client.sound.WeightedSoundSet;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.sounds.WeighedSoundEvents;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.RandomSource;
 
 public class NbsSoundInstance extends AbstractSoundInstance {
 
     private final DirectSoundManager directSoundManager;
 
-    public NbsSoundInstance(Identifier id, SoundCategory category, float volume, float pitch, Random random, boolean repeat, int repeatDelay, SoundInstance.AttenuationType attenuationType, double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
+    public NbsSoundInstance(ResourceLocation id, SoundSource category, float volume, float pitch, RandomSource random, boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType, double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
         super(id, category, random);
         this.volume = volume;
         this.pitch = pitch;
         this.x = x;
         this.y = y;
         this.z = z;
-        this.repeat = repeat;
-        this.repeatDelay = repeatDelay;
-        this.attenuationType = attenuationType;
+        this.looping = repeat;
+        this.delay = repeatDelay;
+        this.attenuation = attenuationType;
         this.relative = relative;
         this.directSoundManager = directSoundManager;
     }
 
     @Override
-    public WeightedSoundSet getSoundSet(SoundManager soundManager) {
-        WeightedSoundSet set = super.getSoundSet(soundManager);
+    public WeighedSoundEvents resolve(SoundManager soundManager) {
+        WeighedSoundEvents set = super.resolve(soundManager);
 
         if (set != null) {
             return set;
         }
 
         // sound is missing, maybe a custom instrument referencing a direct sound file
-        set = directSoundManager.getSoundSet(id);
+        set = directSoundManager.getSoundSet(location);
 
         if (set != null) {
             this.sound = set.getSound(random);

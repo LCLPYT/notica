@@ -2,7 +2,7 @@ package work.lclpnet.notica.event;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 
 public interface ClientJoinGameCallback {
 
@@ -12,5 +12,5 @@ public interface ClientJoinGameCallback {
         }
     });
 
-    void onJoin(ClientPlayNetworkHandler networkHandler);
+    void onJoin(ClientPacketListener networkHandler);
 }

@@ -13,15 +13,15 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import it.unimi.dsi.fastutil.ints.IntObjectPair;
 import me.lucko.fabric.api.permissions.v0.Permissions;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.command.argument.IdentifierArgumentType;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
@@ -56,9 +56,9 @@ import static java.lang.Integer.signum;
 import static java.lang.Math.abs;
 import static java.util.stream.Collectors.toSet;
 import static me.lucko.fabric.api.permissions.v0.Permissions.require;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
-import static net.minecraft.util.Formatting.*;
+import static net.minecraft.ChatFormatting.*;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 import static work.lclpnet.kibu.translate.text.FormatWrapper.styled;
 import static work.lclpnet.notica.NoticaInit.permission;
 
@@ -82,45 +82,45 @@ public class MusicCommand {
         this.serverPackManager = serverPackManager;
         this.logger = logger;
 
-        errorNoPermissionPlayOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.play.no_permission_other", "You don't have permission to play music to other players"));
-        errorNoPermissionStopOther = new SimpleCommandExceptionType(Text.translatableWithFallback("notica.music.stop.no_permission_other", "You don't have permission to stop music for other players"));
+        errorNoPermissionPlayOther = new SimpleCommandExceptionType(Component.translatableWithFallback("notica.music.play.no_permission_other", "You don't have permission to play music to other players"));
+        errorNoPermissionStopOther = new SimpleCommandExceptionType(Component.translatableWithFallback("notica.music.stop.no_permission_other", "You don't have permission to stop music for other players"));
     }
 
-    public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(command());
     }
 
-    private LiteralArgumentBuilder<ServerCommandSource> command() {
+    private LiteralArgumentBuilder<CommandSourceStack> command() {
         return literal("music")
                 .then(literal("play")
                         .requires(require(permission("command.music.play"), 2))
                         .then(argument("song", StringArgumentType.string())
                                 .suggests(this::availableSongFiles)
                                 .executes(this::playSongAutoSelf)
-                                .then(argument("listeners", EntityArgumentType.players())
+                                .then(argument("listeners", EntityArgument.players())
                                         .executes(this::playSongAuto)
                                         .then(argument("volume", FloatArgumentType.floatArg(0.f, 1.f))
                                                 .executes(this::playSongVolume)
                                                 .then(literal("individual")
                                                         .executes(ctx -> playSongVariant(ctx, PlaybackVariant.INDIVIDUAL))
-                                                        .then(argument("id", IdentifierArgumentType.identifier())
+                                                        .then(argument("id", ResourceLocationArgument.id())
                                                                 .executes(ctx -> playSongId(ctx, PlaybackVariant.INDIVIDUAL, StereoMode.SPATIAL))))
                                                 .then(literal("streamed")
                                                         .executes(ctx -> playSongVariant(ctx, PlaybackVariant.STREAMED))
                                                         .then(literal("spatial")
                                                                 .executes(ctx -> playSongStereo(ctx, StereoMode.SPATIAL))
-                                                                .then(argument("id", IdentifierArgumentType.identifier())
+                                                                .then(argument("id", ResourceLocationArgument.id())
                                                                         .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.SPATIAL))))
                                                         .then(literal("equal_power")
                                                                 .executes(ctx -> playSongStereo(ctx, StereoMode.EQUAL_POWER))
-                                                                .then(argument("id", IdentifierArgumentType.identifier())
+                                                                .then(argument("id", ResourceLocationArgument.id())
                                                                         .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.EQUAL_POWER)))))))))
                 .then(literal("stop")
                         .requires(require(permission("command.music.stop"), 2))
                         .executes(this::stopAllSelf)
-                        .then(argument("listeners", EntityArgumentType.players())
+                        .then(argument("listeners", EntityArgument.players())
                                 .executes(this::stopAll)
-                                .then(argument("id", IdentifierArgumentType.identifier())
+                                .then(argument("id", ResourceLocationArgument.id())
                                         .suggests(this::commonPlayingSongIds)
                                         .executes(this::stopSong))))
                 .then(literal("set")
@@ -136,20 +136,20 @@ public class MusicCommand {
                         .then(argument("time", StringArgumentType.string())
                                 .suggests(this::suggestTimes)
                                 .executes(this::seekAutoSelf)
-                                .then(argument("listeners", EntityArgumentType.players())
+                                .then(argument("listeners", EntityArgument.players())
                                         .executes(this::seekAuto)
-                                        .then(argument("id", IdentifierArgumentType.identifier())
+                                        .then(argument("id", ResourceLocationArgument.id())
                                                 .suggests(this::commonPlayingSongIds)
                                                 .executes(this::seekId)))));
     }
 
-    private int playSongAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerCommandSource source = ctx.getSource();
-        ServerPlayerEntity player = source.getPlayerOrThrow();
+    private int playSongAutoSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer player = source.getPlayerOrException();
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        ResourceLocation id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), List.of(player));
@@ -157,12 +157,12 @@ public class MusicCommand {
         return playSong(source, List.of(player), path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
-    private int playSongAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int playSongAuto(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        ResourceLocation id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -170,13 +170,13 @@ public class MusicCommand {
         return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
-    private int playSongVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int playSongVolume(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        ResourceLocation id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -184,13 +184,13 @@ public class MusicCommand {
         return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume));
     }
 
-    private int playSongVariant(CommandContext<ServerCommandSource> ctx, PlaybackVariant variant) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int playSongVariant(CommandContext<CommandSourceStack> ctx, PlaybackVariant variant) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        ResourceLocation id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -199,13 +199,13 @@ public class MusicCommand {
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private int playSongStereo(CommandContext<ServerCommandSource> ctx, StereoMode stereoMode) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int playSongStereo(CommandContext<CommandSourceStack> ctx, StereoMode stereoMode) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
 
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        ResourceLocation id = SongUtils.createSongId(path);
 
         // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), listeners);
@@ -214,49 +214,49 @@ public class MusicCommand {
     }
 
     @SuppressWarnings("DuplicatedCode")
-    private int playSongId(CommandContext<ServerCommandSource> ctx, PlaybackVariant variant, StereoMode stereoMode) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int playSongId(CommandContext<CommandSourceStack> ctx, PlaybackVariant variant, StereoMode stereoMode) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-        Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
+        ResourceLocation id = ResourceLocationArgument.getId(ctx, "id");
 
         Path path = songDirectory.resolve(songFile);
 
         return playSong(ctx.getSource(), listeners, path, id, new PlaybackOptions(volume, variant, stereoMode));
     }
 
-    private int changeExtendedRange(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int changeExtendedRange(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
 
         if (enabled && !serverPackManager.hasServerPackInstalled(player)) {
             var msg = translations.translateText(player, "notica.music.server_pack_requesting").formatted(GRAY);
-            player.sendMessage(msg);
+            player.sendSystemMessage(msg);
 
             serverPackManager.sendServerPack(player);
             return 1;
         }
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(enabled);
 
         String key = enabled ? "notica.music.extended_octaves.enabled" : "notica.music.extended_octaves.disabled";
-        Formatting color = enabled ? GREEN : RED;
+        ChatFormatting color = enabled ? GREEN : RED;
 
         var msg = translations.translateText(player, key).formatted(color);
 
-        player.sendMessage(msg);
+        player.sendSystemMessage(msg);
 
         return 2;
     }
 
-    private int changeVolume(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int changeVolume(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         float percent = FloatArgumentType.getFloat(ctx, "percent");
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
 
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setVolume(percent / 100);
@@ -266,13 +266,13 @@ public class MusicCommand {
         var msg = translations.translateText(player, "notica.music.volume.changed",
                 styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN);
 
-        player.sendMessage(msg);
+        player.sendSystemMessage(msg);
 
         return 1;
     }
 
-    private boolean involvesOther(ServerCommandSource source, Collection<? extends ServerPlayerEntity> players) {
-        ServerPlayerEntity executor = source.getPlayer();
+    private boolean involvesOther(CommandSourceStack source, Collection<? extends ServerPlayer> players) {
+        ServerPlayer executor = source.getPlayer();
 
         if (executor == null) {
             return !players.isEmpty();
@@ -281,7 +281,7 @@ public class MusicCommand {
         return players.stream().anyMatch(player -> !executor.equals(player));
     }
 
-    private int playSong(ServerCommandSource source, Collection<? extends ServerPlayerEntity> listeners, Path path, Identifier id, PlaybackOptions options) throws CommandSyntaxException {
+    private int playSong(CommandSourceStack source, Collection<? extends ServerPlayer> listeners, Path path, ResourceLocation id, PlaybackOptions options) throws CommandSyntaxException {
         if (involvesOther(source, listeners) && !Permissions.check(source, permission("command.music.play.other"), 2)) {
             throw errorNoPermissionPlayOther.create();
         }
@@ -305,16 +305,16 @@ public class MusicCommand {
 
             msg.formatted(RED);
 
-            source.sendMessage(msg);
+            source.sendSystemMessage(msg);
 
             logger.error("Failed to load song file", error);
             return null;
         }).thenAccept(song -> {
             if (song == null) return;
 
-            Text msg = getPlayingMessage(source, relativePath, song);
+            Component msg = getPlayingMessage(source, relativePath, song);
 
-            source.sendMessage(msg);
+            source.sendSystemMessage(msg);
 
             Notica api = Notica.getInstance(source.getServer());
             api.playSong(song, options, 0, listeners);
@@ -323,16 +323,16 @@ public class MusicCommand {
         return 1;
     }
 
-    private Text getPlayingMessage(ServerCommandSource source, Path relativePath, CheckedSong checkedSong) {
+    private Component getPlayingMessage(CommandSourceStack source, Path relativePath, CheckedSong checkedSong) {
         SongMeta meta = checkedSong.song().metaData();
         String name = meta.name().isBlank() ? relativePath.toString() : meta.name();
 
-        var nameText = Text.literal(name).formatted(YELLOW);
+        var nameText = Component.literal(name).withStyle(YELLOW);
 
         if (!meta.description().isBlank()) {
-            var hoverText = Text.literal(meta.description()).formatted(GREEN);
+            var hoverText = Component.literal(meta.description()).withStyle(GREEN);
 
-            nameText.styled(style -> style.withHoverEvent(new HoverEvent.ShowText(hoverText)));
+            nameText.withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(hoverText)));
         }
 
         if (meta.author().isBlank() && meta.originalAuthor().isBlank()) {
@@ -355,8 +355,8 @@ public class MusicCommand {
                 .formatted(GREEN);
     }
 
-    private int stopAllSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int stopAllSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         int stopped = stopAllSongs(ctx.getSource(), List.of(player));
 
         RootText msg;
@@ -367,15 +367,15 @@ public class MusicCommand {
             msg = translations.translateText(player, "notica.music.stopped.all").formatted(GREEN);
         }
 
-        player.sendMessage(msg);
+        player.sendSystemMessage(msg);
 
         return stopped;
     }
 
-    private int stopAll(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private int stopAll(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
 
-        ServerCommandSource source = ctx.getSource();
+        CommandSourceStack source = ctx.getSource();
 
         if (involvesOther(source, listeners) && !Permissions.check(source, permission("command.music.stop.other"), 2)) {
             throw errorNoPermissionStopOther.create();
@@ -392,17 +392,17 @@ public class MusicCommand {
             msg = translations.translateText(source, "notica.music.stopped.all").formatted(GREEN);
         }
 
-        source.sendMessage(msg);
+        source.sendSystemMessage(msg);
 
         return empty ? 0 : 1;
     }
 
-    private int stopAllSongs(ServerCommandSource source, Collection<ServerPlayerEntity> listeners) {
+    private int stopAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
         Notica api = Notica.getInstance(source.getServer());
 
         int stopped = 0;
 
-        for (ServerPlayerEntity listener : listeners) {
+        for (ServerPlayer listener : listeners) {
             for (SongHandle handle : api.getPlayingSongs(listener)) {
                 stopped++;
 
@@ -413,11 +413,11 @@ public class MusicCommand {
         return stopped;
     }
 
-    private int stopSong(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
-        Identifier id = IdentifierArgumentType.getIdentifier(ctx, "id");
+    private int stopSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
+        ResourceLocation id = ResourceLocationArgument.getId(ctx, "id");
 
-        ServerCommandSource source = ctx.getSource();
+        CommandSourceStack source = ctx.getSource();
 
         if (involvesOther(source, listeners) && !Permissions.check(source, permission("command.music.stop.other"), 2)) {
             throw errorNoPermissionStopOther.create();
@@ -427,7 +427,7 @@ public class MusicCommand {
 
         int stopped = 0;
 
-        for (ServerPlayerEntity listener : listeners) {
+        for (ServerPlayer listener : listeners) {
             var optHandle = api.getPlayingSong(listener, id);
 
             if (optHandle.isEmpty()) continue;
@@ -440,23 +440,23 @@ public class MusicCommand {
             var msg = translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW))
                     .formatted(RED);
 
-            source.sendMessage(msg);
+            source.sendSystemMessage(msg);
             return 0;
         }
 
         var msg = translations.translateText(source, "notica.music.stopped", styled(id, YELLOW))
                 .formatted(GREEN);
 
-        source.sendMessage(msg);
+        source.sendSystemMessage(msg);
 
         return 1;
     }
 
-    private int seekAutoSelf(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayerOrThrow();
+    private int seekAutoSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
         String time = StringArgumentType.getString(ctx, "time");
         
-        ServerCommandSource source = ctx.getSource();
+        CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
 
@@ -464,16 +464,16 @@ public class MusicCommand {
             return 0;
         }
         
-        Set<SongHandle> songHandles = Notica.getInstance(player.getEntityWorld().getServer()).getPlayingSongs(player);
+        Set<SongHandle> songHandles = Notica.getInstance(player.level().getServer()).getPlayingSongs(player);
 
         return seekAllWithOffsets(source, songHandles, timeOffsets);
     }
 
-    private int seekAuto(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int seekAuto(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         String time = StringArgumentType.getString(ctx, "time");
-        var players = EntityArgumentType.getPlayers(ctx, "listeners");
+        var players = EntityArgument.getPlayers(ctx, "listeners");
 
-        ServerCommandSource source = ctx.getSource();
+        CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
 
@@ -490,12 +490,12 @@ public class MusicCommand {
         return seekAllWithOffsets(source, songHandles, timeOffsets);
     }
 
-    private int seekId(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int seekId(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         String time = StringArgumentType.getString(ctx, "time");
-        var players = EntityArgumentType.getPlayers(ctx, "listeners");
-        Identifier songId = IdentifierArgumentType.getIdentifier(ctx, "id");
+        var players = EntityArgument.getPlayers(ctx, "listeners");
+        ResourceLocation songId = ResourceLocationArgument.getId(ctx, "id");
 
-        ServerCommandSource source = ctx.getSource();
+        CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
 
@@ -512,9 +512,9 @@ public class MusicCommand {
         return seekAllWithOffsets(source, songHandles, timeOffsets);
     }
 
-    private int seekAllWithOffsets(ServerCommandSource source, Set<SongHandle> songHandles, TimeOffsets timeOffsets) {
+    private int seekAllWithOffsets(CommandSourceStack source, Set<SongHandle> songHandles, TimeOffsets timeOffsets) {
         if (songHandles.isEmpty()) {
-            source.sendMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
             return 0;
         }
 
@@ -522,20 +522,20 @@ public class MusicCommand {
             seekWithOffsets(handle, timeOffsets);
         }
 
-        ServerPlayerEntity player = source.getPlayer();
+        ServerPlayer player = source.getPlayer();
         String language = player != null ? translations.getLanguage(player) : "en_us";
 
         FormatWrapper offsetsWrapped = styled(timeOffsets.translatedText(translations).translateTo(language), YELLOW);
         String translationKey = timeOffsets.absolute ? "notica.music.seek.absolute" : "notica.music.seek.relative";
 
-        source.sendMessage(translations.translateText(source, translationKey, offsetsWrapped).formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, translationKey, offsetsWrapped).formatted(GREEN));
 
         return 1;
     }
 
-    private @Nullable TimeOffsets parseOffsets(String time, ServerCommandSource source) {
+    private @Nullable TimeOffsets parseOffsets(String time, CommandSourceStack source) {
         if (!TIME_PATTERN.matcher(time).matches()) {
-            source.sendMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).formatted(RED));
             return null;
         }
 
@@ -562,7 +562,7 @@ public class MusicCommand {
             try {
                 amount = parseInt(amountStr);
             } catch (NumberFormatException e) {
-                source.sendMessage(translations.translateText(source, "notica.music.seek.error_time", styled(amountStr, YELLOW)).formatted(RED));
+                source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(amountStr, YELLOW)).formatted(RED));
                 logger.error("Failed to parse as integer: {}", amountStr, e);
                 continue;
             }
@@ -614,7 +614,7 @@ public class MusicCommand {
         handle.seekTo(ticks, timeOffsets.absolute());
     }
 
-    private CompletableFuture<Suggestions> availableSongFiles(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+    private CompletableFuture<Suggestions> availableSongFiles(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
         return CompletableFuture.supplyAsync(() -> {
             try (var files = Files.walk(songDirectory, 8)) {
                 files.filter(path -> path.getFileName().toString().endsWith(".nbs") && Files.isRegularFile(path))
@@ -630,15 +630,15 @@ public class MusicCommand {
         });
     }
 
-    private CompletableFuture<Suggestions> commonPlayingSongIds(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) throws CommandSyntaxException {
-        var listeners = EntityArgumentType.getPlayers(ctx, "listeners");
+    private CompletableFuture<Suggestions> commonPlayingSongIds(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) throws CommandSyntaxException {
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
 
         Notica api = Notica.getInstance(ctx.getSource().getServer());
 
         api.getPlayingSongs().stream()
                 .filter(handle -> listeners.stream().allMatch(handle::isListener))
                 .map(SongHandle::getSongId)
-                .map(Identifier::toString)
+                .map(ResourceLocation::toString)
                 .forEach(builder::suggest);
 
         return builder.buildFuture();
@@ -665,21 +665,21 @@ public class MusicCommand {
         return s;
     }
 
-    private boolean extendedRangePredicate(ServerCommandSource source) {
+    private boolean extendedRangePredicate(CommandSourceStack source) {
         if (!serverPackManager.isEnabled()) return false;
 
-        ServerPlayerEntity player = source.getPlayer();
+        ServerPlayer player = source.getPlayer();
 
         if (player == null) {
             return false;
         }
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
 
         return !instance.hasModInstalled(player);
     }
 
-    private CompletableFuture<Suggestions> suggestTimes(CommandContext<ServerCommandSource> ctx, SuggestionsBuilder builder) {
+    private CompletableFuture<Suggestions> suggestTimes(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
         builder.suggest("+10s");
         builder.suggest("-10s");
         builder.suggest("15s");
@@ -694,7 +694,7 @@ public class MusicCommand {
 
         public TextTranslatable translatedText(Translations translations) {
             return lang -> {
-                MutableText acc = Text.empty();
+                MutableComponent acc = Component.empty();
                 boolean first = true;
 
                 for (IntObjectPair<TimeUnit> timeUnitIntObjectPair : offsets) {

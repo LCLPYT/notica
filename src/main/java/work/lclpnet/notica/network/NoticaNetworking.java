@@ -4,10 +4,10 @@ import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerLoginConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerLoginNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerLoginPacketListenerImpl;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
@@ -62,28 +62,28 @@ public class NoticaNetworking {
         PlayerConnectionHooks.QUIT.register(this::onQuit);
     }
 
-    private void onLoginDisconnect(ServerLoginNetworkHandler handler, MinecraftServer server) {
-        GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getProfile();
+    private void onLoginDisconnect(ServerLoginPacketListenerImpl handler, MinecraftServer server) {
+        GameProfile profile = ((ServerLoginNetworkHandlerAccessor) handler).getAuthenticatedProfile();
         if (profile == null) return;
 
         onQuit(profile.id());
     }
 
     private void onRequestSong(RequestSongC2SPacket payload, ServerPlayNetworking.Context context) {
-        ServerPlayerEntity player = context.player();
+        ServerPlayer player = context.player();
         PlayerData data = getData(player);
 
         if (player.getPermissionLevel() < 2 && data.throttle()) {
-            logger.warn("Player {} is sending too many requests", player.getNameForScoreboard());
+            logger.warn("Player {} is sending too many requests", player.getScoreboardName());
             return;
         }
 
-        Identifier songId = payload.songId();
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        ResourceLocation songId = payload.songId();
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
         var optSong = instance.getSong(songId);
 
         if (optSong.isEmpty()) {
-            logger.warn("Player {} requested unknown song {}", player.getNameForScoreboard(), songId);
+            logger.warn("Player {} requested unknown song {}", player.getScoreboardName(), songId);
             return;
         }
 
@@ -92,7 +92,7 @@ public class NoticaNetworking {
         int tickOffset = payload.tickOffset();
         int layerOffset = payload.layerOffset();
 
-        logger.debug("Player {} requested song slice {}, {} for song {}", player.getNameForScoreboard(), tickOffset, layerOffset, songId);
+        logger.debug("Player {} requested song slice {}, {} for song {}", player.getScoreboardName(), tickOffset, layerOffset, songId);
 
         // check if there even is more data left to send
         if (SongSlicer.isFinished(song, tickOffset, layerOffset)) {
@@ -114,16 +114,16 @@ public class NoticaNetworking {
     }
 
     private void onSongStopped(StopSongBidiPacket payload, ServerPlayNetworking.Context context) {
-        ServerPlayerEntity player = context.player();
-        Identifier songId = payload.songId();
+        ServerPlayer player = context.player();
+        ResourceLocation songId = payload.songId();
 
-        NoticaImpl instance = NoticaImpl.getInstance(player.getEntityWorld().getServer());
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
 
         instance.notifySongStopped(player, songId);
     }
 
-    private PlayerData getData(ServerPlayerEntity player) {
-        return getData(player.getUuid());
+    private PlayerData getData(ServerPlayer player) {
+        return getData(player.getUUID());
     }
 
     private PlayerData getData(UUID uuid) {
@@ -132,8 +132,8 @@ public class NoticaNetworking {
         }
     }
 
-    private void onQuit(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    private void onQuit(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         onQuit(uuid);
     }
 
@@ -143,7 +143,7 @@ public class NoticaNetworking {
         }
     }
 
-    public boolean understandsProtocol(ServerPlayerEntity player) {
+    public boolean understandsProtocol(ServerPlayer player) {
         return protocolHandler != null && protocolHandler.understands(player);
     }
 

@@ -1,6 +1,6 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.sound.Source;
+import com.mojang.blaze3d.audio.Channel;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,33 +16,33 @@ import java.util.function.Consumer;
 import static org.lwjgl.openal.AL10.*;
 import static org.lwjgl.openal.AL11.AL_SEC_OFFSET;
 
-@Mixin(Source.class)
+@Mixin(Channel.class)
 public abstract class SourceMixin implements NoticaSource {
 
     @Unique private boolean noticaSource = false, stopped = false;
-    @Unique private @Nullable Consumer<Source> tickAction = null;
+    @Unique private @Nullable Consumer<Channel> tickAction = null;
 
-    @Shadow public abstract boolean isStopped();
-    @Shadow @Final private int pointer;
+    @Shadow public abstract boolean stopped();
+    @Shadow @Final private int source;
 
     @Inject(
-            method = "read",
+            method = "pumpBuffers",
             at = @At("HEAD"),
             cancellable = true
     )
     private void notica$preventReadingStoppedSources(int count, CallbackInfo ci) {
-        if (noticaSource && (stopped || isStopped())) {
+        if (noticaSource && (stopped || stopped())) {
             ci.cancel();
         }
     }
 
     @Inject(
-            method = "tick",
+            method = "updateStream",
             at = @At("HEAD")
     )
     private void notica$onTick(CallbackInfo ci) {
         if (tickAction != null) {
-            tickAction.accept((Source) (Object) this);
+            tickAction.accept((Channel) (Object) this);
         }
     }
 
@@ -58,16 +58,16 @@ public abstract class SourceMixin implements NoticaSource {
 
     @Override
     public float notica$getOffsetSeconds() {
-        return alGetSourcef(pointer, AL_SEC_OFFSET);
+        return alGetSourcef(source, AL_SEC_OFFSET);
     }
 
     @Override
     public int notica$getCompletedBuffers() {
-        return alGetSourcei(pointer, AL_BUFFERS_PROCESSED);
+        return alGetSourcei(source, AL_BUFFERS_PROCESSED);
     }
 
     @Override
-    public void notica$onTick(@Nullable Consumer<Source> action) {
+    public void notica$onTick(@Nullable Consumer<Channel> action) {
         this.tickAction = action;
     }
 }

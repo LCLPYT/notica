@@ -1,24 +1,24 @@
 package work.lclpnet.notica.network.packet;
 
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.util.Identifier;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
 import work.lclpnet.notica.NoticaInit;
 
-public record SongSeekS2CPacket(Identifier songId, int ticks, boolean absolute) implements CustomPayload {
+public record SongSeekS2CPacket(ResourceLocation songId, int ticks, boolean absolute) implements CustomPacketPayload {
 
-    public static final Id<SongSeekS2CPacket> ID = new Id<>(NoticaInit.identifier("seek"));
+    public static final Type<SongSeekS2CPacket> ID = new Type<>(NoticaInit.identifier("seek"));
 
-    public static final PacketCodec<PacketByteBuf, SongSeekS2CPacket> CODEC = PacketCodec.tuple(
-            Identifier.PACKET_CODEC, SongSeekS2CPacket::songId,
-            PacketCodecs.INTEGER, SongSeekS2CPacket::ticks,
-            PacketCodecs.BOOLEAN, SongSeekS2CPacket::absolute,
+    public static final StreamCodec<FriendlyByteBuf, SongSeekS2CPacket> CODEC = StreamCodec.composite(
+            ResourceLocation.STREAM_CODEC, SongSeekS2CPacket::songId,
+            ByteBufCodecs.INT, SongSeekS2CPacket::ticks,
+            ByteBufCodecs.BOOL, SongSeekS2CPacket::absolute,
             SongSeekS2CPacket::new);
 
     @Override
-    public Id<? extends CustomPayload> getId() {
+    public Type<? extends CustomPacketPayload> type() {
         return ID;
     }
 }

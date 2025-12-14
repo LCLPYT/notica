@@ -1,7 +1,7 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.sound.SoundManager;
-import net.minecraft.sound.SoundCategory;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.sounds.SoundSource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -17,17 +17,17 @@ public class SoundManagerMixin {
     private final Debounce debounce = new Debounce(500);
 
     @Inject(
-            method = "updateSoundVolume",
+            method = "updateSourceVolume",
             at = @At("TAIL")
     )
-    public void notica$onUpdateSoundVolume(SoundCategory soundCategory, CallbackInfo ci) {
-        if (soundCategory != SoundCategory.RECORDS) return;
+    public void notica$onUpdateSoundVolume(SoundSource soundCategory, CallbackInfo ci) {
+        if (soundCategory != SoundSource.RECORDS) return;
 
         debounce.debounce(() -> SongVolumeChangedCallback.EVENT.invoker().onVolumeChanged());
     }
 
     @Inject(
-            method = "close",
+            method = "destroy",
             at = @At("TAIL")
     )
     public void notica$close(CallbackInfo ci) {

@@ -1,7 +1,7 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.sounds.SoundEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
@@ -9,7 +9,7 @@ import work.lclpnet.notica.api.data.CustomInstrument;
 
 public class ClientInstrumentSoundProvider implements InstrumentSoundProvider {
 
-    private DynamicRegistryManager registryManager = null;
+    private RegistryAccess registryManager = null;
     private FabricInstrumentSoundProvider parent = null;
 
     @Override
@@ -37,7 +37,7 @@ public class ClientInstrumentSoundProvider implements InstrumentSoundProvider {
         return parent;
     }
 
-    public void setRegistryManager(@Nullable DynamicRegistryManager registryManager) {
+    public void setRegistryManager(@Nullable RegistryAccess registryManager) {
         if (this.registryManager == registryManager) return;
 
         this.registryManager = registryManager;

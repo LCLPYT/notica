@@ -1,10 +1,10 @@
 package work.lclpnet.notica.network;
 
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.network.encoding.VarInts;
-import net.minecraft.util.function.ValueLists;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.VarInt;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.util.ByIdMap;
 import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
@@ -24,21 +24,21 @@ public class NoticaPacketCodecs {
 
     private NoticaPacketCodecs() {}
 
-    public static final PacketCodec<PacketByteBuf, PlayerConfig> PLAYER_CONFIG_PACKET_CODEC = PacketCodec.tuple(
-            PacketCodecs.FLOAT, PlayerConfig::getVolume,
+    public static final StreamCodec<FriendlyByteBuf, PlayerConfig> PLAYER_CONFIG_PACKET_CODEC = StreamCodec.composite(
+            ByteBufCodecs.FLOAT, PlayerConfig::getVolume,
             volume -> {
                 PlayerConfigEntry config = new PlayerConfigEntry();
                 config.setVolume(volume);
                 return config;
             });
 
-    public static final PacketCodec<PacketByteBuf, LoopConfig> LOOP_CONFIG_PACKET_CODEC = PacketCodec.tuple(
-            PacketCodecs.BOOLEAN, LoopConfig::enabled,
-            PacketCodecs.INTEGER, LoopConfig::loopCount,
-            PacketCodecs.INTEGER, LoopConfig::loopStartTick,
+    public static final StreamCodec<FriendlyByteBuf, LoopConfig> LOOP_CONFIG_PACKET_CODEC = StreamCodec.composite(
+            ByteBufCodecs.BOOL, LoopConfig::enabled,
+            ByteBufCodecs.INT, LoopConfig::loopCount,
+            ByteBufCodecs.INT, LoopConfig::loopStartTick,
             ImmutableLoopConfig::new);
 
-    public static final PacketCodec<PacketByteBuf, Index<? extends LayerInfo>> LAYER_INFO_PACKET_CODEC = PacketCodec.of((layerInfo, buf) -> {
+    public static final StreamCodec<FriendlyByteBuf, Index<? extends LayerInfo>> LAYER_INFO_PACKET_CODEC = StreamCodec.ofMember((layerInfo, buf) -> {
         buf.writeInt(layerInfo.size());
 
         for (var entry : layerInfo.iterateOrdered()) {
@@ -69,13 +69,13 @@ public class NoticaPacketCodecs {
         return new FixedIndex<>(layerInfo);
     });
 
-    public static final PacketCodec<PacketByteBuf, Instruments> INSTRUMENTS_PACKET_CODEC = PacketCodec.of((instruments, buf) -> {
+    public static final StreamCodec<FriendlyByteBuf, Instruments> INSTRUMENTS_PACKET_CODEC = StreamCodec.ofMember((instruments, buf) -> {
         var custom = instruments.custom();
         buf.writeInt(custom.length);
 
         for (CustomInstrument instrument : custom) {
-            buf.writeString(instrument.name());
-            buf.writeString(instrument.soundFile());
+            buf.writeUtf(instrument.name());
+            buf.writeUtf(instrument.soundFile());
             buf.writeByte(instrument.key());
         }
 
@@ -85,8 +85,8 @@ public class NoticaPacketCodecs {
         var custom = new CustomInstrument[customCount];
 
         for (int i = 0; i < customCount; i++) {
-            String name = buf.readString();
-            String soundFile = buf.readString();
+            String name = buf.readUtf();
+            String soundFile = buf.readUtf();
             byte key = buf.readByte();
 
             custom[i] = new ImmutableCustomInstrument(name, soundFile, key);
@@ -97,10 +97,10 @@ public class NoticaPacketCodecs {
         return new ImmutableInstruments(custom, begin);
     });
 
-    public static final PacketCodec<PacketByteBuf, SongSlice> SONG_SLICE_PACKET_CODEC = PacketCodec.ofStatic(
+    public static final StreamCodec<FriendlyByteBuf, SongSlice> SONG_SLICE_PACKET_CODEC = StreamCodec.of(
             SongSlicer::writeSlice, SongSlicer::readSlice);
 
-    public static final PacketCodec<PacketByteBuf, SongTempo> SONG_TEMPO = PacketCodec.of((tempo, buf) -> {
+    public static final StreamCodec<FriendlyByteBuf, SongTempo> SONG_TEMPO = StreamCodec.ofMember((tempo, buf) -> {
         List<TempoChange> sections = tempo.changes();
         buf.writeInt(sections.size());
 
@@ -122,32 +122,32 @@ public class NoticaPacketCodecs {
         return new ImmutableSongTempo(changes);
     });
 
-    public static final PacketCodec<PacketByteBuf, LoopOverride> LOOP_OVERRIDE = PacketCodec.tuple(
-            PacketCodecs.optional(PacketCodecs.BOOLEAN), LoopOverride::enabled,
-            PacketCodecs.optional(PacketCodecs.INTEGER), LoopOverride::loopCount,
-            PacketCodecs.optional(PacketCodecs.INTEGER), LoopOverride::loopStartTick,
+    public static final StreamCodec<FriendlyByteBuf, LoopOverride> LOOP_OVERRIDE = StreamCodec.composite(
+            ByteBufCodecs.optional(ByteBufCodecs.BOOL), LoopOverride::enabled,
+            ByteBufCodecs.optional(ByteBufCodecs.INT), LoopOverride::loopCount,
+            ByteBufCodecs.optional(ByteBufCodecs.INT), LoopOverride::loopStartTick,
             LoopOverride::new
     );
 
-    public static final PacketCodec<PacketByteBuf, PlaybackOptions> PLAYBACK_OPTIONS = PacketCodec.tuple(
-            PacketCodecs.FLOAT, PlaybackOptions::volume,
+    public static final StreamCodec<FriendlyByteBuf, PlaybackOptions> PLAYBACK_OPTIONS = StreamCodec.composite(
+            ByteBufCodecs.FLOAT, PlaybackOptions::volume,
             indexed(
-                    ValueLists.createIndexToValueFunction(PlaybackVariant::ordinal, PlaybackVariant.values(), ValueLists.OutOfBoundsHandling.ZERO),
+                    ByIdMap.continuous(PlaybackVariant::ordinal, PlaybackVariant.values(), ByIdMap.OutOfBoundsStrategy.ZERO),
                     PlaybackVariant::ordinal
             ), PlaybackOptions::playbackVariant,
             indexed(
-                    ValueLists.createIndexToValueFunction(StereoMode::ordinal, StereoMode.values(), ValueLists.OutOfBoundsHandling.ZERO),
+                    ByIdMap.continuous(StereoMode::ordinal, StereoMode.values(), ByIdMap.OutOfBoundsStrategy.ZERO),
                     StereoMode::ordinal
             ), PlaybackOptions::stereoMode,
             LOOP_OVERRIDE, PlaybackOptions::loopOverride,
             PlaybackOptions::new);
 
-    private static <T> PacketCodec<PacketByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {
-        return PacketCodec.of((val, buf) -> {
+    private static <T> StreamCodec<FriendlyByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {
+        return StreamCodec.ofMember((val, buf) -> {
             int i = val2Idx.applyAsInt(val);
-            VarInts.write(buf, i);
+            VarInt.write(buf, i);
         }, buf -> {
-            int i = VarInts.read(buf);
+            int i = VarInt.read(buf);
             return idx2Val.apply(i);
         });
     }

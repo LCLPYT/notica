@@ -4,9 +4,9 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import lombok.Getter;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 import work.lclpnet.notica.Notica;
@@ -34,9 +34,9 @@ public class NoticaImpl implements Notica {
     @Getter
     private final PlayerConfigContainer playerConfigs;
     private final Map<UUID, SongPlayerRef> playerRefs = new HashMap<>();
-    private final Map<Identifier, Song> songsById = new HashMap<>();
+    private final Map<ResourceLocation, Song> songsById = new HashMap<>();
     private final Set<SongHandle> handles = new HashSet<>();
-    private final Multimap<Identifier, SongHandle> handlesById = ArrayListMultimap.create();
+    private final Multimap<ResourceLocation, SongHandle> handlesById = ArrayListMultimap.create();
     private final Set<PlayerStoppedPlaybackListener> playbackListeners = new HashSet<>();
 
     public static void configure(Path songsDir, Path playerConfigDir, Logger logger) {
@@ -56,12 +56,12 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayerEntity> players) {
+    public synchronized SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
         if (players.isEmpty()) {
             throw new IllegalArgumentException("Listeners are empty");
         }
 
-        Identifier id = song.id();
+        ResourceLocation id = song.id();
         songsById.put(id, song.song());
 
         ServerSongHandle handle = new ServerSongHandle(song, options, startTick);
@@ -69,7 +69,7 @@ public class NoticaImpl implements Notica {
         Set<SongPlayerRef> moddedPlayers = new HashSet<>();
         Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
 
-        for (ServerPlayerEntity player : players) {
+        for (ServerPlayer player : players) {
             // check if the playing is already listening to this song
             getPlayingSong(player, id).ifPresent(other -> other.remove(player));
 
@@ -103,7 +103,7 @@ public class NoticaImpl implements Notica {
         return handle;
     }
 
-    private synchronized void cleanSong(Identifier id) {
+    private synchronized void cleanSong(ResourceLocation id) {
         if (!handlesById.containsKey(id)) {
             songsById.remove(id);
         }
@@ -115,27 +115,27 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(ServerPlayerEntity player) {
+    public synchronized Set<SongHandle> getPlayingSongs(ServerPlayer player) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(Identifier songId) {
+    public synchronized Set<SongHandle> getPlayingSongs(ResourceLocation songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.getSongId().equals(songId))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public synchronized Optional<SongHandle> getPlayingSong(ServerPlayerEntity player, Identifier songId) {
+    public synchronized Optional<SongHandle> getPlayingSong(ServerPlayer player, ResourceLocation songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
                 .findAny();
     }
 
-    public void onPlayerJoin(ServerPlayerEntity player) {
+    public void onPlayerJoin(ServerPlayer player) {
         synchronized (this) {
             playerConfigs.onPlayerJoin(player);
         }
@@ -143,17 +143,17 @@ public class NoticaImpl implements Notica {
         syncPlayerConfig(player);
     }
 
-    public synchronized void onPlayerQuit(ServerPlayerEntity player) {
+    public synchronized void onPlayerQuit(ServerPlayer player) {
         playerConfigs.onPlayerQuit(player);
-        playerRefs.remove(player.getUuid());
+        playerRefs.remove(player.getUUID());
 
         for (SongHandle handle : handles) {
             handle.remove(player);
         }
     }
 
-    public void onPlayerChange(ServerPlayerEntity to) {
-        UUID uuid = to.getUuid();
+    public void onPlayerChange(ServerPlayer to) {
+        UUID uuid = to.getUUID();
         SongPlayerRef ref = playerRefs.get(uuid);
 
         if (ref != null) {
@@ -161,7 +161,7 @@ public class NoticaImpl implements Notica {
         }
     }
 
-    public boolean hasModInstalled(ServerPlayerEntity player) {
+    public boolean hasModInstalled(ServerPlayer player) {
         return NoticaNetworking.getInstance().understandsProtocol(player);
     }
 
@@ -175,7 +175,7 @@ public class NoticaImpl implements Notica {
         return instance;
     }
 
-    public void syncPlayerConfig(ServerPlayerEntity player) {
+    public void syncPlayerConfig(ServerPlayer player) {
         if (!hasModInstalled(player)) return;
 
         PlayerConfigEntry config = getPlayerConfigs().get(player);
@@ -183,18 +183,18 @@ public class NoticaImpl implements Notica {
         ServerPlayNetworking.send(player, packet);
     }
 
-    private synchronized SongPlayerRef createRef(ServerPlayerEntity player) {
-        return playerRefs.computeIfAbsent(player.getUuid(), uuid -> {
+    private synchronized SongPlayerRef createRef(ServerPlayer player) {
+        return playerRefs.computeIfAbsent(player.getUUID(), uuid -> {
             PlayerConfigEntry config = playerConfigs.get(player);
             return new SongPlayerRef(player, config);
         });
     }
 
-    public Optional<Song> getSong(Identifier id) {
+    public Optional<Song> getSong(ResourceLocation id) {
         return Optional.ofNullable(songsById.get(id));
     }
 
-    public void notifySongStopped(ServerPlayerEntity player, Identifier songId) {
+    public void notifySongStopped(ServerPlayer player, ResourceLocation songId) {
         var listeners = new HashSet<>(playbackListeners);
 
         for (PlayerStoppedPlaybackListener listener : listeners) {

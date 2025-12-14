@@ -1,11 +1,11 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.sound.SoundInstance;
-import net.minecraft.client.sound.SoundManager;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import work.lclpnet.notica.api.AggregatingPlayer;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
@@ -43,8 +43,8 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
     @Override
     public void playNote(Song song, Layer layer, Note note) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        ClientPlayerEntity player = client.player;
+        Minecraft client = Minecraft.getInstance();
+        LocalPlayer player = client.player;
         if (player == null) return;
 
         final byte instrument = note.instrument();
@@ -71,8 +71,8 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through
-        var instance = new NbsSoundInstance(sound.id(), SoundCategory.RECORDS, volume, openAlPitch,
-                player.getRandom(), false, 0, SoundInstance.AttenuationType.NONE, 2 * panning, 0, 0, true,
+        var instance = new NbsSoundInstance(sound.location(), SoundSource.RECORDS, volume, openAlPitch,
+                player.getRandom(), false, 0, SoundInstance.Attenuation.NONE, 2 * panning, 0, 0, true,
                 directSoundManager);
 
         synchronized (this) {
@@ -84,7 +84,7 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
     @Override
     public void finishAggregation() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         SoundManager soundManager = client.getSoundManager();
 
         int count;
@@ -94,7 +94,7 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
             deSyncedNotes += count;
         }
 
-        client.executeSync(() -> {
+        client.executeIfPossible(() -> {
             synchronized (this) {
                 List<NbsSoundInstance> range = notes.subList(0, count);
 

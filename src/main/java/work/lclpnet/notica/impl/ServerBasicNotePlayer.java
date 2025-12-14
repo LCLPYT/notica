@@ -1,10 +1,10 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
-import net.minecraft.registry.Registries;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -64,7 +64,7 @@ public class ServerBasicNotePlayer implements NotePlayer {
     }
 
     private void playSoundFor(SongPlayerRef playerRef, float panning, SoundEvent sound, float volume, byte key, short pitch) {
-        ServerPlayerEntity player = playerRef.getPlayer();
+        ServerPlayer player = playerRef.getPlayer();
         PlayerConfig config = playerRef.getConfig();
 
         float vanillaPitch;
@@ -86,16 +86,16 @@ public class ServerBasicNotePlayer implements NotePlayer {
         double z = player.getZ();
 
         if (abs(panning) >= 1e-3) {
-            double yaw = Math.toRadians(player.getYaw() - 90f);  // rotate 90 degrees ccw
+            double yaw = Math.toRadians(player.getYRot() - 90f);  // rotate 90 degrees ccw
 
             x += Math.sin(yaw) * panning * 2;
             z -= Math.cos(yaw) * panning * 2;
         }
 
-        var packet = new PlaySoundS2CPacket(Registries.SOUND_EVENT.getEntry(sound), SoundCategory.RECORDS, x, y, z,
+        var packet = new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS, x, y, z,
                 volume, vanillaPitch, player.getRandom().nextLong());
 
-        player.networkHandler.sendPacket(packet);
+        player.connection.send(packet);
     }
 
     public void removePlayer(SongPlayerRef player) {

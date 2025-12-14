@@ -1,11 +1,11 @@
 package work.lclpnet.notica.mixin;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.network.packet.c2s.common.ResourcePackStatusC2SPacket;
+import net.minecraft.network.protocol.common.ServerboundResourcePackPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerManager;
-import net.minecraft.server.network.ServerCommonNetworkHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerCommonPacketListenerImpl;
+import net.minecraft.server.players.PlayerList;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,31 +16,31 @@ import work.lclpnet.notica.event.ResourcePackStatusCallback;
 
 import java.util.UUID;
 
-@Mixin(ServerCommonNetworkHandler.class)
+@Mixin(ServerCommonPacketListenerImpl.class)
 public abstract class ServerCommonNetworkHandlerMixin {
 
-    @Shadow protected abstract GameProfile getProfile();
+    @Shadow protected abstract GameProfile playerProfile();
 
     @Shadow @Final protected MinecraftServer server;
 
     @Inject(
-            method = "onResourcePackStatus",
+            method = "handleResourcePackResponse",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/network/NetworkThreadUtils;forceMainThread(Lnet/minecraft/network/packet/Packet;Lnet/minecraft/network/listener/PacketListener;Lnet/minecraft/network/PacketApplyBatcher;)V",
+                    target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V",
                     shift = At.Shift.AFTER
             )
     )
-    public void notica$onResourcePackStatus(ResourcePackStatusC2SPacket packet, CallbackInfo ci) {
+    public void notica$onResourcePackStatus(ServerboundResourcePackPacket packet, CallbackInfo ci) {
         if (server == null) return;
 
-        PlayerManager playerManager = server.getPlayerManager();
+        PlayerList playerManager = server.getPlayerList();
         if (playerManager == null) return;
 
-        UUID uuid = getProfile().id();
+        UUID uuid = playerProfile().id();
         if (uuid == null) return;
 
-        ServerPlayerEntity player = playerManager.getPlayer(uuid);
+        ServerPlayer player = playerManager.getPlayer(uuid);
         if (player == null) return;
 
         ResourcePackStatusCallback.HOOK.invoker().onResourcePackStatus(player, packet);

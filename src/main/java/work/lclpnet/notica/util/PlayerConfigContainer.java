@@ -1,9 +1,9 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtSizeTracker;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
@@ -29,11 +29,11 @@ public class PlayerConfigContainer {
     }
 
     @NotNull
-    public PlayerConfigEntry get(ServerPlayerEntity player) {
-        return entries.computeIfAbsent(player.getUuid(), p -> new PlayerConfigEntry());
+    public PlayerConfigEntry get(ServerPlayer player) {
+        return entries.computeIfAbsent(player.getUUID(), p -> new PlayerConfigEntry());
     }
 
-    public void onPlayerJoin(ServerPlayerEntity player) {
+    public void onPlayerJoin(ServerPlayer player) {
         CompletableFuture.supplyAsync(() -> {
             try {
                 return loadConfigNbt(player);
@@ -48,23 +48,23 @@ public class PlayerConfigContainer {
 
             loadConfig(player, nbt);
 
-            logger.debug("Restored player config of {}", player.getUuid());
+            logger.debug("Restored player config of {}", player.getUUID());
         });
     }
 
-    public void onPlayerQuit(ServerPlayerEntity player) {
-        PlayerConfigEntry config = entries.remove(player.getUuid());
+    public void onPlayerQuit(ServerPlayer player) {
+        PlayerConfigEntry config = entries.remove(player.getUUID());
         if (config == null) return;
 
         saveConfigAsync(player, config);
     }
 
-    public void saveConfig(ServerPlayerEntity player) {
+    public void saveConfig(ServerPlayer player) {
         PlayerConfigEntry config = get(player);
         saveConfigAsync(player, config);
     }
 
-    private void saveConfigAsync(ServerPlayerEntity player, PlayerConfigEntry config) {
+    private void saveConfigAsync(ServerPlayer player, PlayerConfigEntry config) {
         CompletableFuture.runAsync(() -> {
             try {
                 saveConfig(player, config);
@@ -75,22 +75,22 @@ public class PlayerConfigContainer {
             if (err != null) {
                 logger.error("Failed to save player config", err);
             } else {
-                logger.debug("Wrote player config of {}", player.getUuid());
+                logger.debug("Wrote player config of {}", player.getUUID());
             }
         });
     }
 
-    private NbtCompound loadConfigNbt(ServerPlayerEntity player) throws IOException {
+    private CompoundTag loadConfigNbt(ServerPlayer player) throws IOException {
         Path path = getPath(player);
 
         if (!Files.exists(path)) return null;
 
         try (var in = Files.newInputStream(path)) {
-            return NbtIo.readCompressed(in, NbtSizeTracker.of(16384));
+            return NbtIo.readCompressed(in, NbtAccounter.create(16384));
         }
     }
 
-    private void saveConfigNbt(ServerPlayerEntity player, NbtCompound nbt) throws IOException {
+    private void saveConfigNbt(ServerPlayer player, CompoundTag nbt) throws IOException {
         Path path = getPath(player);
         Path dir = path.getParent();
 
@@ -103,15 +103,15 @@ public class PlayerConfigContainer {
         }
     }
 
-    private void loadConfig(ServerPlayerEntity player, NbtCompound rootNbt) {
+    private void loadConfig(ServerPlayer player, CompoundTag rootNbt) {
         PlayerConfigEntry config = get(player);
         config.readNbt(rootNbt);
     }
 
-    private void saveConfig(ServerPlayerEntity player, PlayerConfigEntry config) throws IOException {
+    private void saveConfig(ServerPlayer player, PlayerConfigEntry config) throws IOException {
         if (!config.isDirty()) return;
 
-        NbtCompound rootNbt = new NbtCompound();
+        CompoundTag rootNbt = new CompoundTag();
         config.writeNbt(rootNbt);
 
         config.markClean();
@@ -119,8 +119,8 @@ public class PlayerConfigContainer {
         saveConfigNbt(player, rootNbt);
     }
 
-    private Path getPath(ServerPlayerEntity player) {
-        UUID uuid = player.getUuid();
+    private Path getPath(ServerPlayer player) {
+        UUID uuid = player.getUUID();
         return directory.resolve(uuid.toString() + ".dat");
     }
 }

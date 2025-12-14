@@ -1,9 +1,9 @@
 package work.lclpnet.notica.impl;
 
-import net.minecraft.client.sound.Channel;
-import net.minecraft.client.sound.SoundEngine;
-import net.minecraft.client.sound.Source;
-import net.minecraft.util.math.Vec3d;
+import com.mojang.blaze3d.audio.Channel;
+import com.mojang.blaze3d.audio.Library;
+import net.minecraft.client.sounds.ChannelAccess;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
@@ -26,19 +26,19 @@ public class StreamSongPlayback implements SongPlayback {
     private final Supplier<SongAudioStream> streamSupplier;
     private final SoundSampleManager sampleManager;
     private final Song song;
-    private final Channel channel;
+    private final ChannelAccess channel;
     private final Logger logger;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
     private volatile Hook<Runnable> onComplete = null;
-    private Channel.SourceManager sourceManager = null;
+    private ChannelAccess.ChannelHandle sourceManager = null;
     private PlaybackTimeTracker timeTracker = null;
     private boolean stopped = false;
     private Runnable onStopped = null;
     private int playbackOffsetTicks = 0;
 
     public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
-                              Song song, Channel channel, Logger logger) {
+                              Song song, ChannelAccess channel, Logger logger) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
@@ -61,7 +61,7 @@ public class StreamSongPlayback implements SongPlayback {
 
         stopped = true;
 
-        sourceManager.run(Source::stop);
+        sourceManager.execute(Channel::stop);
         sourceManager = null;
     }
 
@@ -83,7 +83,7 @@ public class StreamSongPlayback implements SongPlayback {
     private CompletableFuture<Void> playSound(SongAudioStream stream) {
         var future = new CompletableFuture<Void>();
 
-        channel.createSource(SoundEngine.RunMode.STREAMING).thenAccept(sourceManager -> {
+        channel.createHandle(Library.Pool.STREAMING).thenAccept(sourceManager -> {
             this.sourceManager = sourceManager;
 
             float bufferSeconds = stream.getBufferSeconds();
@@ -99,12 +99,12 @@ public class StreamSongPlayback implements SongPlayback {
 
             ((NoticaSourceManager) sourceManager).notica$onStopped(onStopped);
 
-            sourceManager.run(source -> {
+            sourceManager.execute(source -> {
                 ((NoticaSource) source).notica$setNoticaSource();
 
                 source.setRelative(true);
-                source.setPosition(Vec3d.ZERO);
-                source.setStream(stream);
+                source.setSelfPosition(Vec3.ZERO);
+                source.attachBufferStream(stream);
 
                 source.play();
 
@@ -173,8 +173,8 @@ public class StreamSongPlayback implements SongPlayback {
             final int currentPlaybackTick = currentPlaybackTick();
             startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
 
-            sourceManager.run(source -> {
-                if (source.isStopped()) return;
+            sourceManager.execute(source -> {
+                if (source.stopped()) return;
 
                 ((NoticaSourceManager) sourceManager).notica$onStopped(null);
                 ((NoticaSource) source).notica$setStopped();

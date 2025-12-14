@@ -1,7 +1,7 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.sound.SoundManager;
-import net.minecraft.client.sound.SoundSystem;
+import net.minecraft.client.sounds.SoundEngine;
+import net.minecraft.client.sounds.SoundManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -9,5 +9,5 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 public interface SoundManagerAccessor {
 
     @Accessor
-    SoundSystem getSoundSystem();
+    SoundEngine getSoundEngine();
 }

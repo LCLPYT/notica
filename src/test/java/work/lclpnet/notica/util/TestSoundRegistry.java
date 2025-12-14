@@ -1,6 +1,6 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.client.sound.OggAudioStream;
+import net.minecraft.client.sounds.JOrbisAudioStream;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -128,7 +128,7 @@ public class TestSoundRegistry {
                 throw new IllegalStateException("Unknown asset: " + assetPath);
             }
 
-            try (var in = new OggAudioStream(Files.newInputStream(path))) {
+            try (var in = new JOrbisAudioStream(Files.newInputStream(path))) {
                 return new SoundSample(in.readAll(), in.getFormat());
             }
         }

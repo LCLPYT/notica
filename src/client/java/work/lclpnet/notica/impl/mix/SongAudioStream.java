@@ -2,7 +2,7 @@ package work.lclpnet.notica.impl.mix;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.minecraft.client.sound.AudioStream;
+import net.minecraft.client.sounds.AudioStream;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;

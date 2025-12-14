@@ -1,7 +1,7 @@
 package work.lclpnet.notica.api;
 
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import work.lclpnet.notica.api.data.Song;
 
 import java.util.Set;
@@ -12,7 +12,7 @@ import java.util.Set;
  */
 public interface SongHandle {
 
-    Identifier getSongId();
+    ResourceLocation getSongId();
 
     Song getSong();
 
@@ -21,15 +21,15 @@ public interface SongHandle {
      */
     void stop();
 
-    Set<ServerPlayerEntity> getListeners();
+    Set<ServerPlayer> getListeners();
 
-    boolean isListener(ServerPlayerEntity player);
+    boolean isListener(ServerPlayer player);
 
     /**
      * Remove a single player from the listeners list of this song instance.
      * @param player The player to remove.
      */
-    void remove(ServerPlayerEntity player);
+    void remove(ServerPlayer player);
 
     void onDestroy(Runnable action);
 

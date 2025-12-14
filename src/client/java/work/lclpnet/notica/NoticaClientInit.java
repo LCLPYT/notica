@@ -3,7 +3,6 @@ package work.lclpnet.notica;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.sound.MusicTracker;
 import work.lclpnet.kibu.config.ConfigManager;
 import work.lclpnet.notica.config.NoticaClientConfig;
 import work.lclpnet.notica.event.ClientDisconnectCallback;
@@ -39,14 +38,14 @@ public class NoticaClientInit implements ClientModInitializer {
 
 		new NoticaClientNetworking(songRepo, musicBackend, playerConfig, NoticaInit.LOGGER).register();
 
-		ClientJoinGameCallback.EVENT.register(networkHandler -> soundProvider.setRegistryManager(networkHandler.getRegistryManager()));
+		ClientJoinGameCallback.EVENT.register(networkHandler -> soundProvider.setRegistryManager(networkHandler.registryAccess()));
 		ClientDisconnectCallback.EVENT.register(() -> {
 			musicBackend.stopAll();
 			soundProvider.setRegistryManager(null);
         });
 
 		ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-			MusicTracker musicTracker = ((MinecraftClientAccessor) client).getMusicTracker();
+			var musicTracker = ((MinecraftClientAccessor) client).getMusicManager();
 			((NoticaMusicTracker) musicTracker).notica$setMusicInhibitor(musicBackend::isSongPlaying);
 		});
 

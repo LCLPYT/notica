@@ -1,13 +1,13 @@
 package work.lclpnet.notica.mixin.client;
 
-import net.minecraft.client.sound.SoundLoader;
-import net.minecraft.resource.ResourceFactory;
+import net.minecraft.client.sounds.SoundBufferLibrary;
+import net.minecraft.server.packs.resources.ResourceProvider;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(SoundLoader.class)
+@Mixin(SoundBufferLibrary.class)
 public interface SoundLoaderAccessor {
 
     @Accessor
-    ResourceFactory getResourceFactory();
+    ResourceProvider getResourceManager();
 }

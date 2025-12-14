@@ -1,7 +1,7 @@
 package work.lclpnet.notica.networking;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.util.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.networking.protocol.ClientProtocolHandler;
@@ -50,7 +50,7 @@ public class NoticaClientNetworking {
     }
 
     private void playSong(PlaySongS2CPacket payload) {
-        Identifier songId = payload.getSongId();
+        ResourceLocation songId = payload.getSongId();
         byte[] checksum = payload.checksum();
         int startTick = payload.getStartTick();
 
@@ -67,7 +67,7 @@ public class NoticaClientNetworking {
         controller.playSong(song, songId, playbackOptions, startTick);
     }
 
-    private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum,
+    private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, ResourceLocation songId, byte[] checksum,
                                                    int startTick, PlaybackOptions playbackOptions) {
         logger.debug("Song {} ({}) is not cached, requesting it...", songId, ByteHelper.toHexString(checksum, 32));
 
@@ -95,7 +95,7 @@ public class NoticaClientNetworking {
         return song;
     }
 
-    private void acceptUnknownRegion(PlaySongS2CPacket packet, PendingSong song, Identifier songId) {
+    private void acceptUnknownRegion(PlaySongS2CPacket packet, PendingSong song, ResourceLocation songId) {
         SongSlice slice = packet.slice();
 
         song.accept(slice);
@@ -108,7 +108,7 @@ public class NoticaClientNetworking {
     }
 
     private void onStopSong(StopSongBidiPacket payload, ClientPlayNetworking.Context context) {
-        Identifier songId = payload.songId();
+        ResourceLocation songId = payload.songId();
         controller.stopSong(songId);
     }
 
@@ -128,7 +128,7 @@ public class NoticaClientNetworking {
     }
 
     private void receiveSong(RespondSongS2CPacket payload) {
-        Identifier songId = payload.songId();
+        ResourceLocation songId = payload.songId();
         SongSlice slice = payload.slice();
 
         PendingSong song = songRepository.get(songId);
@@ -149,11 +149,11 @@ public class NoticaClientNetworking {
         }
     }
 
-    private void requestNext(Identifier songId, SongSlice prev) {
+    private void requestNext(ResourceLocation songId, SongSlice prev) {
         request(songId, prev.tickEnd(), prev.layerEnd() + 1);
     }
 
-    private void request(Identifier songId, int tickOffset, int layerOffset) {
+    private void request(ResourceLocation songId, int tickOffset, int layerOffset) {
         if (!ClientPlayNetworking.canSend(RequestSongC2SPacket.ID)) {
             logger.debug("Server didn't declare the ability to accept song requests, aborting song request");
             return;

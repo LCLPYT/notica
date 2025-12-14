@@ -1,6 +1,6 @@
 package work.lclpnet.notica.type;
 
-import net.minecraft.client.sound.Source;
+import com.mojang.blaze3d.audio.Channel;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
@@ -11,7 +11,7 @@ public interface NoticaSource {
 
     void notica$setStopped();
 
-    void notica$onTick(@Nullable Consumer<Source> action);
+    void notica$onTick(@Nullable Consumer<Channel> action);
 
     float notica$getOffsetSeconds();
 

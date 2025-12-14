@@ -34,8 +34,8 @@
     }
   ],
   "depends": {
-    "fabricloader": ">=0.17.2",
-    "minecraft": "~1.21.9",
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~${minecraft_compat}",
     "java": ">=21",
     "fabric-api": "*",
     "kibu-hook-api": ">=1.4.0",

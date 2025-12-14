@@ -148,9 +148,13 @@ afterEvaluate {
 
 [processResources, processTestmodResources].each {
     it.inputs.property "version", project.version
+    it.inputs.property "loader_version", project.loader_version
+    it.inputs.property "minecraft_compat", project.minecraft_compat
 
     it.filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": project.version,
+                "loader_version": project.loader_version,
+                "minecraft_compat": project.minecraft_compat
     }
 }
 

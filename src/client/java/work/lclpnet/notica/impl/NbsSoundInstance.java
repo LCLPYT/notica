@@ -7,6 +7,7 @@ import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import org.jspecify.annotations.NonNull;
 
 public class NbsSoundInstance extends AbstractSoundInstance {
 
@@ -27,7 +28,7 @@ public class NbsSoundInstance extends AbstractSoundInstance {
     }
 
     @Override
-    public WeighedSoundEvents resolve(SoundManager soundManager) {
+    public WeighedSoundEvents resolve(@NonNull SoundManager soundManager) {
         WeighedSoundEvents set = super.resolve(soundManager);
 
         if (set != null) {

@@ -37,7 +37,7 @@ public interface Notica {
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
     @NotNull
-    SongHandle playSongThrough(
+    SongHandle playSongWithSpeaker(
             CheckedSong song,
             PlaybackOptions options,
             int startTick,

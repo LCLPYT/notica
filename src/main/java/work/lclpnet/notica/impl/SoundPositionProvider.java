@@ -1,7 +1,7 @@
 package work.lclpnet.notica.impl;
 
 import net.minecraft.core.Position;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import work.lclpnet.notica.api.Speaker;
 
@@ -9,9 +9,12 @@ import static java.lang.Math.*;
 
 public interface SoundPositionProvider {
 
-    Vec3 getPosition(ServerPlayer player, float panning);
+    Vec3 getPosition(Player player, float panning);
 
-    static SoundPositionProvider playerRelative() {
+    /**
+     * @return Position provider for absolute world-coordinate position relative to the target player world position.
+     */
+    static SoundPositionProvider worldPlayerRelative() {
         return (player, panning) -> {
             double x = player.getX();
             double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
@@ -28,6 +31,17 @@ public interface SoundPositionProvider {
         };
     }
 
+    /**
+     * @return Position provider for player camera local-coordinate position. For use on the client directly with OpenAL.
+     */
+    static SoundPositionProvider clientPlayerRelative() {
+        return (player, panning) -> new Vec3(2 * panning, 0, 0);
+    }
+
+    /**
+     * @param speaker The speaker.
+     * @return Position provider for absolute world-coordinate position relative to the given speaker world position.
+     */
     static SoundPositionProvider ofSpeaker(Speaker speaker) {
         return (player, panning) -> {
             Position sourcePos = speaker.resolvePosition(player.level());

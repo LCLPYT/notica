@@ -111,13 +111,13 @@ public class MusicCommand {
         return literal("at")
                 .requires(NoticaPermissions.COMMAND_MUSIC_PLAY_POSITIONAL.ofAtLeast(PermissionLevel.GAMEMASTERS))
                 .then(literal("position")
-                        .executes(ctx -> {
-                            var pos = Vec3Argument.getVec3(ctx, "position");
-                            PlayArgs args = new PlayArgs(null, Speaker.fixed(pos));
-
-                            return playSongAuto(ctx, args);
-                        })
                         .then(argument("position", Vec3Argument.vec3())
+                                .executes(ctx -> {
+                                    var pos = Vec3Argument.getVec3(ctx, "position");
+                                    PlayArgs args = new PlayArgs(null, Speaker.fixed(pos));
+
+                                    return playSongAuto(ctx, args);
+                                })
                                 .then(playOptionsArguments(ctx -> {
                                     var pos = Vec3Argument.getVec3(ctx, "position");
 
@@ -448,7 +448,7 @@ public class MusicCommand {
                 api.playSong(song, options, 0, args.listeners());
             } else if (args.speaker() != null) {
                 // TODO remove listeners argument
-                api.playSongThrough(song, options, 0, args.speaker(), PlayerLookup.world(source.getLevel()));
+                api.playSongWithSpeaker(song, options, 0, args.speaker(), PlayerLookup.world(source.getLevel()));
             }
         });
 

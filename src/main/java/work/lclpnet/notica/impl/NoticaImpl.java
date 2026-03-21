@@ -58,12 +58,12 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized @NonNull SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
+    public @NonNull SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
         return createSongHandle(song, options, startTick, null, players);
     }
 
     @Override
-    public @NonNull SongHandle playSongThrough(
+    public @NonNull SongHandle playSongWithSpeaker(
             CheckedSong song,
             PlaybackOptions options,
             int startTick,
@@ -73,7 +73,7 @@ public class NoticaImpl implements Notica {
         return createSongHandle(song, options, startTick, speaker, players);
     }
 
-    private @NonNull ServerSongHandle createSongHandle(
+    private synchronized @NonNull ServerSongHandle createSongHandle(
             CheckedSong song,
             PlaybackOptions options,
             int startTick,

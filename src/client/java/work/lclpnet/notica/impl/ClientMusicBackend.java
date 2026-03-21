@@ -21,6 +21,7 @@ import work.lclpnet.notica.impl.mix.*;
 import work.lclpnet.notica.mixin.client.SoundBufferLibraryAccessor;
 import work.lclpnet.notica.mixin.client.SoundEngineAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
+import work.lclpnet.notica.network.SongPlayOptions;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
@@ -54,7 +55,10 @@ public class ClientMusicBackend {
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
+    public void playSong(PendingSong song, SongPlayOptions playOptions) {
+        Identifier songId = playOptions.songId();
+        PlaybackOptions options = playOptions.playbackOptions();
+
         songRepository.bind(song, songId);
 
         stopSong(songId);
@@ -70,7 +74,7 @@ public class ClientMusicBackend {
         if (variant == PlaybackVariant.STREAMED) {
             playback = createStreamPlayback(song, options);
         } else {
-            playback = createIndividualPlayback(song, options);
+            playback = createIndividualPlayback(song, playOptions);
         }
 
         playback.whenDone(() -> {
@@ -86,11 +90,26 @@ public class ClientMusicBackend {
             playing.put(songId, playback);
         }
 
-        playback.start(startTick);
+        playback.start(playOptions.startTick());
     }
 
-    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, PlaybackOptions options) {
-        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, options.volume(), playerConfig, directSoundManager);
+    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, SongPlayOptions playOptions) {
+        PlaybackOptions options = playOptions.playbackOptions();
+
+        SoundPositionProvider positionProvider = playOptions.speaker()
+                .map(SoundPositionProvider::ofSpeaker)
+                .orElseGet(SoundPositionProvider::clientPlayerRelative);
+
+        boolean soundHasPosition = playOptions.speaker().isPresent();
+
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(
+                soundProvider,
+                options.volume(),
+                playerConfig,
+                directSoundManager,
+                positionProvider,
+                soundHasPosition
+        );
 
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());
     }

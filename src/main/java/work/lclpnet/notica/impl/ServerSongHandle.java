@@ -67,7 +67,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
 
         SoundPositionProvider soundPositionProvider = speaker != null
                 ? SoundPositionProvider.ofSpeaker(speaker)
-                : SoundPositionProvider.playerRelative();
+                : SoundPositionProvider.worldPlayerRelative();
 
         serverNotePlayer = new ServerBasicNotePlayer(
                 vanillaPlayers,
@@ -118,7 +118,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         SongSlice slice = SongSlicer.sliceSeconds(song, startTick, 5);
         boolean finished = SongSlicer.isFinished(song, slice);
 
-        var options = new SongPlayOptions(checkedSong.id(), playbackOptions, startTick);
+        var options = new SongPlayOptions(checkedSong.id(), playbackOptions, startTick, Optional.ofNullable(speaker));
         var packet = new PlaySongS2CPacket(options, header, slice, finished, checkedSong.checksum());
         ServerPlayNetworking.send(player, packet);
     }

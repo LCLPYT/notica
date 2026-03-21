@@ -23,6 +23,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final CheckedSong checkedSong;
     private final PlaybackOptions playbackOptions;
     private final int startTick;
+    private final @Nullable Speaker speaker;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private volatile boolean started = false;
     @Nullable
@@ -36,10 +37,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     });
     private boolean destroyed = false;
 
-    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick) {
+    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker) {
         this.checkedSong = checkedSong;
         this.playbackOptions = playbackOptions;
         this.startTick = startTick;
+        this.speaker = speaker;
     }
 
     public synchronized void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
@@ -56,12 +58,23 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
 
         this.vanillaRefs.clear();
 
+        if (vanillaPlayers.isEmpty()) return;
+
         for (SongPlayerRef playerRef : vanillaPlayers) {
             UUID uuid = playerRef.getPlayer().getUUID();
             this.vanillaRefs.put(uuid, playerRef);
         }
 
-        serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, playbackOptions.volume());
+        SoundPositionProvider soundPositionProvider = speaker != null
+                ? SoundPositionProvider.ofSpeaker(speaker)
+                : SoundPositionProvider.playerRelative();
+
+        serverNotePlayer = new ServerBasicNotePlayer(
+                vanillaPlayers,
+                soundProvider,
+                playbackOptions.volume(),
+                soundPositionProvider
+        );
 
         final IndividualSongPlayback playback = createServerPlayback();
 

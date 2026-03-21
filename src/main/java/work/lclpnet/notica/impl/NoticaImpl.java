@@ -8,6 +8,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.api.*;
@@ -56,7 +58,28 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
+    public synchronized @NonNull SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
+        return createSongHandle(song, options, startTick, null, players);
+    }
+
+    @Override
+    public @NonNull SongHandle playSongThrough(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            Speaker speaker,
+            Collection<? extends ServerPlayer> players
+    ) {
+        return createSongHandle(song, options, startTick, speaker, players);
+    }
+
+    private @NonNull ServerSongHandle createSongHandle(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            @Nullable Speaker speaker,
+            Collection<? extends ServerPlayer> players
+    ) {
         if (players.isEmpty()) {
             throw new IllegalArgumentException("Listeners are empty");
         }
@@ -64,7 +87,7 @@ public class NoticaImpl implements Notica {
         Identifier id = song.id();
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, options, startTick);
+        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker);
 
         Set<SongPlayerRef> moddedPlayers = new HashSet<>();
         Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
@@ -110,26 +133,26 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs() {
+    public synchronized @NonNull Set<SongHandle> getPlayingSongs() {
         return Collections.unmodifiableSet(handles);
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(ServerPlayer player) {
+    public synchronized @NonNull Set<SongHandle> getPlayingSongs(ServerPlayer player) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(Identifier songId) {
+    public synchronized @NonNull Set<SongHandle> getPlayingSongs(Identifier songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.getSongId().equals(songId))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public synchronized Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId) {
+    public synchronized @NonNull Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
                 .findAny();

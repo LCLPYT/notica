@@ -5,6 +5,7 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -16,18 +17,19 @@ import work.lclpnet.notica.util.NoteHelper;
 
 import java.util.Set;
 
-import static java.lang.Math.abs;
-
 public class ServerBasicNotePlayer implements NotePlayer {
 
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
     private final Set<SongPlayerRef> players;
+    private final SoundPositionProvider soundPositionProvider;
 
-    public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume) {
+    public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume,
+                                 SoundPositionProvider soundPositionProvider) {
         this.soundProvider = soundProvider;
         this.volume = Math.max(0f, Math.min(1f, volume));
         this.players = players;
+        this.soundPositionProvider = soundPositionProvider;
     }
 
     @Override
@@ -81,18 +83,10 @@ public class ServerBasicNotePlayer implements NotePlayer {
 
         if (volume <= 0) return;
 
-        double x = player.getX();
-        double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
-        double z = player.getZ();
+        Vec3 pos = soundPositionProvider.getPosition(player, panning);
 
-        if (abs(panning) >= 1e-3) {
-            double yaw = Math.toRadians(player.getYRot() - 90f);  // rotate 90 degrees ccw
-
-            x += Math.sin(yaw) * panning * 2;
-            z -= Math.cos(yaw) * panning * 2;
-        }
-
-        var packet = new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS, x, y, z,
+        var packet = new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS,
+                pos.x(), pos.y(), pos.z(),
                 volume, vanillaPitch, player.getRandom().nextLong());
 
         player.connection.send(packet);

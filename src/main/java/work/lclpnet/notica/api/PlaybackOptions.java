@@ -8,6 +8,7 @@ import work.lclpnet.notica.api.data.LoopOverride;
  *                Only works for players with Notica installed.
  * @param stereoMode The {@link StereoMode} that determines how notes with stereo panning are played.
  *                   Only works if for players with Notica installed and if the playback mode is {@link PlaybackVariant#STREAMED}.
+ *                   This will be ignored if the song is played as positional source.
  * @param loopOverride Loop setting overrides.
  *                     By default, nothing is overridden and the loop settings from the song file are used.
  *                     Can be used, for example, to disable looping for a song.

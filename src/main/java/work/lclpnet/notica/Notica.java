@@ -3,9 +3,11 @@ package work.lclpnet.notica;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.NotNull;
 import work.lclpnet.notica.api.CheckedSong;
 import work.lclpnet.notica.api.PlaybackOptions;
 import work.lclpnet.notica.api.SongHandle;
+import work.lclpnet.notica.api.Speaker;
 import work.lclpnet.notica.impl.NoticaImpl;
 
 import java.util.Collection;
@@ -22,12 +24,32 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
+    @NotNull
     SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players);
+
+    /**
+     * Play a song through a speaker positioned in the world.
+     * @param song The {@link CheckedSong} to play.
+     * @param options The playback options, containing info for how to play the song.
+     * @param startTick The tick to start the playback at.
+     * @param speaker The song speaker to play the song through.
+     * @param players The song listeners.
+     * @return A {@link SongHandle} that can be used to control the song playback.
+     */
+    @NotNull
+    SongHandle playSongThrough(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            Speaker speaker,
+            Collection<? extends ServerPlayer> players
+    );
 
     /**
      * Get all currently playing {@link SongHandle}s.
      * @return A set of all currently playing {@link SongHandle}s.
      */
+    @NotNull
     Set<SongHandle> getPlayingSongs();
 
     /**
@@ -35,6 +57,7 @@ public interface Notica {
      * @param player The player.
      * @return A set of all {@link SongHandle}s the player is a listener of.
      */
+    @NotNull
     Set<SongHandle> getPlayingSongs(ServerPlayer player);
 
     /**
@@ -42,6 +65,7 @@ public interface Notica {
      * @param songId The songId that identifies a song.
      * @return A set of all {@link SongHandle} that play the referenced song.
      */
+    @NotNull
     Set<SongHandle> getPlayingSongs(Identifier songId);
 
     /**
@@ -50,6 +74,7 @@ public interface Notica {
      * @param songId The songId that identifies a song.
      * @return An optional {@link SongHandle}.
      */
+    @NotNull
     Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId);
 
     /**
@@ -59,6 +84,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
+    @NotNull
     default SongHandle playSong(CheckedSong song, float volume, Collection<? extends ServerPlayer> players) {
         return playSong(song, volume, 0, players);
     }
@@ -70,6 +96,7 @@ public interface Notica {
      * @param players The song listeners.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
+    @NotNull
     default SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayer> players) {
         return playSong(song, new PlaybackOptions(volume), startTick, players);
     }
@@ -79,6 +106,7 @@ public interface Notica {
      * @param server The Minecraft server.
      * @return The {@link Notica} instance for that server.
      */
+    @NotNull
     static Notica getInstance(MinecraftServer server) {
         return NoticaImpl.getInstance(server);
     }

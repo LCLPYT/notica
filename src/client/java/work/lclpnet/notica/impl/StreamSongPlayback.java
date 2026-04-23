@@ -2,12 +2,16 @@ package work.lclpnet.notica.impl;
 
 import com.mojang.blaze3d.audio.Channel;
 import com.mojang.blaze3d.audio.Library;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
+import work.lclpnet.notica.api.Speaker;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
@@ -26,7 +30,8 @@ public class StreamSongPlayback implements SongPlayback {
     private final Supplier<SongAudioStream> streamSupplier;
     private final SoundSampleManager sampleManager;
     private final Song song;
-    private final ChannelAccess channel;
+    private final ChannelAccess channelAccess;
+    private final @Nullable Speaker speaker;
     private final Logger logger;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
@@ -38,11 +43,12 @@ public class StreamSongPlayback implements SongPlayback {
     private int playbackOffsetTicks = 0;
 
     public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
-                              Song song, ChannelAccess channel, Logger logger) {
+                              Song song, ChannelAccess channelAccess, @Nullable Speaker speaker, Logger logger) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
-        this.channel = channel;
+        this.channelAccess = channelAccess;
+        this.speaker = speaker;
         this.logger = logger;
     }
 
@@ -83,13 +89,20 @@ public class StreamSongPlayback implements SongPlayback {
     private CompletableFuture<Void> playSound(SongAudioStream stream) {
         var future = new CompletableFuture<Void>();
 
-        channel.createHandle(Library.Pool.STREAMING).thenAccept(sourceManager -> {
-            this.sourceManager = sourceManager;
+        channelAccess.createHandle(Library.Pool.STREAMING).thenAccept(channelHandle -> {
+            this.sourceManager = channelHandle;
+
+            if (channelHandle == null) return;
 
             float bufferSeconds = stream.getBufferSeconds();
 
-            timeTracker = new PlaybackTimeTracker(sourceManager, bufferSeconds);
-            timeTracker.init();
+            timeTracker = new PlaybackTimeTracker(bufferSeconds);
+
+            channelHandle.execute(c -> ((NoticaChannel) c).notica$onTick(channel -> {
+                timeTracker.tick(channel);
+
+                updatePosition(channel);
+            }));
 
             onStopped = () -> {
                 if (onComplete != null) {
@@ -97,16 +110,16 @@ public class StreamSongPlayback implements SongPlayback {
                 }
             };
 
-            ((NoticaChannelHandle) sourceManager).notica$onStopped(onStopped);
+            ((NoticaChannelHandle) channelHandle).notica$onStopped(onStopped);
 
-            sourceManager.execute(source -> {
-                ((NoticaChannel) source).notica$setNoticaSource();
+            channelHandle.execute(channel -> {
+                ((NoticaChannel) channel).notica$setNoticaSource();
 
-                source.setRelative(true);
-                source.setSelfPosition(Vec3.ZERO);
-                source.attachBufferStream(stream);
+                channel.setRelative(true);
+                channel.setSelfPosition(Vec3.ZERO);
+                channel.attachBufferStream(stream);
 
-                source.play();
+                channel.play();
 
                 future.complete(null);
             });
@@ -116,6 +129,36 @@ public class StreamSongPlayback implements SongPlayback {
         });
 
         return future;
+    }
+
+    private void updatePosition(Channel channel) {
+//        int source = ((ChannelAccessor) channel).getSource();
+//
+//        float[] pos = new float[3];
+//        alGetSourcefv(source, AL_POSITION, pos);
+//
+//        int relative = alGetSourcei(source, AL_SOURCE_RELATIVE);
+//
+//        int distanceModel = alGetSourcei(source, AL_DISTANCE_MODEL);
+//        float maxDistance = alGetSourcef(source, AL_MAX_DISTANCE);
+//        float rolloff = alGetSourcef(source, AL_ROLLOFF_FACTOR);
+//        float referenceDist = alGetSourcef(source, AL_REFERENCE_DISTANCE);
+//
+//        int bufferID = alGetSourcei(source, AL_BUFFER);
+//        int channels = alGetBufferi(bufferID, AL_CHANNELS);
+//
+//        System.out.printf("pos: %s, relative: %d, distance model: %d, max dist: %f, rolloff: %f, reference dist: %f, channels: %d%n", Arrays.toString(pos), relative, distanceModel, maxDistance, rolloff, referenceDist, channels);
+
+        if (speaker != null) {
+            ClientLevel level = Minecraft.getInstance().level;
+
+            if (level != null) {
+                Vec3 pos = speaker.resolvePosition(level);
+                channel.setSelfPosition(pos);
+
+                // TODO adjust stereo panning
+            }
+        }
     }
 
     private Hook<Runnable> getOrCreateHook() {

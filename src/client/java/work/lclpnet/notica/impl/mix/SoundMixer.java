@@ -222,6 +222,13 @@ public class SoundMixer {
         return directBuffer;
     }
 
+    /**
+     * Takes the current float buffer in de-interleaved format and transforms it to an interleaved byte buffer.
+     * In the process of converting to bytes, clamping is applied as well to fit within the byte value range.
+     * @param frameCount The amount of frames to convert of the current buffer.
+     * @param scope The mixer scope.
+     * @return The current float buffer converted to a clamped byte buffer.
+     */
     public ByteBuffer applyClamping(final int frameCount, Scope scope) {
         directBuffer.position(0);
         directBuffer.limit(directBuffer.capacity());

@@ -4,10 +4,21 @@ import lombok.Getter;
 
 import java.util.Arrays;
 
+/**
+ * A scope for sound mixing.
+ * In the case of parallel sound mixers, each worker should get its own scope in order to eliminate the need for synchronization.
+ * Individual scopes may be combined using {@link #add(Scope)}.
+ */
 public class Scope {
 
+    /**
+     * The buffer for the current sound to mix.
+     */
     @Getter
     private final float[] sampleBuffer;
+    /**
+     * Result ring buffer for the mixed (combined) sample.
+     */
     private final float[][] buffers;
 
     public Scope(int sampleBufferCount, int bufferCount, int bufferSize) {

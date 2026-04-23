@@ -28,8 +28,7 @@ import work.lclpnet.notica.util.PlayerConfigEntry;
 import javax.sound.sampled.AudioFormat;
 import java.util.*;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static java.lang.Math.clamp;
 
 public class ClientMusicBackend {
 
@@ -72,7 +71,7 @@ public class ClientMusicBackend {
         SongPlayback playback;
 
         if (variant == PlaybackVariant.STREAMED) {
-            playback = createStreamPlayback(song, options);
+            playback = createStreamPlayback(song, playOptions);
         } else {
             playback = createIndividualPlayback(song, playOptions);
         }
@@ -114,7 +113,9 @@ public class ClientMusicBackend {
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song, PlaybackOptions options) {
+    private StreamSongPlayback createStreamPlayback(PendingSong song, SongPlayOptions playOptions) {
+        PlaybackOptions options = playOptions.playbackOptions();
+
         StereoMode stereoMode = Optional.ofNullable(configManager.config().getStereoModeOverride())
                 .map(StereoModeOverride::stereoMode)
                 .orElseGet(options::stereoMode);
@@ -124,9 +125,11 @@ public class ClientMusicBackend {
         SoundEngine soundSystem = ((SoundManagerAccessor) soundManager).getSoundEngine();
         var soundSystemAccess = (SoundEngineAccessor) soundSystem;
 
-        ChannelAccess channel = soundSystemAccess.getChannelAccess();
+        ChannelAccess channelAccess = soundSystemAccess.getChannelAccess();
         SoundBufferLibrary soundLoader = soundSystemAccess.getSoundBuffers();
         ResourceProvider resourceFactory = ((SoundBufferLibraryAccessor) soundLoader).getResourceManager();
+
+        Speaker speaker = playOptions.speaker().orElse(null);
 
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
@@ -146,13 +149,13 @@ public class ClientMusicBackend {
 
             audioStream.setOnUpdate(() -> {
                 float categoryVolume = client.options.getFinalSoundSourceVolume(SoundSource.RECORDS);
-                float totalVolume = max(0.f, min(1.f, options.volume() * categoryVolume * playerConfig.getVolume()));
+                float totalVolume = clamp(options.volume() * categoryVolume * playerConfig.getVolume(), 0.f, 1.f);
 
                 songMixer.setSongVolume(totalVolume);
             });
 
             return audioStream;
-        }, sampleManager, song, channel, logger);
+        }, sampleManager, song, channelAccess, speaker, logger);
     }
 
     public void stopSong(Identifier songId) {

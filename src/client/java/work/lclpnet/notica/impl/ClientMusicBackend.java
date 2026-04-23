@@ -100,7 +100,7 @@ public class ClientMusicBackend {
                 .map(SoundPositionProvider::ofSpeaker)
                 .orElseGet(SoundPositionProvider::clientPlayerRelative);
 
-        boolean soundHasPosition = playOptions.speaker().isPresent();
+        boolean relativePosition = playOptions.speaker().isEmpty();
 
         NotePlayer notePlayer = new ClientAggregatingNotePlayer(
                 soundProvider,
@@ -108,7 +108,7 @@ public class ClientMusicBackend {
                 playerConfig,
                 directSoundManager,
                 positionProvider,
-                soundHasPosition
+                relativePosition
         );
 
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());

@@ -32,19 +32,19 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
     private final PlayerConfig playerConfig;
     private final DirectSoundManager directSoundManager;
     private final SoundPositionProvider positionProvider;
-    private final boolean soundHasPosition;
+    private final boolean relativePosition;
     private final List<NbsSoundInstance> notes = new ArrayList<>(16);
     private int deSyncedNotes = 0;
 
     public ClientAggregatingNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig,
                                        DirectSoundManager directSoundManager, SoundPositionProvider positionProvider,
-                                       boolean soundHasPosition) {
+                                       boolean relativePosition) {
         this.soundProvider = soundProvider;
         this.volume = volume;
         this.playerConfig = playerConfig;
         this.directSoundManager = directSoundManager;
         this.positionProvider = positionProvider;
-        this.soundHasPosition = soundHasPosition;
+        this.relativePosition = relativePosition;
     }
 
     @Override
@@ -77,7 +77,7 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
         Vec3 soundPos = positionProvider.getPosition(player, panning);
 
-        SoundInstance.Attenuation attenuation = soundHasPosition
+        SoundInstance.Attenuation attenuation = relativePosition
                 ? SoundInstance.Attenuation.LINEAR
                 : SoundInstance.Attenuation.NONE;
 
@@ -95,7 +95,7 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
                 soundPos.x,
                 soundPos.y,
                 soundPos.z,
-                soundHasPosition,
+                relativePosition,
                 directSoundManager
         );
 

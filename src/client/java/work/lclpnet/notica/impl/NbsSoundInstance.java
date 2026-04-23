@@ -13,7 +13,9 @@ public class NbsSoundInstance extends AbstractSoundInstance {
 
     private final DirectSoundManager directSoundManager;
 
-    public NbsSoundInstance(Identifier id, SoundSource category, float volume, float pitch, RandomSource random, boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType, double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
+    public NbsSoundInstance(Identifier id, SoundSource category, float volume, float pitch, RandomSource random,
+                            boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType,
+                            double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
         super(id, category, random);
         this.volume = volume;
         this.pitch = pitch;

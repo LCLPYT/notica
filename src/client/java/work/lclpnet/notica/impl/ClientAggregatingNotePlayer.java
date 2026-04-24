@@ -78,8 +78,8 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
         Vec3 soundPos = positionProvider.getPosition(player, panning);
 
         SoundInstance.Attenuation attenuation = relativePosition
-                ? SoundInstance.Attenuation.LINEAR
-                : SoundInstance.Attenuation.NONE;
+                ? SoundInstance.Attenuation.NONE
+                : SoundInstance.Attenuation.LINEAR;
 
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through

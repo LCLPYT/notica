@@ -77,11 +77,15 @@ public class TestUtil {
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, int workerCount) throws IOException {
+        return createSoundMixer(song, bufferBytes, sampleManager, factory, workerCount, 1);
+    }
+
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, int workerCount, int outputBuffers) throws IOException {
         initSoundRegistry();
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount, 1);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount, outputBuffers);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {

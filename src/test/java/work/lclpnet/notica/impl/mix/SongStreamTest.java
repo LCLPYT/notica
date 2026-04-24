@@ -20,7 +20,7 @@ import static work.lclpnet.notica.util.TestUtil.getFrames;
 
 class SongStreamTest {
 
-    private static final boolean EXPORT = false, OPEN = false;
+    private static final boolean EXPORT = true, OPEN = true;
 
     @Test
     void test() throws IOException {
@@ -194,5 +194,88 @@ class SongStreamTest {
         float[] samples = processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
 
         return soundMixer.toStereoPCM(samples, frames);
+    }
+
+    @Test
+    void testMultiChannelOutput() throws IOException {
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
+
+        TestUtil.initSoundRegistry();
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        float seconds = 1.f;
+        int amount = 3;
+        int bufferBytes = getBufferByteSize(seconds);
+        int outputBuffers = 2;
+
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1, outputBuffers);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
+
+        songMixer.setSongVolume(0.5f);
+
+
+        @SuppressWarnings("resource")
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
+
+        stream.startProducer(1).join();
+
+        Path dir;
+
+        if (EXPORT) {
+            dir = Files.createTempDirectory("notica_test");
+
+            System.out.println("Exporting into " + dir.toAbsolutePath());
+        } else {
+            dir = null;
+        }
+
+        byte[][][] parts = new byte[amount][outputBuffers][0];
+
+        for (int i = 0; i < amount; i++) {
+            ByteBuffer[] bufs = stream.nextBuffers();
+
+            if (bufs == null) {
+                fail("Didn't expect song to have ended yet");
+            }
+
+            for (int j = 0; j < outputBuffers; j++) {
+                ByteBuffer buf = bufs[j];
+
+                parts[i][j] = TestUtil.asByteArray(buf);
+
+                buf.flip();
+
+                if (!EXPORT) continue;
+
+                TestUtil.exportSound(buf, dir.resolve("%d_%d.wav".formatted(i, j)));
+            }
+        }
+
+        if (!EXPORT) return;
+
+        int totalSize = Arrays.stream(parts).mapToInt(part -> part[0].length).sum();
+        ByteBuffer[] bufs = new ByteBuffer[outputBuffers];
+
+        for (int i = 0; i < outputBuffers; i++) {
+            bufs[i] = ByteBuffer.allocate(totalSize);
+        }
+
+        for (byte[][] part : parts) {
+            for (int i = 0; i < outputBuffers; i++) {
+                bufs[i].put(part[i]);
+            }
+        }
+
+        for (int i = 0; i < outputBuffers; i++) {
+            bufs[i].flip();
+            TestUtil.exportSound(bufs[i], dir.resolve("combined_%d.wav".formatted(i)));
+        }
+
+        if (!OPEN) return;
+
+        TestUtil.openFile(dir);
     }
 }

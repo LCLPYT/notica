@@ -6,17 +6,18 @@ import org.jspecify.annotations.NonNull;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
+import java.util.function.Supplier;
 
 public class SongAudioStream implements AudioStream {
 
-    private final SongStream songStream;
+    private final Supplier<@Nullable ByteBuffer[]> bufferSupplier;
     private final AudioFormat format;
     private final int outputBufferIndex;
     private final Runnable onClose;
     private boolean closed = false;
 
-    public SongAudioStream(SongStream stream, AudioFormat format, int outputBufferIndex, Runnable onClose) {
-        this.songStream = stream;
+    public SongAudioStream(Supplier<@Nullable ByteBuffer[]> bufferSupplier, AudioFormat format, int outputBufferIndex, Runnable onClose) {
+        this.bufferSupplier = bufferSupplier;
         this.format = format;
         this.outputBufferIndex = outputBufferIndex;
         this.onClose = onClose;
@@ -29,7 +30,7 @@ public class SongAudioStream implements AudioStream {
 
     @Override
     public @Nullable ByteBuffer read(int size) {
-        @Nullable ByteBuffer[] buffers = songStream.nextBuffers();
+        @Nullable ByteBuffer[] buffers = bufferSupplier.get();
 
         if (buffers == null) return null;
 

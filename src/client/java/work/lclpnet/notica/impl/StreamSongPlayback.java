@@ -14,6 +14,7 @@ import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.Speaker;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.mix.SharedSongBuffers;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongStream;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
@@ -215,7 +216,7 @@ public class StreamSongPlayback implements SongPlayback {
 
         if (speaker == null) {
             // non-positional stereo audio playback
-            var audioStream = new SongAudioStream(stream, audioFormat, 0, stream::close);
+            var audioStream = new SongAudioStream(stream::nextBuffers, audioFormat, 0, stream::close);
 
             channelHandles = new ChannelAccess.ChannelHandle[1];
             playSound(audioStream, bufferSeconds, 0).join();
@@ -228,9 +229,10 @@ public class StreamSongPlayback implements SongPlayback {
         channelHandles = new ChannelAccess.ChannelHandle[soundCount];
 
         var requiredCloseCalls = new AtomicInteger(soundCount);
+        var shared = new SharedSongBuffers(stream, soundCount);
 
         for (int i = 0; i < soundCount; i++) {
-            var audioStream = new SongAudioStream(stream, audioFormat, i, () -> {
+            var audioStream = new SongAudioStream(shared::next, audioFormat, i, () -> {
                 if (requiredCloseCalls.decrementAndGet() == 0) {
                     stream.close();
                 }

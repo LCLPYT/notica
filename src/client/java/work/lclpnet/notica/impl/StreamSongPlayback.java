@@ -3,7 +3,7 @@ package work.lclpnet.notica.impl;
 import com.mojang.blaze3d.audio.Channel;
 import com.mojang.blaze3d.audio.Library;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.world.phys.Vec3;
@@ -39,6 +39,7 @@ public class StreamSongPlayback implements SongPlayback {
     private final @Nullable Speaker speaker;
     private final AudioFormat audioFormat;
     private final Logger logger;
+    private final @Nullable SoundPositionProvider soundPositionProvider;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
     private volatile Hook<Runnable> onComplete = null;
@@ -58,6 +59,8 @@ public class StreamSongPlayback implements SongPlayback {
         this.speaker = speaker;
         this.audioFormat = audioFormat;
         this.logger = logger;
+
+        this.soundPositionProvider = speaker != null ? SoundPositionProvider.ofSpeaker(speaker) : null;
     }
 
     @Override
@@ -97,7 +100,7 @@ public class StreamSongPlayback implements SongPlayback {
         getOrCreateHook().register(action);
     }
 
-    private CompletableFuture<Void> playSound(AudioStream stream, float bufferSeconds, int channelIndex) {
+    private CompletableFuture<Void> playSound(AudioStream stream, float bufferSeconds, int channelIndex, float panning) {
         var future = new CompletableFuture<Void>();
 
         channelAccess.createHandle(Library.Pool.STREAMING).thenAccept(channelHandle -> {
@@ -110,7 +113,7 @@ public class StreamSongPlayback implements SongPlayback {
             channelHandle.execute(c -> ((NoticaChannel) c).notica$onTick(channel -> {
                 timeTracker.tick(channel);
 
-                updatePosition(channel);
+                updatePosition(channel, panning);
             }));
 
             onStopped = () -> {
@@ -124,8 +127,16 @@ public class StreamSongPlayback implements SongPlayback {
             channelHandle.execute(channel -> {
                 ((NoticaChannel) channel).notica$setNoticaSource();
 
-                channel.setRelative(true);
-                channel.setSelfPosition(Vec3.ZERO);
+                if (soundPositionProvider != null) {
+                    channel.setRelative(false);
+                    channel.linearAttenuation(16);
+
+                    updatePosition(channel, panning);
+                } else {
+                    channel.setRelative(true);
+                    channel.setSelfPosition(Vec3.ZERO);
+                }
+
                 channel.attachBufferStream(stream);
 
                 channel.play();
@@ -140,34 +151,16 @@ public class StreamSongPlayback implements SongPlayback {
         return future;
     }
 
-    private void updatePosition(Channel channel) {
-//        int source = ((ChannelAccessor) channel).getSource();
-//
-//        float[] pos = new float[3];
-//        alGetSourcefv(source, AL_POSITION, pos);
-//
-//        int relative = alGetSourcei(source, AL_SOURCE_RELATIVE);
-//
-//        int distanceModel = alGetSourcei(source, AL_DISTANCE_MODEL);
-//        float maxDistance = alGetSourcef(source, AL_MAX_DISTANCE);
-//        float rolloff = alGetSourcef(source, AL_ROLLOFF_FACTOR);
-//        float referenceDist = alGetSourcef(source, AL_REFERENCE_DISTANCE);
-//
-//        int bufferID = alGetSourcei(source, AL_BUFFER);
-//        int channels = alGetBufferi(bufferID, AL_CHANNELS);
-//
-//        System.out.printf("pos: %s, relative: %d, distance model: %d, max dist: %f, rolloff: %f, reference dist: %f, channels: %d%n", Arrays.toString(pos), relative, distanceModel, maxDistance, rolloff, referenceDist, channels);
+    private void updatePosition(Channel channel, float panning) {
+        if (soundPositionProvider == null) return;
 
-        if (speaker != null) {
-            ClientLevel level = Minecraft.getInstance().level;
+        LocalPlayer level = Minecraft.getInstance().player;
 
-            if (level != null) {
-                Vec3 pos = speaker.resolvePosition(level);
-                channel.setSelfPosition(pos);
+        if (level == null) return;
 
-                // TODO adjust stereo panning
-            }
-        }
+        Vec3 pos = soundPositionProvider.getPosition(level, panning);
+
+        channel.setSelfPosition(pos);
     }
 
     private Hook<Runnable> getOrCreateHook() {
@@ -219,7 +212,7 @@ public class StreamSongPlayback implements SongPlayback {
             var audioStream = new SongAudioStream(stream::nextBuffers, audioFormat, 0, stream::close);
 
             channelHandles = new ChannelAccess.ChannelHandle[1];
-            playSound(audioStream, bufferSeconds, 0).join();
+            playSound(audioStream, bufferSeconds, 0, 0f).join();
             return;
         }
 
@@ -238,7 +231,13 @@ public class StreamSongPlayback implements SongPlayback {
                 }
             });
 
-            playSound(audioStream, bufferSeconds, i).join();
+            float panning = switch (i) {
+                case 0 -> -1;
+                case 1 -> +1;
+                default -> 0;
+            };
+
+            playSound(audioStream, bufferSeconds, i, panning).join();
         }
     }
 

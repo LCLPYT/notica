@@ -44,7 +44,8 @@ class SoundMixerTest {
         int iterations = (int) ceil(totalFrames / (double) bufferFrames);
 
         for (int i = 0; i < iterations; i++) {
-            ByteBuffer buf = mixer.applyClamping(bufferFrames, mixer.getRootScope());
+            float[] samples = mixer.getCurrentBuffer(mixer.getRootScope());
+            ByteBuffer buf = mixer.toStereoPCM(samples, bufferFrames);
 
             combined.put(buf);
 
@@ -91,6 +92,6 @@ class SoundMixerTest {
     @SuppressWarnings("SameParameterValue")
     private @NotNull SoundMixer mockedMixer(int bufferSize) {
         AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 48000, 16, 2, 4, 48000, false);
-        return new SoundMixer(format, mock(), bufferSize, 1);
+        return new SoundMixer(format, mock(), bufferSize, 1, 1);
     }
 }

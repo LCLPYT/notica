@@ -190,7 +190,8 @@ public class SongMixerBenchmark {
     public void lerpBaseline(BaselineState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }
@@ -199,7 +200,8 @@ public class SongMixerBenchmark {
     public void lerpSimd(LerpSimdState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }
@@ -208,7 +210,8 @@ public class SongMixerBenchmark {
     public void catmullRomBaseline(BaselineCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }
@@ -217,7 +220,8 @@ public class SongMixerBenchmark {
     public void catmullRomSimd(SimdCatmullRomState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }
@@ -226,7 +230,8 @@ public class SongMixerBenchmark {
     public void catmullRomBatched(BatchCRState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }
@@ -235,7 +240,8 @@ public class SongMixerBenchmark {
     public void catmullRomBatchedParallel(ParallelBatchCRState state, Blackhole blackhole) {
         state.songMixer.mixTicks(0, state.endTick, 0);
 
-        ByteBuffer res = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        float[] samples = state.soundMixer.applyCompressor(state.frames, state.soundMixer.getRootScope());
+        ByteBuffer res = state.soundMixer.toStereoPCM(samples, state.frames);
 
         blackhole.consume(res);
     }

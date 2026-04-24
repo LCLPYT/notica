@@ -4,6 +4,7 @@ import com.mojang.blaze3d.audio.Channel;
 import com.mojang.blaze3d.audio.Library;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -14,11 +15,14 @@ import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.Speaker;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
+import work.lclpnet.notica.impl.mix.SongStream;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
 import work.lclpnet.notica.type.NoticaChannel;
 import work.lclpnet.notica.type.NoticaChannelHandle;
 
+import javax.sound.sampled.AudioFormat;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import static java.lang.Math.max;
@@ -27,28 +31,31 @@ public class StreamSongPlayback implements SongPlayback {
 
     private static final int TIMEOUT_MS = 10_000;
 
-    private final Supplier<SongAudioStream> streamSupplier;
+    private final Supplier<SongStream> streamSupplier;
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final ChannelAccess channelAccess;
     private final @Nullable Speaker speaker;
+    private final AudioFormat audioFormat;
     private final Logger logger;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
     private volatile Hook<Runnable> onComplete = null;
-    private ChannelAccess.ChannelHandle sourceManager = null;
+    private ChannelAccess.ChannelHandle[] channelHandles = null;
     private PlaybackTimeTracker timeTracker = null;
     private boolean stopped = false;
     private Runnable onStopped = null;
     private int playbackOffsetTicks = 0;
 
-    public StreamSongPlayback(Supplier<SongAudioStream> streamSupplier, SoundSampleManager sampleManager,
-                              Song song, ChannelAccess channelAccess, @Nullable Speaker speaker, Logger logger) {
+    public StreamSongPlayback(Supplier<SongStream> streamSupplier, SoundSampleManager sampleManager,
+                              Song song, ChannelAccess channelAccess, @Nullable Speaker speaker,
+                              AudioFormat audioFormat, Logger logger) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
         this.channelAccess = channelAccess;
         this.speaker = speaker;
+        this.audioFormat = audioFormat;
         this.logger = logger;
     }
 
@@ -57,18 +64,21 @@ public class StreamSongPlayback implements SongPlayback {
         mutexExecutor.execute(() -> mutexNewPlayback(startTick));
     }
 
-    private CompletableFuture<Void> prepareFirstBuffer(SongAudioStream stream) {
+    private CompletableFuture<Void> prepareFirstBuffer(SongStream stream) {
         return stream.startProducer(4);
     }
 
     @Override
     public synchronized void stop() {
-        if (sourceManager == null) return;
+        if (channelHandles == null) return;
 
         stopped = true;
 
-        sourceManager.execute(Channel::stop);
-        sourceManager = null;
+        for (ChannelAccess.ChannelHandle channelHandle : channelHandles) {
+            channelHandle.execute(Channel::stop);
+        }
+
+        channelHandles = null;
     }
 
     @Override
@@ -86,15 +96,13 @@ public class StreamSongPlayback implements SongPlayback {
         getOrCreateHook().register(action);
     }
 
-    private CompletableFuture<Void> playSound(SongAudioStream stream) {
+    private CompletableFuture<Void> playSound(AudioStream stream, float bufferSeconds, int channelIndex) {
         var future = new CompletableFuture<Void>();
 
         channelAccess.createHandle(Library.Pool.STREAMING).thenAccept(channelHandle -> {
-            this.sourceManager = channelHandle;
+            channelHandles[channelIndex] = channelHandle;
 
             if (channelHandle == null) return;
-
-            float bufferSeconds = stream.getBufferSeconds();
 
             timeTracker = new PlaybackTimeTracker(bufferSeconds);
 
@@ -186,7 +194,7 @@ public class StreamSongPlayback implements SongPlayback {
     private void mutexNewPlayback(int startTick) {
         playbackOffsetTicks = startTick;
 
-        SongAudioStream stream = streamSupplier.get();
+        SongStream stream = streamSupplier.get();
 
         stream.setTick(startTick).join();
 
@@ -203,7 +211,33 @@ public class StreamSongPlayback implements SongPlayback {
             return;
         }
 
-        playSound(stream).join();
+        float bufferSeconds = stream.getBufferSeconds();
+
+        if (speaker == null) {
+            // non-positional stereo audio playback
+            var audioStream = new SongAudioStream(stream, audioFormat, 0, stream::close);
+
+            channelHandles = new ChannelAccess.ChannelHandle[1];
+            playSound(audioStream, bufferSeconds, 0).join();
+            return;
+        }
+
+        // stereo audio is played as two positional mono sources
+        int soundCount = 2;
+
+        channelHandles = new ChannelAccess.ChannelHandle[soundCount];
+
+        var requiredCloseCalls = new AtomicInteger(soundCount);
+
+        for (int i = 0; i < soundCount; i++) {
+            var audioStream = new SongAudioStream(stream, audioFormat, i, () -> {
+                if (requiredCloseCalls.decrementAndGet() == 0) {
+                    stream.close();
+                }
+            });
+
+            playSound(audioStream, bufferSeconds, i).join();
+        }
     }
 
     private void mutexSeekTo(int tick, boolean absolute) {
@@ -211,26 +245,29 @@ public class StreamSongPlayback implements SongPlayback {
         int startTick;
 
         synchronized (this) {
-            if (sourceManager == null) return;
+            if (channelHandles == null) return;
 
             final int currentPlaybackTick = currentPlaybackTick();
             startTick = max(0, absolute ? tick : currentPlaybackTick + tick);
 
-            sourceManager.execute(source -> {
-                if (source.stopped()) return;
+            for (ChannelAccess.ChannelHandle channelHandle : channelHandles) {
+                channelHandle.execute(channel -> {
+                    if (channel.stopped()) return;
 
-                ((NoticaChannelHandle) sourceManager).notica$onStopped(null);
-                ((NoticaChannel) source).notica$setStopped();
-                ((NoticaChannel) source).notica$onTick(null);
+                    ((NoticaChannelHandle) channelHandle).notica$onStopped(null);
+                    ((NoticaChannel) channel).notica$setStopped();
+                    ((NoticaChannel) channel).notica$onTick(null);
 
-                source.stop();
+                    channel.stop();
 
-                sourceManager = null;
-                onStopped = null;
-                timeTracker = null;
+                    onStopped = null;
+                    timeTracker = null;
 
-                future.complete(null);
-            });
+                    future.complete(null);
+                });
+            }
+
+            channelHandles = null;
         }
 
         future.join();

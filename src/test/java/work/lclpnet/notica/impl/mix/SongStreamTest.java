@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
 import static work.lclpnet.notica.util.TestUtil.getFrames;
 
-class SongAudioStreamTest {
+class SongStreamTest {
 
     private static final boolean EXPORT = false, OPEN = false;
 
@@ -41,8 +41,8 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1);
 
         stream.startProducer(1).join();
 
@@ -59,11 +59,13 @@ class SongAudioStreamTest {
         byte[][] parts = new byte[amount][0];
 
         for (int i = 0; i < amount; i++) {
-            ByteBuffer buf = stream.read(bufferBytes);
+            ByteBuffer[] bufs = stream.nextBuffers();
 
-            if (buf == null) {
+            if (bufs == null) {
                 fail("Didn't expect song to have ended yet");
             }
+
+            ByteBuffer buf = bufs[0];
 
             parts[i] = TestUtil.asByteArray(buf);
 
@@ -105,8 +107,8 @@ class SongAudioStreamTest {
         int amount = 5;
         float volume = 1.5f;
 
-        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
-        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
+        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> (frameCount, scope) -> mixer.getCurrentBuffer(scope));
+        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> ((frameCount, scope) -> mixer.getCurrentBuffer(scope)));
 
         float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
         float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
@@ -151,19 +153,21 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1);
 
         stream.startProducer(1).join();
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 
         for (int i = 0; i < amount; i++) {
-            ByteBuffer buf = stream.read(bufferBytes);
+            ByteBuffer[] bufs = stream.nextBuffers();
 
-            if (buf == null) {
+            if (bufs == null) {
                 fail("Didn't expect song to have ended yet");
             }
+
+            ByteBuffer buf = bufs[0];
 
             combined.put(buf);
         }
@@ -187,6 +191,8 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
+        float[] samples = processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
+
+        return soundMixer.toStereoPCM(samples, frames);
     }
 }

@@ -81,7 +81,7 @@ public class TestUtil {
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount, 1);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {

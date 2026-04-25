@@ -225,7 +225,7 @@ public class StreamSongPlayback implements SongPlayback {
         var shared = new SharedSongBuffers(stream, soundCount);
 
         for (int i = 0; i < soundCount; i++) {
-            var audioStream = new SongAudioStream(shared::next, audioFormat, i, () -> {
+            var audioStream = new SongAudioStream(shared.consumerSupplier(i), audioFormat, i, () -> {
                 if (requiredCloseCalls.decrementAndGet() == 0) {
                     stream.close();
                 }

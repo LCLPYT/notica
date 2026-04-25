@@ -68,7 +68,7 @@ public interface SoundPositionProvider {
             double radius = speaker.radius();
 
             double finalX = sourcePos.x() + (rightX * panning * radius);
-            double finalY = sourcePos.y();  // eyeY sounds awfully, as sound positions are only sent as integers
+            double finalY = sourcePos.y();
             double finalZ = sourcePos.z() + (rightZ * panning * radius);
 
             return new Vec3(finalX, finalY, finalZ);

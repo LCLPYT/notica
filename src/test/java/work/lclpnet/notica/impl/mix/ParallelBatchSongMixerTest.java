@@ -43,7 +43,8 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        ByteBuffer buffer = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+        float[] samples = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+        ByteBuffer buffer = soundMixer.toStereoPCM(samples, frames);
 
         if (!EXPORT) return;
 
@@ -181,7 +182,9 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+        float[] samples = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+
+        return soundMixer.toStereoPCM(samples, frames);
     }
 
     private ByteBuffer parallelSample(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume, float seconds, int frames) throws IOException {
@@ -198,7 +201,9 @@ public class ParallelBatchSongMixerTest {
 
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+        float[] samples = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+
+        return soundMixer.toStereoPCM(samples, frames);
     }
 
     private ByteBuffer sequentialChunked(Song song, int bufferSize, SoundSampleManager sampleManager, float songVolume,
@@ -223,7 +228,8 @@ public class ParallelBatchSongMixerTest {
 
             songMixer.mixTicks(startTick, endTick, 0);
 
-            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+            float[] samples = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+            ByteBuffer buf = soundMixer.toStereoPCM(samples, frames);
             combined.put(buf);
 
             soundMixer.advanceBuffer();
@@ -258,7 +264,8 @@ public class ParallelBatchSongMixerTest {
 
             songMixer.mixTicks(startTick, endTick, 0);
 
-            ByteBuffer buf = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+            float[] samples = soundMixer.applyCompressor(frames, soundMixer.getRootScope());
+            ByteBuffer buf = soundMixer.toStereoPCM(samples, frames);
             combined.put(buf);
 
             soundMixer.advanceBuffer();

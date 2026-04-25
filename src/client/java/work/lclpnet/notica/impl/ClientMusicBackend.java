@@ -11,6 +11,7 @@ import net.minecraft.server.packs.resources.ResourceProvider;
 import net.minecraft.sounds.SoundSource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.config.ConfigManager;
 import work.lclpnet.notica.api.*;
@@ -28,8 +29,7 @@ import work.lclpnet.notica.util.PlayerConfigEntry;
 import javax.sound.sampled.AudioFormat;
 import java.util.*;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static java.lang.Math.clamp;
 
 public class ClientMusicBackend {
 
@@ -72,7 +72,7 @@ public class ClientMusicBackend {
         SongPlayback playback;
 
         if (variant == PlaybackVariant.STREAMED) {
-            playback = createStreamPlayback(song, options);
+            playback = createStreamPlayback(song, playOptions);
         } else {
             playback = createIndividualPlayback(song, playOptions);
         }
@@ -114,7 +114,9 @@ public class ClientMusicBackend {
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song, PlaybackOptions options) {
+    private StreamSongPlayback createStreamPlayback(PendingSong song, SongPlayOptions playOptions) {
+        PlaybackOptions options = playOptions.playbackOptions();
+
         StereoMode stereoMode = Optional.ofNullable(configManager.config().getStereoModeOverride())
                 .map(StereoModeOverride::stereoMode)
                 .orElseGet(options::stereoMode);
@@ -124,9 +126,11 @@ public class ClientMusicBackend {
         SoundEngine soundSystem = ((SoundManagerAccessor) soundManager).getSoundEngine();
         var soundSystemAccess = (SoundEngineAccessor) soundSystem;
 
-        ChannelAccess channel = soundSystemAccess.getChannelAccess();
+        ChannelAccess channelAccess = soundSystemAccess.getChannelAccess();
         SoundBufferLibrary soundLoader = soundSystemAccess.getSoundBuffers();
         ResourceProvider resourceFactory = ((SoundBufferLibraryAccessor) soundLoader).getResourceManager();
+
+        Speaker speaker = playOptions.speaker().orElse(null);
 
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
@@ -134,25 +138,33 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
+        AudioFormat audioFormat = speaker != null ? getMonoFormat(unifiedAudioFormat) : unifiedAudioFormat;
+
         return new StreamSongPlayback(() -> {
-            int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
+            int bufferBytes = SongStream.getByteSize(unifiedAudioFormat, 1.f);
             int workerCount = Runtime.getRuntime().availableProcessors();
 
-            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
+            // For speakers to be able to play stereo audio, we need to produce two individual output channels that
+            // will be in mono format (only left or only right audio) so that they can be played as positional audio.
+            // Without a speaker, target stereo audio directly
+            int outputBufferCount = speaker != null ? 2 : 1;
+
+            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount, outputBufferCount);
             var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
-            var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
-                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false);
+            var songStream = new SongStream(unifiedAudioFormat, soundMixer, songMixer, song,
+                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false, outputBufferCount);
 
-            audioStream.setOnUpdate(() -> {
+            songStream.setOnUpdate(() -> {
                 float categoryVolume = client.options.getFinalSoundSourceVolume(SoundSource.RECORDS);
-                float totalVolume = max(0.f, min(1.f, options.volume() * categoryVolume * playerConfig.getVolume()));
+                float totalVolume = clamp(options.volume() * categoryVolume * playerConfig.getVolume(), 0.f, 1.f);
 
                 songMixer.setSongVolume(totalVolume);
             });
 
-            return audioStream;
-        }, sampleManager, song, channel, logger);
+            return songStream;
+
+        }, sampleManager, song, channelAccess, speaker, audioFormat, logger);
     }
 
     public void stopSong(Identifier songId) {
@@ -203,5 +215,17 @@ public class ClientMusicBackend {
 
     public boolean isSongPlaying() {
         return !playing.isEmpty();
+    }
+
+    public static @NonNull AudioFormat getMonoFormat(AudioFormat format) {
+        return new AudioFormat(
+                format.getEncoding(),
+                format.getSampleRate(),
+                format.getSampleSizeInBits(),
+                1,
+                format.getSampleSizeInBits() / 8,
+                format.getFrameRate(),
+                format.isBigEndian()
+        );
     }
 }

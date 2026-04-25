@@ -5,8 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.util.TestUtil;
 
+import javax.sound.sampled.AudioFormat;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -15,12 +17,11 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.fail;
-import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
-import static work.lclpnet.notica.util.TestUtil.getFrames;
+import static work.lclpnet.notica.util.TestUtil.*;
 
-class SongAudioStreamTest {
+class SongStreamTest {
 
-    private static final boolean EXPORT = false, OPEN = false;
+    private static final boolean EXPORT = true, OPEN = true;
 
     @Test
     void test() throws IOException {
@@ -34,15 +35,16 @@ class SongAudioStreamTest {
         float seconds = 1.f;
         int amount = 3;
         int bufferBytes = getBufferByteSize(seconds);
+        int outputBuffers = 1;
 
-        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1, outputBuffers);
         SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
 
         stream.startProducer(1).join();
 
@@ -59,11 +61,13 @@ class SongAudioStreamTest {
         byte[][] parts = new byte[amount][0];
 
         for (int i = 0; i < amount; i++) {
-            ByteBuffer buf = stream.read(bufferBytes);
+            ByteBuffer[] bufs = stream.nextBuffers();
 
-            if (buf == null) {
+            if (bufs == null) {
                 fail("Didn't expect song to have ended yet");
             }
+
+            ByteBuffer buf = bufs[0];
 
             parts[i] = TestUtil.asByteArray(buf);
 
@@ -105,8 +109,8 @@ class SongAudioStreamTest {
         int amount = 5;
         float volume = 1.5f;
 
-        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
-        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> mixer::applyClamping);
+        ByteBuffer reference = reference(song, volume, sampleManager, seconds, amount, mixer -> (frameCount, scope) -> mixer.getCurrentBuffer(scope));
+        ByteBuffer combined = combined(song, volume, sampleManager, seconds, amount, mixer -> ((frameCount, scope) -> mixer.getCurrentBuffer(scope)));
 
         float[] reference_array = TestUtil.toFloatArray(TestUtil.asShortArray(reference));
         float[] combined_array = TestUtil.toFloatArray(TestUtil.asShortArray(combined));
@@ -151,19 +155,21 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1);
 
         stream.startProducer(1).join();
 
         ByteBuffer combined = BufferUtils.createByteBuffer(bufferBytes * amount);
 
         for (int i = 0; i < amount; i++) {
-            ByteBuffer buf = stream.read(bufferBytes);
+            ByteBuffer[] bufs = stream.nextBuffers();
 
-            if (buf == null) {
+            if (bufs == null) {
                 fail("Didn't expect song to have ended yet");
             }
+
+            ByteBuffer buf = bufs[0];
 
             combined.put(buf);
         }
@@ -187,6 +193,92 @@ class SongAudioStreamTest {
         songMixer.setSongVolume(volume);
         songMixer.mixTicks(startTick, endTick, 0);
 
-        return processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
+        float[] samples = processor.apply(soundMixer).process(frames, soundMixer.getRootScope());
+
+        return soundMixer.toStereoPCM(samples, frames);
+    }
+
+    @Test
+    void testMultiChannelOutput() throws IOException {
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
+
+        TestUtil.initSoundRegistry();
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        float seconds = 1.f;
+        int amount = 3;
+        int bufferBytes = getBufferByteSize(seconds);
+        int outputBuffers = 2;
+
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1, outputBuffers);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
+
+        songMixer.setSongVolume(0.5f);
+
+        @SuppressWarnings("resource")
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
+
+        stream.startProducer(1).join();
+
+        Path dir;
+
+        if (EXPORT) {
+            dir = Files.createTempDirectory("notica_test");
+
+            System.out.println("Exporting into " + dir.toAbsolutePath());
+        } else {
+            dir = null;
+        }
+
+        AudioFormat monoFormat = ClientMusicBackend.getMonoFormat(AUDIO_FORMAT);
+
+        byte[][][] parts = new byte[amount][outputBuffers][0];
+
+        for (int i = 0; i < amount; i++) {
+            ByteBuffer[] bufs = stream.nextBuffers();
+
+            if (bufs == null) {
+                fail("Didn't expect song to have ended yet");
+            }
+
+            for (int j = 0; j < outputBuffers; j++) {
+                ByteBuffer buf = bufs[j];
+
+                parts[i][j] = TestUtil.asByteArray(buf);
+
+                buf.flip();
+
+                if (!EXPORT) continue;
+
+                TestUtil.exportSound(buf, dir.resolve("%d_%d.wav".formatted(i, j)), monoFormat);
+            }
+        }
+
+        if (!EXPORT) return;
+
+        int totalSize = Arrays.stream(parts).mapToInt(part -> part[0].length).sum();
+        ByteBuffer[] bufs = new ByteBuffer[outputBuffers];
+
+        for (int i = 0; i < outputBuffers; i++) {
+            bufs[i] = ByteBuffer.allocate(totalSize);
+        }
+
+        for (byte[][] part : parts) {
+            for (int i = 0; i < outputBuffers; i++) {
+                bufs[i].put(part[i]);
+            }
+        }
+
+        for (int i = 0; i < outputBuffers; i++) {
+            bufs[i].flip();
+            TestUtil.exportSound(bufs[i], dir.resolve("combined_%d.wav".formatted(i)), monoFormat);
+        }
+
+        if (!OPEN) return;
+
+        TestUtil.openFile(dir);
     }
 }

@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
+import work.lclpnet.notica.impl.ClientMusicBackend;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -24,7 +25,11 @@ public class SoundMixer {
     private final int bufferSize;
     @Getter
     private final int bufferFrames;
-    private final ByteBuffer directBuffer;
+    /**
+     * A buffer for the processed audio, split by channels (de-interleaved).
+     */
+    private final float[] floatBuffer;
+    private final ByteBuffer[] directBuffers;
     @Getter
     private final Scope rootScope;
     private final Scope[] workerScopes;
@@ -33,7 +38,7 @@ public class SoundMixer {
     private int currentBuffer = 0;
     private int remainingBuffers = 0;
 
-    public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes, int scopeCount) {
+    public SoundMixer(AudioFormat format, NoteSampler noteSampler, final int bufferBytes, int scopeCount, int outputBuffers) {
         this.format = format;
         this.noteSampler = noteSampler;
 
@@ -52,9 +57,26 @@ public class SoundMixer {
 
         ByteOrder order = format.isBigEndian() ? ByteOrder.BIG_ENDIAN : ByteOrder.LITTLE_ENDIAN;
 
-        directBuffer = BufferUtils.createByteBuffer(bufferBytes).order(order);
+        floatBuffer = new float[bufferSize];
 
-        final float bufferDurationSeconds = SongAudioStream.getSeconds(format, bufferFrames);
+        if (outputBuffers <= 0) {
+            throw new IllegalArgumentException("Need at least one output channel");
+        }
+
+        if (bufferBytes % outputBuffers != 0) {
+            throw new IllegalArgumentException("Invalid output buffer count: source buffer size of %s cannot be split evenly into %s parts".formatted(bufferBytes, outputBuffers));
+        }
+
+        ByteBuffer[] directBuffers = new ByteBuffer[outputBuffers];
+        int directBufferSize = bufferBytes / outputBuffers;
+
+        for (int i = 0; i < outputBuffers; i++) {
+            directBuffers[i] = BufferUtils.createByteBuffer(directBufferSize).order(order);
+        }
+
+        this.directBuffers = directBuffers;
+
+        final float bufferDurationSeconds = SongStream.getSeconds(format, bufferFrames);
         extraBufferCount = (int) ceil(MAX_SOUND_SECONDS / bufferDurationSeconds);
         final int bufferCount = BASE_BUFFER_COUNT + extraBufferCount;
 
@@ -166,7 +188,7 @@ public class SoundMixer {
     }
 
     private int mixOffset(float[] sample, int frameCount, int bufferIdx, int frameOffset, Scope scope) {
-        final int len = max(0, min(frameCount, bufferFrames - frameOffset));
+        final int len = clamp(frameCount, 0, bufferFrames - frameOffset);
         float[] buffer = scope.getBuffer(bufferIdx);
 
         // left
@@ -193,7 +215,7 @@ public class SoundMixer {
         for (int i = 1; i <= span; i++) {
             int writtenSoFar = writtenFrames + (i - 1) * bufferFrames;
             int remainingFrames = frameCount - writtenSoFar;
-            int len = max(0, min(bufferFrames, remainingFrames));
+            int len = clamp(bufferFrames, 0, remainingFrames);
 
             int idx = (bufferIdx + i) % scope.getBufferCount();
             float[] buffer = scope.getBuffer(idx);
@@ -210,25 +232,53 @@ public class SoundMixer {
         }
     }
 
-    public ByteBuffer applyCompressor(final int frameCount, Scope scope) {
+    public float[] applyCompressor(final int frameCount, Scope scope) {
         float[] samples = scope.getBuffer(currentBuffer);
         float[] next = scope.getBuffer((currentBuffer + 1) % scope.getBufferCount());
 
         // floating point samples might be outside the playable 16-bit range
         // apply dynamic-range-compression in order to make everything playable
         // this reduces audio over-amplification and clipping significantly
-        compressor.process(frameCount, samples, next, directBuffer);
+        compressor.process(frameCount, samples, next, floatBuffer);
+
+        return floatBuffer;
+    }
+
+    public float[] getCurrentBuffer(Scope scope) {
+        return scope.getBuffer(currentBuffer);
+    }
+
+    /**
+     * Converts a stereo sound in de-interleaved float format to interleaved byte PCM format.
+     * @param frameCount The number frames to write.
+     * @param samples The de-interleaved stereo float samples.
+     * @return The interleaved byte PCM samples. Doesn't allocate a new buffer but re-uses a single buffer of the mixer instance.
+     */
+    public ByteBuffer toStereoPCM(float[] samples, int frameCount) {
+        ByteBuffer directBuffer = directBuffers[0];
+
+        directBuffer.position(0);
+        directBuffer.limit(directBuffer.capacity());
+
+        // re-interleave
+        UnifiedSoundLoader.toInterleavedBytes(samples, frameCount, directBuffer, format);
+
+        directBuffer.flip();
 
         return directBuffer;
     }
 
-    public ByteBuffer applyClamping(final int frameCount, Scope scope) {
+    public ByteBuffer toChannelBytes(float[] samples, int frameCount, int channel) {
+        if (channel >= directBuffers.length) {
+            throw new IllegalArgumentException("Not enough output buffers allocated (tried to get channel %s)".formatted(channel));
+        }
+
+        ByteBuffer directBuffer = directBuffers[channel];
+
         directBuffer.position(0);
         directBuffer.limit(directBuffer.capacity());
 
-        float[] samples = scope.getBuffer(currentBuffer);
-
-        UnifiedSoundLoader.toInterleavedBytes(samples, frameCount, directBuffer, format);
+        UnifiedSoundLoader.toChannelBytes(samples, frameCount, directBuffer, ClientMusicBackend.getMonoFormat(format), channel);
 
         directBuffer.flip();
 

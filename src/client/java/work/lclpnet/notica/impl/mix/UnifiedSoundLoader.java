@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-import static java.lang.Math.max;
+import static java.lang.Math.clamp;
 import static java.lang.Math.min;
 
 /**
@@ -99,11 +99,25 @@ public class UnifiedSoundLoader {
             float vl = floatSamples[i];
             float vr = floatSamples[frames + i];
 
-            short ql = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vl * Short.MAX_VALUE));
-            short qr = (short) max(Short.MIN_VALUE, min(Short.MAX_VALUE, vr * Short.MAX_VALUE));
+            short ql = (short) clamp(vl * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
+            short qr = (short) clamp(vr * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
 
             out.putShort(ql);
             out.putShort(qr);
+        }
+    }
+
+    public static void toChannelBytes(float[] floatSamples, int frames, ByteBuffer out, AudioFormat format, int channel) {
+        final int bufferFrames = out.limit() / format.getFrameSize();
+        final int len = min(bufferFrames, frames);
+        final int offset = channel * frames;
+
+        for (int i = 0; i < len; i++) {
+            float v = floatSamples[offset + i];
+
+            short q = (short) clamp(v * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
+
+            out.putShort(q);
         }
     }
 

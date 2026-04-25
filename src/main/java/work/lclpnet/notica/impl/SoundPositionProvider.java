@@ -52,12 +52,17 @@ public interface SoundPositionProvider {
 
             double length = sqrt(dx * dx + dz * dz);
 
-            double rightX = 0;
-            double rightZ = 0;
+            double rightX;
+            double rightZ;
 
             if (length > 0) {
                 rightX = dz / length;
                 rightZ = -dx / length;
+            } else {
+                // in case the sourcePos is exactly at the player, use player look angle to determine right vector
+                Vec3 right = player.getLookAngle().cross(Vec3.Y_AXIS);
+                rightX = right.x();
+                rightZ = right.z();
             }
 
             double radius = speaker.radius();

@@ -79,9 +79,12 @@ public record Speaker(
     }
 
     public Vec3 resolvePosition(Level level) {
-        return sourceEntityUuid
-                .map(level::getEntity)
+        return resolveEntity(level)
                 .map(Entity::position)
                 .orElse(position);
+    }
+
+    public Optional<Entity> resolveEntity(Level level) {
+        return sourceEntityUuid.map(level::getEntity);
     }
 }

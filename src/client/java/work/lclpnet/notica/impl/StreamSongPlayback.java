@@ -3,11 +3,14 @@ package work.lclpnet.notica.impl;
 import com.mojang.blaze3d.audio.Channel;
 import com.mojang.blaze3d.audio.Library;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.sounds.AudioStream;
 import net.minecraft.client.sounds.ChannelAccess;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.openal.AL10;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
 import work.lclpnet.notica.api.IndividualSongPlayback;
@@ -18,6 +21,7 @@ import work.lclpnet.notica.impl.mix.SharedSongBuffers;
 import work.lclpnet.notica.impl.mix.SongAudioStream;
 import work.lclpnet.notica.impl.mix.SongStream;
 import work.lclpnet.notica.impl.mix.SoundSampleManager;
+import work.lclpnet.notica.mixin.client.ChannelAccessor;
 import work.lclpnet.notica.type.NoticaChannel;
 import work.lclpnet.notica.type.NoticaChannelHandle;
 
@@ -116,6 +120,7 @@ public class StreamSongPlayback implements SongPlayback {
                 timeTracker.tick(channel);
 
                 updatePosition(channel, panning);
+                updateVelocity(channel);
             }));
 
             onStopped = () -> {
@@ -134,6 +139,7 @@ public class StreamSongPlayback implements SongPlayback {
                     channel.linearAttenuation(16);
 
                     updatePosition(channel, panning);
+                    updateVelocity(channel);
                 } else {
                     channel.setRelative(true);
                     channel.setSelfPosition(Vec3.ZERO);
@@ -153,14 +159,36 @@ public class StreamSongPlayback implements SongPlayback {
         return future;
     }
 
-    private void updatePosition(Channel channel, float panning) {
-        if (soundPositionProvider == null) return;
+    private void updateVelocity(Channel channel) {
+        if (speaker == null) return;
 
-        LocalPlayer level = Minecraft.getInstance().player;
+        ClientLevel level = Minecraft.getInstance().level;
 
         if (level == null) return;
 
-        Vec3 pos = soundPositionProvider.getPosition(level, panning);
+        Entity entity = speaker.resolveEntity(level).orElse(null);
+
+        if (entity == null) return;
+
+        int source = ((ChannelAccessor) channel).getSource();
+
+        Vec3 velocity = entity.getDeltaMovement();
+
+        // getDeltaMovement() is in blocks/tick; OpenAL expects units/second (20 ticks/s)
+        AL10.alSource3f(source, AL10.AL_VELOCITY,
+                (float) (velocity.x * 20),
+                (float) (velocity.y * 20),
+                (float) (velocity.z * 20));
+    }
+
+    private void updatePosition(Channel channel, float panning) {
+        if (soundPositionProvider == null) return;
+
+        LocalPlayer player = Minecraft.getInstance().player;
+
+        if (player == null) return;
+
+        Vec3 pos = soundPositionProvider.getPosition(player, panning);
 
         channel.setSelfPosition(pos);
     }

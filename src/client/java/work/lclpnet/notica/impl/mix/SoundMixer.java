@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.Note;
+import work.lclpnet.notica.impl.ClientMusicBackend;
 
 import javax.sound.sampled.AudioFormat;
 import java.nio.ByteBuffer;
@@ -277,7 +278,7 @@ public class SoundMixer {
         directBuffer.position(0);
         directBuffer.limit(directBuffer.capacity());
 
-        UnifiedSoundLoader.toChannelBytes(samples, frameCount, directBuffer, format, channel);
+        UnifiedSoundLoader.toChannelBytes(samples, frameCount, directBuffer, ClientMusicBackend.getMonoFormat(format), channel);
 
         directBuffer.flip();
 

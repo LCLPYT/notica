@@ -5,8 +5,10 @@ import org.junit.jupiter.api.Test;
 import org.lwjgl.BufferUtils;
 import work.lclpnet.notica.api.data.LoopOverride;
 import work.lclpnet.notica.api.data.Song;
+import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.util.TestUtil;
 
+import javax.sound.sampled.AudioFormat;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -15,8 +17,7 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.fail;
-import static work.lclpnet.notica.util.TestUtil.getBufferByteSize;
-import static work.lclpnet.notica.util.TestUtil.getFrames;
+import static work.lclpnet.notica.util.TestUtil.*;
 
 class SongStreamTest {
 
@@ -34,15 +35,16 @@ class SongStreamTest {
         float seconds = 1.f;
         int amount = 3;
         int bufferBytes = getBufferByteSize(seconds);
+        int outputBuffers = 1;
 
-        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new);
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1, outputBuffers);
         SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
 
         songMixer.setSongVolume(0.5f);
 
         @SuppressWarnings("resource")
         var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
 
         stream.startProducer(1).join();
 
@@ -215,7 +217,6 @@ class SongStreamTest {
 
         songMixer.setSongVolume(0.5f);
 
-
         @SuppressWarnings("resource")
         var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
                 soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
@@ -231,6 +232,8 @@ class SongStreamTest {
         } else {
             dir = null;
         }
+
+        AudioFormat monoFormat = ClientMusicBackend.getMonoFormat(AUDIO_FORMAT);
 
         byte[][][] parts = new byte[amount][outputBuffers][0];
 
@@ -250,7 +253,7 @@ class SongStreamTest {
 
                 if (!EXPORT) continue;
 
-                TestUtil.exportSound(buf, dir.resolve("%d_%d.wav".formatted(i, j)));
+                TestUtil.exportSound(buf, dir.resolve("%d_%d.wav".formatted(i, j)), monoFormat);
             }
         }
 
@@ -271,7 +274,7 @@ class SongStreamTest {
 
         for (int i = 0; i < outputBuffers; i++) {
             bufs[i].flip();
-            TestUtil.exportSound(bufs[i], dir.resolve("combined_%d.wav".formatted(i)));
+            TestUtil.exportSound(bufs[i], dir.resolve("combined_%d.wav".formatted(i)), monoFormat);
         }
 
         if (!OPEN) return;

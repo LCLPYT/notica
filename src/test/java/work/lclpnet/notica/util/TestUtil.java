@@ -97,8 +97,12 @@ public class TestUtil {
     }
 
     public static void exportSound(ByteBuffer buffer, Path path) throws IOException {
+        exportSound(buffer, path, AUDIO_FORMAT);
+    }
+
+    public static void exportSound(ByteBuffer buffer, Path path, AudioFormat format) throws IOException {
         try (var out = Files.newOutputStream(path)) {
-            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buffer), AUDIO_FORMAT, buffer.limit());
+            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buffer), format, buffer.limit());
             AudioSystem.write(in, AudioFileFormat.Type.WAVE, out);
         }
     }

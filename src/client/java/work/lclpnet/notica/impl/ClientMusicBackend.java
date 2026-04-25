@@ -217,7 +217,7 @@ public class ClientMusicBackend {
         return !playing.isEmpty();
     }
 
-    private static @NonNull AudioFormat getMonoFormat(AudioFormat format) {
+    public static @NonNull AudioFormat getMonoFormat(AudioFormat format) {
         return new AudioFormat(
                 format.getEncoding(),
                 format.getSampleRate(),

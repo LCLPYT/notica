@@ -1,8 +1,7 @@
 package work.lclpnet.notica.impl;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import lombok.Getter;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -16,6 +15,7 @@ import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.network.NoticaNetworking;
 import work.lclpnet.notica.network.packet.MusicOptionsS2CPacket;
+import work.lclpnet.notica.util.ActiveSongManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
@@ -37,8 +37,8 @@ public class NoticaImpl implements Notica {
     private final PlayerConfigContainer playerConfigs;
     private final Map<UUID, SongPlayerRef> playerRefs = new HashMap<>();
     private final Map<Identifier, Song> songsById = new HashMap<>();
-    private final Set<SongHandle> handles = new HashSet<>();
-    private final Multimap<Identifier, SongHandle> handlesById = ArrayListMultimap.create();
+    private final ActiveSongManager activeSongManager = new ActiveSongManager();
+    private final Map<Identifier, SongHandle> handlesById = new HashMap<>();
     private final Set<PlayerStoppedPlaybackListener> playbackListeners = new HashSet<>();
 
     public static void configure(Path songsDir, Path playerConfigDir, Logger logger) {
@@ -80,61 +80,56 @@ public class NoticaImpl implements Notica {
             @Nullable Speaker speaker,
             Collection<? extends ServerPlayer> players
     ) {
-        if (players.isEmpty()) {
-            throw new IllegalArgumentException("Listeners are empty");
-        }
-
         Identifier id = song.id();
+
+        cleanSong(id);
+
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker);
-
-        Set<SongPlayerRef> moddedPlayers = new HashSet<>();
-        Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
-
-        for (ServerPlayer player : players) {
-            // check if the playing is already listening to this song
-            getPlayingSong(player, id).ifPresent(other -> other.remove(player));
-
-            SongPlayerRef ref = createRef(player);
-
-            if (hasModInstalled(player)) {
-                moddedPlayers.add(ref);
-            } else {
-                vanillaPlayers.add(ref);
-            }
-        }
+        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker, this::createRef);
 
         handle.onDestroy(() -> {
-            synchronized (this) {
-                handles.remove(handle);
-                playbackListeners.remove(handle);
+            activeSongManager.removeHandle(handle);
 
-                handlesById.remove(id, handle);
+            synchronized (this) {
+                playbackListeners.remove(handle);
 
                 cleanSong(id);
             }
         });
 
-        handles.add(handle);
+        if (players.isEmpty()) {
+            activeSongManager.addGlobal(handle);
+
+            players = PlayerLookup.all(server);
+        } else {
+            activeSongManager.add(handle);
+        }
+
         playbackListeners.add(handle);
 
         handlesById.put(id, handle);
 
-        handle.start(vanillaPlayers, moddedPlayers, soundProvider);
+        handle.start(players, soundProvider);
 
         return handle;
     }
 
-    private synchronized void cleanSong(Identifier id) {
+    private void cleanSong(Identifier id) {
+        SongHandle handle = handlesById.remove(id);
+
+        if (handle != null) {
+            handle.stop();
+        }
+
         if (!handlesById.containsKey(id)) {
             songsById.remove(id);
         }
     }
 
     @Override
-    public synchronized @NonNull Set<SongHandle> getPlayingSongs() {
-        return Collections.unmodifiableSet(handles);
+    public @NonNull Set<SongHandle> getPlayingSongs() {
+        return Collections.unmodifiableSet(activeSongManager.getAllHandles());
     }
 
     @Override
@@ -170,7 +165,7 @@ public class NoticaImpl implements Notica {
         playerConfigs.onPlayerQuit(player);
         playerRefs.remove(player.getUUID());
 
-        for (SongHandle handle : handles) {
+        for (SongHandle handle : activeSongManager.getAllHandles()) {
             handle.remove(player);
         }
     }
@@ -184,7 +179,7 @@ public class NoticaImpl implements Notica {
         }
     }
 
-    public boolean hasModInstalled(ServerPlayer player) {
+    public static boolean hasModInstalled(ServerPlayer player) {
         return NoticaNetworking.getInstance().understandsProtocol(player);
     }
 

@@ -21,19 +21,24 @@ public interface Notica {
      * @param song The {@link CheckedSong} to play.
      * @param options The playback options, containing info for how to play the song.
      * @param startTick The tick to start the playback at.
-     * @param players The song listeners.
+     * @param players The song listeners. If empty, the song will be global.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
     @NotNull
-    SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players);
+    SongHandle playSong(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            Collection<? extends ServerPlayer> players
+    );
 
     /**
-     * Play a song through a speaker positioned in the world.
+     * Play a song through a speaker positioned in the world to a collection of players.
      * @param song The {@link CheckedSong} to play.
      * @param options The playback options, containing info for how to play the song.
      * @param startTick The tick to start the playback at.
      * @param speaker The song speaker to play the song through.
-     * @param players The song listeners.
+     * @param players The song listeners. If empty, the song will be global.
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
     @NotNull
@@ -78,6 +83,36 @@ public interface Notica {
     Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId);
 
     /**
+     * Play a song globally to all players on the server.
+     * @param song The {@link CheckedSong} to play.
+     * @param options The playback options, containing info for how to play the song.
+     * @param startTick The tick to start the playback at.
+     * @return A {@link SongHandle} that can be used to control the song playback.
+     */
+    @NotNull
+    default SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick) {
+        return playSong(song, options, startTick, Set.of());
+    }
+
+    /**
+     * Play a song through a speaker positioned in the world.
+     * @param song The {@link CheckedSong} to play.
+     * @param options The playback options, containing info for how to play the song.
+     * @param startTick The tick to start the playback at.
+     * @param speaker The song speaker to play the song through.
+     * @return A {@link SongHandle} that can be used to control the song playback.
+     */
+    @NotNull
+    default SongHandle playSongWithSpeaker(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            Speaker speaker
+    ) {
+        return playSongWithSpeaker(song, options, startTick, speaker, Set.of());
+    }
+
+    /**
      * Play a song to a collection of players.
      * @param song The {@link CheckedSong} to play.
      * @param volume The playback volume of the song, ranges [0, 1].
@@ -97,7 +132,12 @@ public interface Notica {
      * @return A {@link SongHandle} that can be used to control the song playback.
      */
     @NotNull
-    default SongHandle playSong(CheckedSong song, float volume, int startTick, Collection<? extends ServerPlayer> players) {
+    default SongHandle playSong(
+            CheckedSong song,
+            float volume,
+            int startTick,
+            Collection<? extends ServerPlayer> players
+    ) {
         return playSong(song, new PlaybackOptions(volume), startTick, players);
     }
 

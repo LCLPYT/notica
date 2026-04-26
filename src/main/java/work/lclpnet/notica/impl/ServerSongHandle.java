@@ -24,6 +24,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final PlaybackOptions playbackOptions;
     private final int startTick;
     private final @Nullable Speaker speaker;
+    private final SongPlayerRefFactory refFactory;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private volatile boolean started = false;
     @Nullable
@@ -37,16 +38,30 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     });
     private boolean destroyed = false;
 
-    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker) {
+    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker, SongPlayerRefFactory refFactory) {
         this.checkedSong = checkedSong;
         this.playbackOptions = playbackOptions;
         this.startTick = startTick;
         this.speaker = speaker;
+        this.refFactory = refFactory;
     }
 
-    public synchronized void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
+    public synchronized void start(Collection<? extends ServerPlayer> players, InstrumentSoundProvider soundProvider) {
         if (started) return;
         started = true;
+
+        Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
+        Set<SongPlayerRef> moddedPlayers = new HashSet<>();
+
+        for (ServerPlayer player : players) {
+            SongPlayerRef ref = refFactory.createRef(player);
+
+            if (NoticaImpl.hasModInstalled(player)) {
+                moddedPlayers.add(ref);
+            } else {
+                vanillaPlayers.add(ref);
+            }
+        }
 
         this.moddedRefs.clear();
 
@@ -203,6 +218,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
+    public void add(ServerPlayer player) {
+        // TODO
+    }
+
+    @Override
     public synchronized void remove(ServerPlayer player) {
         UUID uuid = player.getUUID();
 
@@ -271,5 +291,14 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         for (SongPlayerRef ref : moddedRefs.values()) {
             sendSeekPacket(ref.getPlayer(), ticks, absolute);
         }
+    }
+
+    @Override
+    public @Nullable Speaker getSpeaker() {
+        return speaker;
+    }
+
+    public interface SongPlayerRefFactory {
+        SongPlayerRef createRef(ServerPlayer player);
     }
 }

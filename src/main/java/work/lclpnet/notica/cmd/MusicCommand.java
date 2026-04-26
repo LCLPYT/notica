@@ -28,6 +28,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionLevel;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
@@ -108,7 +109,7 @@ public class MusicCommand {
                         .then(playAtCommand())
                         .then(playForCommand())
                         // global non-speaker
-                        .then(nonSpeakerOptions(ctx -> new PlayArgs(null, null))));
+                        .then(nonSpeakerOptions(ctx -> new PlayArgs(Set.of(), null))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> playAtCommand() {
@@ -123,7 +124,7 @@ public class MusicCommand {
                 .then(argument("position", Vec3Argument.vec3())
                         .executes(ctx -> {
                             var pos = Vec3Argument.getVec3(ctx, "position");
-                            return playSongAuto(ctx, new PlayArgs(null, Speaker.fixed(pos)));
+                            return playSongAuto(ctx, new PlayArgs(Set.of(), Speaker.fixed(pos)));
                         })
                         .then(literal("for")
                                 .then(argument("listeners", EntityArgument.players())
@@ -139,7 +140,7 @@ public class MusicCommand {
                                                 false))))
                         .then(speakerOptions(
                                 (ctx, doppler, radius) -> new PlayArgs(
-                                        null,
+                                        Set.of(),
                                         Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius)),
                                 false)));
     }
@@ -149,7 +150,7 @@ public class MusicCommand {
                 .then(argument("source", EntityArgument.entity())
                         .executes(ctx -> {
                             var source = EntityArgument.getEntity(ctx, "source");
-                            return playSongAuto(ctx, new PlayArgs(null, Speaker.ofEntity(source)));
+                            return playSongAuto(ctx, new PlayArgs(Set.of(), Speaker.ofEntity(source)));
                         })
                         .then(literal("for")
                                 .then(argument("listeners", EntityArgument.players())
@@ -165,7 +166,7 @@ public class MusicCommand {
                                                 true))))
                         .then(speakerOptions(
                                 (ctx, doppler, radius) -> new PlayArgs(
-                                        null,
+                                        Set.of(),
                                         Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius, doppler)),
                                 true)));
     }
@@ -182,17 +183,15 @@ public class MusicCommand {
     }
 
     private record PlayArgs(
-            @Nullable Collection<ServerPlayer> listeners,
+            @NotNull Collection<ServerPlayer> listeners,
             @Nullable Speaker speaker
     ) {
         Collection<ServerPlayer> affectedPlayers(ServerLevel level) {
-            if (listeners != null) return listeners;
+            if (listeners.isEmpty()) {
+                return PlayerLookup.all(level.getServer());
+            }
 
-            if (speaker == null) return PlayerLookup.world(level);
-
-            return PlayerLookup.world(level).stream()
-                    .filter(p -> speaker.isWithinListeningRange(p.getEyePosition()))
-                    .toList();
+            return listeners;
         }
     }
 
@@ -316,7 +315,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
-        PlayArgs args = new PlayArgs(null, null);
+        PlayArgs args = new PlayArgs(Set.of(), null);
 
         // TODO global songs
         stopAllSongs(source, args.affectedPlayers(source.getLevel()));
@@ -378,9 +377,7 @@ public class MusicCommand {
     }
 
     private int playSong(CommandSourceStack source, PlayArgs args, Path path, Identifier id, PlaybackOptions options) throws CommandSyntaxException {
-        Collection<ServerPlayer> listeners = args.affectedPlayers(source.getLevel());
-
-        if (involvesOther(source, listeners)
+        if (involvesOther(source, args.affectedPlayers(source.getLevel()))
                 && !NoticaPermissions.COMMAND_MUSIC_PLAY_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
             throw errorNoPermissionPlayOther.create();
         }
@@ -418,11 +415,11 @@ public class MusicCommand {
             Speaker speaker = args.speaker();
 
             if (speaker == null) {
-                api.playSong(song, options, 0, listeners);
+                api.playSong(song, options, 0, args.listeners());
                 return;
             }
 
-            api.playSongWithSpeaker(song, options, 0, speaker, listeners);
+            api.playSongWithSpeaker(song, options, 0, speaker, args.listeners());
         });
 
         return 1;
@@ -816,7 +813,7 @@ public class MusicCommand {
         ServerPlayer player = source.getPlayer();
         if (player == null) return false;
 
-        return !NoticaImpl.getInstance(player.level().getServer()).hasModInstalled(player);
+        return !NoticaImpl.hasModInstalled(player);
     }
 
     private CompletableFuture<Suggestions> suggestTimes(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {

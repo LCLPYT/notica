@@ -31,6 +31,7 @@ import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.translate.Translations;
 import work.lclpnet.kibu.translate.text.FormatWrapper;
@@ -47,10 +48,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
@@ -320,7 +318,7 @@ public class MusicCommand {
             double radius = hasRadius ? FloatArgumentType.getFloat(ctx, "radius") : 1.0;
 
             Path path = songDirectory.resolve(songFile);
-            Identifier id = hasExplicitId ? IdentifierArgument.getId(ctx, "id") : SongUtils.createSongId(path);
+            Identifier id = hasExplicitId ? IdentifierArgument.getId(ctx, "id") : generateSongId(ctx, path);
 
             PlayArgs args = factory.create(ctx, doppler, radius);
 
@@ -337,7 +335,7 @@ public class MusicCommand {
         ServerPlayer player = source.getPlayerOrException();
         String songFile = StringArgumentType.getString(ctx, "song");
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        Identifier id = generateSongId(ctx, path);
         PlayArgs args = new PlayArgs(List.of(player), null);
 
         removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
@@ -349,7 +347,7 @@ public class MusicCommand {
         CommandSourceStack source = ctx.getSource();
         String songFile = StringArgumentType.getString(ctx, "song");
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        Identifier id = generateSongId(ctx, path);
 
         removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
 
@@ -360,18 +358,24 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        Identifier id = generateSongId(ctx, path);
 
         removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume));
     }
 
+    private @NonNull Identifier generateSongId(CommandContext<CommandSourceStack> ctx, Path path) {
+        Identifier id = SongUtils.createSongId(path);
+
+        return id.withSuffix("_" + ctx.getSource().getTextName().toLowerCase(Locale.ROOT));
+    }
+
     private int playSongVariant(CommandContext<CommandSourceStack> ctx, PlaybackVariant variant, PlayArgs args) throws CommandSyntaxException {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        Identifier id = generateSongId(ctx, path);
 
         removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
@@ -382,7 +386,7 @@ public class MusicCommand {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
         Path path = songDirectory.resolve(songFile);
-        Identifier id = SongUtils.createSongId(path);
+        Identifier id = generateSongId(ctx, path);
 
         removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 

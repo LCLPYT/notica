@@ -289,7 +289,7 @@ public class MusicCommand {
         builder.then(argument("id", IdentifierArgument.id())
                 .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, false, true)));
 
-        if (entitySpeaker) {
+        if (entitySpeaker && channelMode == ChannelMode.MONO && variant == PlaybackVariant.STREAMED) {
             builder.then(literal("doppler")
                     .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, true, false))
                     .then(argument("id", IdentifierArgument.id())

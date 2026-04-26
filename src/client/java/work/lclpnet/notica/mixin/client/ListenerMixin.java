@@ -7,6 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.lwjgl.openal.AL10;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -15,6 +16,9 @@ import work.lclpnet.notica.NoticaClientInit;
 
 @Mixin(Listener.class)
 public class ListenerMixin {
+
+    @Unique
+    private boolean listenerVelocityWasEnabled = false;
 
     @Inject(
             method = "setTransform",
@@ -29,7 +33,18 @@ public class ListenerMixin {
                 .map(ConfigManager::config)
                 .orElse(null);
 
-        if (config == null || !config.isListenerVelocity()) return;
+        if (config == null || !config.isListenerVelocity()) {
+            if (listenerVelocityWasEnabled) {
+                listenerVelocityWasEnabled = false;
+
+                // reset
+                AL10.alListener3f(AL10.AL_VELOCITY, 0f, 0f, 0f);
+            }
+
+            return;
+        }
+
+        listenerVelocityWasEnabled = true;
 
         Vec3 deltaMovement = player.getDeltaMovement();
 

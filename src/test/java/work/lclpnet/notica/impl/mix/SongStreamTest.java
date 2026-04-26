@@ -21,10 +21,10 @@ import static work.lclpnet.notica.util.TestUtil.*;
 
 class SongStreamTest {
 
-    private static final boolean EXPORT = true, OPEN = true;
+    private static final boolean EXPORT = false, OPEN = false;
 
     @Test
-    void test() throws IOException {
+    void testStereo() throws IOException {
         Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
 
         TestUtil.initSoundRegistry();
@@ -44,7 +44,7 @@ class SongStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers, false);
 
         stream.startProducer(1).join();
 
@@ -156,7 +156,7 @@ class SongStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1);
+                processor.apply(soundMixer), TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, 1, false);
 
         stream.startProducer(1).join();
 
@@ -219,7 +219,7 @@ class SongStreamTest {
 
         @SuppressWarnings("resource")
         var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers, false);
 
         stream.startProducer(1).join();
 
@@ -276,6 +276,81 @@ class SongStreamTest {
             bufs[i].flip();
             TestUtil.exportSound(bufs[i], dir.resolve("combined_%d.wav".formatted(i)), monoFormat);
         }
+
+        if (!OPEN) return;
+
+        TestUtil.openFile(dir);
+    }
+
+    @Test
+    void testMonoOutput() throws IOException {
+        Song song = TestUtil.loadSong("Driftveil City.nbs", SimpleSongMixerTest.class);
+
+        TestUtil.initSoundRegistry();
+
+        SoundSampleManager sampleManager = TestUtil.createSampleManager(song.instruments(), CatmullRomNoteSampler::paddedSample);
+        sampleManager.loadAll();
+
+        float seconds = 1.f;
+        int amount = 3;
+        int bufferBytes = getBufferByteSize(seconds);
+        int outputBuffers = 1;
+
+        SoundMixer soundMixer = TestUtil.createSoundMixer(song, bufferBytes, sampleManager, CatmullRomNoteSampler::new, 1, outputBuffers);
+        SimpleSongMixer songMixer = new SimpleSongMixer(soundMixer, song);
+
+        songMixer.setSongVolume(0.5f);
+
+        @SuppressWarnings("resource")
+        var stream = new SongStream(TestUtil.AUDIO_FORMAT, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, TestUtil.logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers, true);
+
+        stream.startProducer(1).join();
+
+        Path dir;
+
+        if (EXPORT) {
+            dir = Files.createTempDirectory("notica_test");
+
+            System.out.println("Exporting into " + dir.toAbsolutePath());
+        } else {
+            dir = null;
+        }
+
+        AudioFormat monoFormat = ClientMusicBackend.getMonoFormat(AUDIO_FORMAT);
+
+        byte[][] parts = new byte[amount][0];
+
+        for (int i = 0; i < amount; i++) {
+            ByteBuffer[] bufs = stream.nextBuffers();
+
+            if (bufs == null) {
+                fail("Didn't expect song to have ended yet");
+            }
+
+            ByteBuffer buf = bufs[0];
+
+            parts[i] = TestUtil.asByteArray(buf);
+
+            buf.flip();
+
+            if (!EXPORT) continue;
+
+            TestUtil.exportSound(buf, dir.resolve(i + ".wav"), monoFormat);
+        }
+
+        if (!EXPORT) return;
+
+        int totalSize = Arrays.stream(parts).mapToInt(part -> part.length).sum();
+        ByteBuffer buf = ByteBuffer.allocate(totalSize);
+
+        for (byte[] part : parts) {
+            buf.put(part);
+        }
+
+        buf.flip();
+
+        TestUtil.exportSound(buf, dir.resolve("combined.wav"), monoFormat);
 
         if (!OPEN) return;
 

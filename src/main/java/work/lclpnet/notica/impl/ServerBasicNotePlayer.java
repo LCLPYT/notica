@@ -17,6 +17,8 @@ import work.lclpnet.notica.util.NoteHelper;
 
 import java.util.Set;
 
+import static java.lang.Math.clamp;
+
 public class ServerBasicNotePlayer implements NotePlayer {
 
     private final InstrumentSoundProvider soundProvider;
@@ -27,7 +29,7 @@ public class ServerBasicNotePlayer implements NotePlayer {
     public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume,
                                  SoundPositionProvider soundPositionProvider) {
         this.soundProvider = soundProvider;
-        this.volume = Math.max(0f, Math.min(1f, volume));
+        this.volume = clamp(volume, 0f, 1f);
         this.players = players;
         this.soundPositionProvider = soundPositionProvider;
     }

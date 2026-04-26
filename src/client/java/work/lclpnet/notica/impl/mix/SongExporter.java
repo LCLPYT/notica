@@ -54,7 +54,7 @@ public class SongExporter {
 
         @SuppressWarnings("resource")
         var stream = new SongStream(inputFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers);
+                soundMixer::applyCompressor, logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers, false);
 
         stream.startProducer(1).join();
 

@@ -250,8 +250,8 @@ public class SoundMixer {
 
     /**
      * Converts a stereo sound in de-interleaved float format to interleaved byte PCM format.
-     * @param frameCount The number frames to write.
      * @param samples The de-interleaved stereo float samples.
+     * @param frameCount The number frames to write.
      * @return The interleaved byte PCM samples. Doesn't allocate a new buffer but re-uses a single buffer of the mixer instance.
      */
     public ByteBuffer toStereoPCM(float[] samples, int frameCount) {
@@ -262,6 +262,30 @@ public class SoundMixer {
 
         // re-interleave
         UnifiedSoundLoader.toInterleavedBytes(samples, frameCount, directBuffer, format);
+
+        directBuffer.flip();
+
+        return directBuffer;
+    }
+
+    /**
+     * Converts a stereo sound in de-interleaved float format to mono byte PCM format.
+     * This mixes stereo to mono.
+     * @param samples The de-interleaved stereo float samples.
+     * @param frameCount The number of frames to write.
+     * @return The mono byte PCM samples. Doesn't allocate a new buffer but re-uses a single buffer of the mixer instance.
+     */
+    public ByteBuffer toMonoPCM(float[] samples, int frameCount) {
+        ByteBuffer directBuffer = directBuffers[0];
+
+        directBuffer.position(0);
+        directBuffer.limit(directBuffer.capacity());
+
+        for (int i = 0; i < frameCount; i++) {
+            float mono = (samples[i] + samples[frameCount + i]) * 0.5f;
+            short q = (short) clamp(mono * Short.MAX_VALUE, Short.MIN_VALUE, Short.MAX_VALUE);
+            directBuffer.putShort(q);
+        }
 
         directBuffer.flip();
 

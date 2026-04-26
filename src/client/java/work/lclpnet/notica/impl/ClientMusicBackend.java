@@ -96,9 +96,15 @@ public class ClientMusicBackend {
     private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, SongPlayOptions playOptions) {
         PlaybackOptions options = playOptions.playbackOptions();
 
-        SoundPositionProvider positionProvider = playOptions.speaker()
+        SoundPositionProvider positionProvider = switch (options.channelMode()) {
+            case MONO -> playOptions.speaker()
+                    .map(Speaker::asMonoSpeaker)
+                    .map(SoundPositionProvider::ofSpeaker)
+                    .orElseGet(SoundPositionProvider::clientPlayerMono);
+            case STEREO -> playOptions.speaker()
                 .map(SoundPositionProvider::ofSpeaker)
                 .orElseGet(SoundPositionProvider::clientPlayerRelative);
+        };
 
         boolean relativePosition = playOptions.speaker().isEmpty();
 
@@ -138,22 +144,22 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
-        AudioFormat audioFormat = speaker != null ? getMonoFormat(unifiedAudioFormat) : unifiedAudioFormat;
+        boolean mixToMono = options.channelMode() == ChannelMode.MONO || (speaker != null && speaker.isMono());
+        AudioFormat audioFormat = mixToMono || speaker != null ? getMonoFormat(unifiedAudioFormat) : unifiedAudioFormat;
+
+        // positional audio needs to be played as mono audio
+        // either mix down to mono audio or play two audio for stereo simulation, in which case we need two output buffers
+        int soundCount = speaker != null && !mixToMono ? 2 : 1;
 
         return new StreamSongPlayback(() -> {
             int bufferBytes = SongStream.getByteSize(unifiedAudioFormat, 1.f);
             int workerCount = Runtime.getRuntime().availableProcessors();
 
-            // For speakers to be able to play stereo audio, we need to produce two individual output channels that
-            // will be in mono format (only left or only right audio) so that they can be played as positional audio.
-            // Without a speaker, target stereo audio directly
-            int outputBufferCount = speaker != null ? 2 : 1;
-
-            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount, outputBufferCount);
+            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount, soundCount);
             var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
             var songStream = new SongStream(unifiedAudioFormat, soundMixer, songMixer, song,
-                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false, outputBufferCount);
+                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false, soundCount, mixToMono);
 
             songStream.setOnUpdate(() -> {
                 float categoryVolume = client.options.getFinalSoundSourceVolume(SoundSource.RECORDS);
@@ -164,7 +170,7 @@ public class ClientMusicBackend {
 
             return songStream;
 
-        }, sampleManager, song, channelAccess, speaker, audioFormat, logger);
+        }, sampleManager, song, channelAccess, speaker, audioFormat, soundCount, logger);
     }
 
     public void stopSong(Identifier songId) {

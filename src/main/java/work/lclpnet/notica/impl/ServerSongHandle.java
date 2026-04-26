@@ -65,9 +65,14 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             this.vanillaRefs.put(uuid, playerRef);
         }
 
-        SoundPositionProvider soundPositionProvider = speaker != null
-                ? SoundPositionProvider.ofSpeaker(speaker)
-                : SoundPositionProvider.worldPlayerRelative();
+        SoundPositionProvider soundPositionProvider = switch (playbackOptions.channelMode()) {
+            case MONO -> speaker != null
+                    ? SoundPositionProvider.ofSpeaker(speaker.asMonoSpeaker())
+                    : SoundPositionProvider.worldPlayerMono();
+            case STEREO -> speaker != null
+                    ? SoundPositionProvider.ofSpeaker(speaker)
+                    : SoundPositionProvider.worldPlayerRelative();
+        };
 
         serverNotePlayer = new ServerBasicNotePlayer(
                 vanillaPlayers,

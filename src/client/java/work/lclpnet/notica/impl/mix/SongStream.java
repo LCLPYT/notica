@@ -3,6 +3,7 @@ package work.lclpnet.notica.impl.mix;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.lwjgl.BufferUtils;
 import org.slf4j.Logger;
 import work.lclpnet.notica.api.data.LoopConfig;
@@ -57,6 +58,7 @@ public class SongStream implements AutoCloseable {
     private final SendReceive<ByteBuffer[]> queue;
     private final LoopConfig loopConfig;
     private final int outputBufferCount;
+    private final boolean mixToMono;
 
     private @Nullable Thread producer = null, watchdog = null;
     @Setter
@@ -82,10 +84,11 @@ public class SongStream implements AutoCloseable {
      * @param shouldBlock     if {@code true}, {@link #nextBuffers()} blocks until a buffer is
      *                        ready; if {@code false}, it returns {@code null} when the queue is empty
      * @param outputBuffers   the amount of output buffers. One for stereo output. Two for outputting the stereo channels individually as mono audio.
+     * @param mixToMono       Whether to mix stereo down to mono.
      */
     public SongStream(AudioFormat format, SoundMixer soundMixer, SongMixer songMixer, Song song,
-                           BufferProcessor bufferProcessor, Logger logger, int bufferBytes, LoopOverride loopOverride,
-                           boolean shouldBlock, int outputBuffers) {
+                      BufferProcessor bufferProcessor, Logger logger, int bufferBytes, LoopOverride loopOverride,
+                      boolean shouldBlock, int outputBuffers, boolean mixToMono) {
         this.format = format;
         this.soundMixer = soundMixer;
         this.songMixer = songMixer;
@@ -117,6 +120,7 @@ public class SongStream implements AutoCloseable {
         }
 
         this.outputBufferCount = outputBuffers;
+        this.mixToMono = mixToMono;
 
         this.loopConfig = loopOverride.override(song.loopConfig());
         loopCount = loopConfig.loopCount();
@@ -362,18 +366,7 @@ public class SongStream implements AutoCloseable {
             frameOffset = max(0, songMixer.mixTicks(tick, endTick, frameOffset) - soundMixer.getBufferFrames());
         }
 
-        // de-interleaved audio samples (channel blocks)
-        float[] samples = bufferProcessor.process(frameCount, soundMixer.getRootScope());
-
-        ByteBuffer[] bufs = new ByteBuffer[outputBufferCount];
-
-        if (outputBufferCount == 1) {
-            bufs[0] = soundMixer.toStereoPCM(samples, frameCount);
-        } else {
-            for (int i = 0; i < outputBufferCount; i++) {
-                bufs[i] = soundMixer.toChannelBytes(samples, frameCount, i);
-            }
-        }
+        ByteBuffer[] bufs = genOutputBuffers(frameCount);
 
         ByteBuffer[] preparedBuffer;
 
@@ -407,6 +400,29 @@ public class SongStream implements AutoCloseable {
         }
 
         return true;
+    }
+
+    private ByteBuffer @NonNull [] genOutputBuffers(int frameCount) {
+        // de-interleaved audio samples (channel blocks)
+        float[] samples = bufferProcessor.process(frameCount, soundMixer.getRootScope());
+
+        ByteBuffer[] bufs = new ByteBuffer[outputBufferCount];
+
+        if (outputBufferCount >= 2) {
+            for (int i = 0; i < outputBufferCount; i++) {
+                bufs[i] = soundMixer.toChannelBytes(samples, frameCount, i);
+            }
+
+            return bufs;
+        }
+
+        if (mixToMono) {
+            bufs[0] = soundMixer.toMonoPCM(samples, frameCount);
+        } else {
+            bufs[0] = soundMixer.toStereoPCM(samples, frameCount);
+        }
+
+        return bufs;
     }
 
     private void copyBuffer(ByteBuffer src, ByteBuffer dst) {

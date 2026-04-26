@@ -36,8 +36,8 @@ public class StreamSongPlayback implements SongPlayback {
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final ChannelAccess channelAccess;
-    private final @Nullable Speaker speaker;
     private final AudioFormat audioFormat;
+    private final int soundCount;
     private final Logger logger;
     private final @Nullable SoundPositionProvider soundPositionProvider;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
@@ -51,16 +51,18 @@ public class StreamSongPlayback implements SongPlayback {
 
     public StreamSongPlayback(Supplier<SongStream> streamSupplier, SoundSampleManager sampleManager,
                               Song song, ChannelAccess channelAccess, @Nullable Speaker speaker,
-                              AudioFormat audioFormat, Logger logger) {
+                              AudioFormat audioFormat, int soundCount, Logger logger) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
         this.channelAccess = channelAccess;
-        this.speaker = speaker;
         this.audioFormat = audioFormat;
+        this.soundCount = soundCount;
         this.logger = logger;
 
         this.soundPositionProvider = speaker != null ? SoundPositionProvider.ofSpeaker(speaker) : null;
+
+        if (soundCount <= 0) throw new IllegalArgumentException("Need at least one sound");
     }
 
     @Override
@@ -207,7 +209,7 @@ public class StreamSongPlayback implements SongPlayback {
 
         float bufferSeconds = stream.getBufferSeconds();
 
-        if (speaker == null) {
+        if (soundCount == 1) {
             // non-positional stereo audio playback
             var audioStream = new SongAudioStream(stream::nextBuffers, audioFormat, 0, stream::close);
 
@@ -215,9 +217,6 @@ public class StreamSongPlayback implements SongPlayback {
             playSound(audioStream, bufferSeconds, 0, 0f).join();
             return;
         }
-
-        // stereo audio is played as two positional mono sources
-        int soundCount = 2;
 
         channelHandles = new ChannelAccess.ChannelHandle[soundCount];
 

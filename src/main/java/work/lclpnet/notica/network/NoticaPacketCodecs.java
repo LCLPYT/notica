@@ -142,12 +142,17 @@ public class NoticaPacketCodecs {
                     StereoMode::ordinal
             ), PlaybackOptions::stereoMode,
             LOOP_OVERRIDE, PlaybackOptions::loopOverride,
+            indexed(
+                    ByIdMap.continuous(ChannelMode::ordinal, ChannelMode.values(), ByIdMap.OutOfBoundsStrategy.ZERO),
+                    ChannelMode::ordinal
+            ), PlaybackOptions::channelMode,
             PlaybackOptions::new);
 
     public static final StreamCodec<FriendlyByteBuf, Speaker> SPEAKER = StreamCodec.composite(
             Vec3.STREAM_CODEC, Speaker::position,
             ByteBufCodecs.DOUBLE, Speaker::radius,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Speaker::sourceEntityUuid,
+            ByteBufCodecs.BOOL, Speaker::dopplerEffect,
             Speaker::new);
 
     private static <T> StreamCodec<FriendlyByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {

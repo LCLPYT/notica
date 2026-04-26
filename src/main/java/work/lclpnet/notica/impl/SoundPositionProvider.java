@@ -32,10 +32,33 @@ public interface SoundPositionProvider {
     }
 
     /**
-     * @return Position provider for player camera local-coordinate position. For use on the client directly with OpenAL.
+     * @return Position provider for absolute world-coordinate position at the target player world position. Ignores panning.
+     */
+    static SoundPositionProvider worldPlayerMono() {
+        return (player, panning) -> {
+            double x = player.getX();
+            double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
+            double z = player.getZ();
+
+            return new Vec3(x, y, z);
+        };
+    }
+
+    /**
+     * @return Position provider for player camera local-coordinate position.
+     * For use on the client directly with OpenAL.
      */
     static SoundPositionProvider clientPlayerRelative() {
         return (player, panning) -> new Vec3(2 * panning, 0, 0);
+    }
+
+    /**
+     * @return Position provider for player camera local-coordinate position.
+     * For use on the client directly with OpenAL.
+     * Ignores panning.
+     */
+    static SoundPositionProvider clientPlayerMono() {
+        return (player, panning) -> new Vec3(0, 0, 0);
     }
 
     /**

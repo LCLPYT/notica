@@ -133,16 +133,14 @@ public class MusicCommand {
                                             return playSongAuto(ctx, new PlayArgs(listeners, Speaker.fixed(pos)));
                                         })
                                         .then(speakerOptions(
-                                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                                (ctx, doppler, radius) -> new PlayArgs(
                                                         EntityArgument.getPlayers(ctx, "listeners"),
-                                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius),
-                                                        channelMode, doppler),
+                                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius)),
                                                 false))))
                         .then(speakerOptions(
-                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                (ctx, doppler, radius) -> new PlayArgs(
                                         null,
-                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius),
-                                        channelMode, doppler),
+                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius)),
                                 false)));
     }
 
@@ -161,16 +159,14 @@ public class MusicCommand {
                                             return playSongAuto(ctx, new PlayArgs(listeners, Speaker.ofEntity(source)));
                                         })
                                         .then(speakerOptions(
-                                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                                (ctx, doppler, radius) -> new PlayArgs(
                                                         EntityArgument.getPlayers(ctx, "listeners"),
-                                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius),
-                                                        channelMode, doppler),
+                                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius, doppler)),
                                                 true))))
                         .then(speakerOptions(
-                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                (ctx, doppler, radius) -> new PlayArgs(
                                         null,
-                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius),
-                                        channelMode, doppler),
+                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius, doppler)),
                                 true)));
     }
 
@@ -187,14 +183,8 @@ public class MusicCommand {
 
     private record PlayArgs(
             @Nullable Collection<ServerPlayer> listeners,
-            @Nullable Speaker speaker,
-            ChannelMode channelMode,
-            boolean doppler
+            @Nullable Speaker speaker
     ) {
-        PlayArgs(@Nullable Collection<ServerPlayer> listeners, @Nullable Speaker speaker) {
-            this(listeners, speaker, ChannelMode.STEREO, false);
-        }
-
         Collection<ServerPlayer> affectedPlayers(ServerLevel level) {
             if (listeners != null) return listeners;
 
@@ -206,14 +196,12 @@ public class MusicCommand {
         }
     }
 
-    private enum ChannelMode { MONO, STEREO }
-
     private interface PlayArgsFactory {
         PlayArgs create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
     }
 
     private interface SpeakerArgsFactory {
-        PlayArgs create(CommandContext<CommandSourceStack> ctx, ChannelMode channelMode, boolean doppler, double radius) throws CommandSyntaxException;
+        PlayArgs create(CommandContext<CommandSourceStack> ctx, boolean doppler, double radius) throws CommandSyntaxException;
     }
 
     private RequiredArgumentBuilder<CommandSourceStack, Float> nonSpeakerOptions(PlayArgsFactory factory) {
@@ -274,7 +262,7 @@ public class MusicCommand {
         addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, stereoMode, false, entitySpeaker);
 
         branch.then(addSpeakerTerminals(
-                argument("radius", FloatArgumentType.floatArg(0f)),
+                argument("radius", FloatArgumentType.floatArg(0f, 15)),
                 factory, variant, ChannelMode.STEREO, stereoMode, true, entitySpeaker));
 
         return branch;
@@ -311,13 +299,13 @@ public class MusicCommand {
             Path path = songDirectory.resolve(songFile);
             Identifier id = hasExplicitId ? IdentifierArgument.getId(ctx, "id") : SongUtils.createSongId(path);
 
-            PlayArgs args = factory.create(ctx, channelMode, doppler, radius);
+            PlayArgs args = factory.create(ctx, doppler, radius);
 
             if (!hasExplicitId) {
                 stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
             }
 
-            return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode));
+            return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode, channelMode));
         };
     }
 
@@ -425,12 +413,14 @@ public class MusicCommand {
 
             Notica api = Notica.getInstance(source.getServer());
 
-            if (args.speaker() != null) {
-                // TODO: pass args.channelMode() and args.doppler() to API when supported
-                api.playSongWithSpeaker(song, options, 0, args.speaker(), listeners);
-            } else {
+            Speaker speaker = args.speaker();
+
+            if (speaker == null) {
                 api.playSong(song, options, 0, listeners);
+                return;
             }
+
+            api.playSongWithSpeaker(song, options, 0, speaker, listeners);
         });
 
         return 1;

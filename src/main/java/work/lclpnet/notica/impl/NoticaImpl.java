@@ -145,17 +145,13 @@ public class NoticaImpl implements Notica {
     }
 
     @Override
-    public synchronized @NonNull Set<SongHandle> getPlayingSongs(Identifier songId) {
-        return getPlayingSongs().stream()
-                .filter(handle -> handle.getSongId().equals(songId))
-                .collect(Collectors.toUnmodifiableSet());
+    public synchronized @NonNull Optional<SongHandle> getPlayingSong(Identifier songId) {
+        return Optional.ofNullable(handlesById.get(songId));
     }
 
     @Override
     public synchronized @NonNull Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId) {
-        return getPlayingSongs().stream()
-                .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
-                .findAny();
+        return getPlayingSong(songId).filter(handle -> handle.isListener(player));
     }
 
     public void onPlayerJoin(ServerPlayer player) {

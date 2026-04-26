@@ -71,7 +71,7 @@ public interface Notica {
      * @return A set of all {@link SongHandle} that play the referenced song.
      */
     @NotNull
-    Set<SongHandle> getPlayingSongs(Identifier songId);
+    Optional<SongHandle> getPlayingSong(Identifier songId);
 
     /**
      * Get the {@link SongHandle} that plays a song, referenced by the given songId to a given player.

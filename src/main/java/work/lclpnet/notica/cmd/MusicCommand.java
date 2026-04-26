@@ -520,21 +520,20 @@ public class MusicCommand {
         Identifier id = IdentifierArgument.getId(ctx, "id");
         CommandSourceStack source = ctx.getSource();
         Notica api = Notica.getInstance(source.getServer());
-        Set<SongHandle> handles = api.getPlayingSongs(id);
+        SongHandle handle = api.getPlayingSong(id).orElse(null);
 
-        Set<ServerPlayer> allListeners = handles.stream()
-                .flatMap(h -> h.getListeners().stream())
-                .collect(toSet());
-        if (involvesOther(source, allListeners) && !NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
-            throw errorNoPermissionStopOther.create();
-        }
-
-        if (handles.isEmpty()) {
+        if (handle == null) {
             source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
             return 0;
         }
 
-        handles.forEach(SongHandle::stop);
+        Set<ServerPlayer> allListeners = handle.getListeners();
+
+        if (involvesOther(source, allListeners) && !NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
+            throw errorNoPermissionStopOther.create();
+        }
+
+        handle.stop();
         source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
         return 1;
     }
@@ -602,23 +601,21 @@ public class MusicCommand {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
         CommandSourceStack source = ctx.getSource();
         Notica api = Notica.getInstance(source.getServer());
-        Set<SongHandle> handles = api.getPlayingSongs(id);
+        SongHandle handle = api.getPlayingSong(id).orElse(null);
 
-        if (handles.isEmpty()) {
+        if (handle == null) {
             source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
             return 0;
         }
 
         int added = 0;
 
-        for (SongHandle handle : handles) {
-            for (ServerPlayer player : listeners) {
-                if (handle.isListener(player)) continue;
+        for (ServerPlayer player : listeners) {
+            if (handle.isListener(player)) continue;
 
-                handle.add(player);
+            handle.add(player);
 
-                added++;
-            }
+            added++;
         }
 
         if (added == 0) {

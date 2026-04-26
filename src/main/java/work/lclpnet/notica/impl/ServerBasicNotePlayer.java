@@ -94,7 +94,11 @@ public class ServerBasicNotePlayer implements NotePlayer {
         player.connection.send(packet);
     }
 
-    public void removePlayer(SongPlayerRef player) {
+    public synchronized void addPlayer(SongPlayerRef player) {
+        players.add(player);
+    }
+
+    public synchronized void removePlayer(SongPlayerRef player) {
         players.remove(player);
     }
 }

@@ -73,7 +73,7 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         final int endTick;
 
         if (shouldLoop) {
-            int interval = max(2, min(8, song.signature())) * 4;
+            int interval = clamp(song.signature(), 2, 8) * 4;
             endTick = durationTicks + interval - (durationTicks % interval);
         } else {
             endTick = durationTicks + 1;
@@ -124,7 +124,7 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
             long waitMs = round(waitExact * 1e-6);
             int waitNs = (int) round(waitExact - waitMs * 1e+6);
 
-            waitNs = max(0, min(999999, waitNs));
+            waitNs = clamp(waitNs, 0, 999999);
 
             if (waitMs > 0) {
                 try {
@@ -176,5 +176,9 @@ public class IndividualSongPlayback implements Runnable, SongPlayback {
         this.expectedNextNs = 0;
 
         updateTempo(song.tempo().tempoAt(ticks));
+    }
+
+    public synchronized int getCurrentTick() {
+        return tick;
     }
 }

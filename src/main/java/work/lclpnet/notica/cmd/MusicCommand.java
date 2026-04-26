@@ -28,6 +28,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.PermissionLevel;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -132,24 +133,37 @@ public class MusicCommand {
                 .then(argument("position", Vec3Argument.vec3())
                         .executes(ctx -> {
                             var pos = Vec3Argument.getVec3(ctx, "position");
-                            return playSongAuto(ctx, new PlayArgs(Set.of(), Speaker.fixed(pos)));
+                            var level = ctx.getSource().getLevel();
+
+                            return playSongAuto(ctx, new PlayArgs(Set.of(), Speaker.fixed(pos, level)));
                         })
                         .then(literal("for")
                                 .then(argument("listeners", EntityArgument.players())
                                         .executes(ctx -> {
                                             var pos = Vec3Argument.getVec3(ctx, "position");
                                             var listeners = EntityArgument.getPlayers(ctx, "listeners");
-                                            return playSongAuto(ctx, new PlayArgs(listeners, Speaker.fixed(pos)));
+                                            var level = ctx.getSource().getLevel();
+
+                                            return playSongAuto(ctx, new PlayArgs(listeners, Speaker.fixed(pos, level)));
                                         })
                                         .then(speakerOptions(
-                                                (ctx, doppler, radius) -> new PlayArgs(
-                                                        EntityArgument.getPlayers(ctx, "listeners"),
-                                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius)),
+                                                (ctx, doppler, radius) -> {
+                                                    Vec3 pos = Vec3Argument.getVec3(ctx, "position");
+                                                    Collection<ServerPlayer> listeners = EntityArgument.getPlayers(ctx, "listeners");
+                                                    var level = ctx.getSource().getLevel();
+
+                                                    return new PlayArgs(listeners, Speaker.fixed(pos, level, radius));
+                                                },
                                                 false))))
                         .then(speakerOptions(
-                                (ctx, doppler, radius) -> new PlayArgs(
-                                        Set.of(),
-                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius)),
+                                (ctx, doppler, radius) -> {
+                                    Vec3 pos = Vec3Argument.getVec3(ctx, "position");
+                                    var level = ctx.getSource().getLevel();
+
+                                    return new PlayArgs(
+                                            Set.of(),
+                                            Speaker.fixed(pos, level, radius));
+                                },
                                 false)));
     }
 

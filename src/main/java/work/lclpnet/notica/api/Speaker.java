@@ -1,6 +1,7 @@
 package work.lclpnet.notica.api;
 
 import net.minecraft.core.Position;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -15,6 +16,7 @@ import static java.lang.Math.abs;
  * Represents a speaker with a position.
  * The speaker can be bound to an entity to automatically sync the speaker position with the entity position.
  * @param position The speaker position. If a source entity is given, this is relative to the entity position.
+ * @param dimension The speaker dimension. Will be ignored if there is a source entity is present.
  * @param radius The spacing between the speaker position and the maximum panning to a direction.
  * @param sourceEntityUuid The source entity uuid. If non-null, the speaker will be at the entity.
  * @param dopplerEffect Whether to enable the doppler effect for moving speakers.
@@ -23,6 +25,7 @@ import static java.lang.Math.abs;
  */
 public record Speaker(
         Vec3 position,
+        ResourceKey<Level> dimension,
         double radius,
         @NotNull Optional<UUID> sourceEntityUuid,
         boolean dopplerEffect
@@ -33,13 +36,12 @@ public record Speaker(
         }
     }
 
-    public boolean isWithinListeningRange(Position pos) {
+    public boolean isWithinRange(Position pos, double range) {
         double dx = pos.x() - position.x();
         double dy = pos.y() - position.y();
         double dz = pos.z() - position.z();
 
-        // default sound listening range is 16
-        return dx * dx + dy * dy + dz * dz <= 16.0 * 16.0;
+        return dx * dx + dy * dy + dz * dz <= range * range;
     }
 
     public boolean isMono() {
@@ -51,19 +53,19 @@ public record Speaker(
     }
 
     public Speaker withRadius(double radius) {
-        return new Speaker(position, radius, sourceEntityUuid, dopplerEffect);
+        return new Speaker(position, dimension, radius, sourceEntityUuid, dopplerEffect);
     }
 
     public Speaker withDopplerEffect(boolean dopplerEffect) {
-        return new Speaker(position, radius, sourceEntityUuid, dopplerEffect);
+        return new Speaker(position, dimension, radius, sourceEntityUuid, dopplerEffect);
     }
 
-    public static Speaker fixed(Vec3 position) {
-        return fixed(position, 1d);
+    public static Speaker fixed(Vec3 position, Level level) {
+        return fixed(position, level, 1d);
     }
 
-    public static Speaker fixed(Vec3 position, double radius) {
-        return new Speaker(position, radius, Optional.empty(), false);
+    public static Speaker fixed(Vec3 position, Level level, double radius) {
+        return new Speaker(position, level.dimension(), radius, Optional.empty(), false);
     }
 
     public static Speaker ofEntity(Entity entity) {
@@ -75,7 +77,7 @@ public record Speaker(
     }
 
     public static Speaker ofEntity(Entity entity, double radius, boolean dopplerEffect) {
-        return new Speaker(entity.position(), radius, Optional.of(entity.getUUID()), dopplerEffect);
+        return new Speaker(entity.position(), entity.level().dimension(), radius, Optional.of(entity.getUUID()), dopplerEffect);
     }
 
     public Vec3 resolvePosition(Level level) {

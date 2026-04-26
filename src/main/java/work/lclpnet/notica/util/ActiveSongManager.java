@@ -1,8 +1,8 @@
 package work.lclpnet.notica.util;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.SongHandle;
 import work.lclpnet.notica.api.Speaker;
@@ -23,8 +23,8 @@ public class ActiveSongManager {
     /**
      * Speaker source chunk pos -> [SongHandle]
      */
-    private final Map<ChunkPos, Set<SongHandle>> handlesByChunk = new HashMap<>();
-    private final Map<SongHandle, ChunkPos> positionedHandles = new HashMap<>();
+    private final Map<ResourceKey<Level>, Set<SongHandle>> handlesByLevel = new HashMap<>();
+    private final Map<SongHandle, ResourceKey<Level>> levelHandles = new HashMap<>();
     private final Set<SongHandle> globalHandles = new HashSet<>();
     private final Set<SongHandle> allHandles = new HashSet<>();
 
@@ -33,7 +33,7 @@ public class ActiveSongManager {
         globalHandles.remove(handle);
 
         removeLookup(entityHandles, handlesByEntity, handle);
-        removeLookup(positionedHandles, handlesByChunk, handle);
+        removeLookup(levelHandles, handlesByLevel, handle);
     }
 
     public synchronized void addGlobal(ServerSongHandle handle) {
@@ -51,16 +51,14 @@ public class ActiveSongManager {
 
         speaker.sourceEntityUuid().ifPresentOrElse(
                 uuid -> addEntity(handle, uuid),
-                () -> addPositioned(handle, speaker.position())
+                () -> addPositioned(handle, speaker.dimension())
         );
     }
 
-    private void addPositioned(ServerSongHandle handle, Vec3 pos) {
-        ChunkPos chunk = new ChunkPos(BlockPos.containing(pos));
+    private void addPositioned(ServerSongHandle handle, ResourceKey<Level> dimension) {
+        levelHandles.put(handle, dimension);
 
-        positionedHandles.put(handle, chunk);
-
-        handlesByChunk.computeIfAbsent(chunk, p -> new HashSet<>()).add(handle);
+        handlesByLevel.computeIfAbsent(dimension, p -> new HashSet<>()).add(handle);
     }
 
     private void addEntity(ServerSongHandle handle, UUID uuid) {
@@ -95,5 +93,9 @@ public class ActiveSongManager {
 
     public synchronized Set<SongHandle> getSongBySpeakerEntityUuid(UUID uuid) {
         return handlesByEntity.getOrDefault(uuid, Set.of());
+    }
+
+    public synchronized Set<SongHandle> getPositionedHandles(ServerLevel level) {
+        return handlesByLevel.getOrDefault(level.dimension(), Set.of());
     }
 }

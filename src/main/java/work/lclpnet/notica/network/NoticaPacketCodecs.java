@@ -1,10 +1,12 @@
 package work.lclpnet.notica.network;
 
 import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.VarInt;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ByIdMap;
 import net.minecraft.world.phys.Vec3;
 import work.lclpnet.notica.api.*;
@@ -150,6 +152,7 @@ public class NoticaPacketCodecs {
 
     public static final StreamCodec<FriendlyByteBuf, Speaker> SPEAKER = StreamCodec.composite(
             Vec3.STREAM_CODEC, Speaker::position,
+            ResourceKey.streamCodec(Registries.DIMENSION), Speaker::dimension,
             ByteBufCodecs.DOUBLE, Speaker::radius,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Speaker::sourceEntityUuid,
             ByteBufCodecs.BOOL, Speaker::dopplerEffect,

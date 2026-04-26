@@ -179,7 +179,7 @@ public class StreamSongPlayback implements SongPlayback {
 
         int source = ((ChannelAccessor) channel).getSource();
 
-        Vec3 velocity = entity.getDeltaMovement();
+        Vec3 velocity = entity.getRootVehicle().getDeltaMovement();
 
         // getDeltaMovement() is in blocks/tick; OpenAL expects units/second (20 ticks/s)
         AL10.alSource3f(source, AL10.AL_VELOCITY,

@@ -1,10 +1,12 @@
 package work.lclpnet.notica.cmd;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
@@ -102,40 +104,74 @@ public class MusicCommand {
                 .requires(NoticaPermissions.COMMAND_MUSIC_PLAY.ofAtLeast(PermissionLevel.GAMEMASTERS))
                 .then(argument("song", StringArgumentType.string())
                         .suggests(this::availableSongFiles)
-                        .executes(this::playSongAutoSelf)
+                        .executes(this::playSongGlobal)
                         .then(playAtCommand())
-                        .then(playForCommand()));
+                        .then(playForCommand())
+                        // global non-speaker
+                        .then(nonSpeakerOptions(ctx -> new PlayArgs(null, null))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> playAtCommand() {
         return literal("at")
                 .requires(NoticaPermissions.COMMAND_MUSIC_PLAY_POSITIONAL.ofAtLeast(PermissionLevel.GAMEMASTERS))
-                .then(literal("position")
-                        .then(argument("position", Vec3Argument.vec3())
-                                .executes(ctx -> {
-                                    var pos = Vec3Argument.getVec3(ctx, "position");
-                                    PlayArgs args = new PlayArgs(null, Speaker.fixed(pos));
+                .then(playAtPositionCommand())
+                .then(playAtEntityCommand());
+    }
 
-                                    return playSongAuto(ctx, args);
-                                })
-                                .then(playOptionsArguments(ctx -> {
-                                    var pos = Vec3Argument.getVec3(ctx, "position");
+    private LiteralArgumentBuilder<CommandSourceStack> playAtPositionCommand() {
+        return literal("position")
+                .then(argument("position", Vec3Argument.vec3())
+                        .executes(ctx -> {
+                            var pos = Vec3Argument.getVec3(ctx, "position");
+                            return playSongAuto(ctx, new PlayArgs(null, Speaker.fixed(pos)));
+                        })
+                        .then(literal("for")
+                                .then(argument("listeners", EntityArgument.players())
+                                        .executes(ctx -> {
+                                            var pos = Vec3Argument.getVec3(ctx, "position");
+                                            var listeners = EntityArgument.getPlayers(ctx, "listeners");
+                                            return playSongAuto(ctx, new PlayArgs(listeners, Speaker.fixed(pos)));
+                                        })
+                                        .then(speakerOptions(
+                                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                                        EntityArgument.getPlayers(ctx, "listeners"),
+                                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius),
+                                                        channelMode, doppler),
+                                                false))))
+                        .then(speakerOptions(
+                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                        null,
+                                        Speaker.fixed(Vec3Argument.getVec3(ctx, "position"), radius),
+                                        channelMode, doppler),
+                                false)));
+    }
 
-                                    return new PlayArgs(null, Speaker.fixed(pos));
-                                }))))
-                .then(literal("entity")
-                        .then(argument("source", EntityArgument.entity())
-                                .executes(ctx -> {
-                                    var source = EntityArgument.getEntity(ctx, "source");
-                                    PlayArgs args = new PlayArgs(null, Speaker.ofEntity(source));
-
-                                    return playSongAuto(ctx, args);
-                                })
-                                .then(playOptionsArguments(ctx -> {
-                                    var source = EntityArgument.getEntity(ctx, "source");
-
-                                    return new PlayArgs(null, Speaker.ofEntity(source));
-                                }))));
+    private LiteralArgumentBuilder<CommandSourceStack> playAtEntityCommand() {
+        return literal("entity")
+                .then(argument("source", EntityArgument.entity())
+                        .executes(ctx -> {
+                            var source = EntityArgument.getEntity(ctx, "source");
+                            return playSongAuto(ctx, new PlayArgs(null, Speaker.ofEntity(source)));
+                        })
+                        .then(literal("for")
+                                .then(argument("listeners", EntityArgument.players())
+                                        .executes(ctx -> {
+                                            var source = EntityArgument.getEntity(ctx, "source");
+                                            var listeners = EntityArgument.getPlayers(ctx, "listeners");
+                                            return playSongAuto(ctx, new PlayArgs(listeners, Speaker.ofEntity(source)));
+                                        })
+                                        .then(speakerOptions(
+                                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                                        EntityArgument.getPlayers(ctx, "listeners"),
+                                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius),
+                                                        channelMode, doppler),
+                                                true))))
+                        .then(speakerOptions(
+                                (ctx, channelMode, doppler, radius) -> new PlayArgs(
+                                        null,
+                                        Speaker.ofEntity(EntityArgument.getEntity(ctx, "source"), radius),
+                                        channelMode, doppler),
+                                true)));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> playForCommand() {
@@ -143,163 +179,178 @@ public class MusicCommand {
                 .then(argument("listeners", EntityArgument.players())
                         .executes(ctx -> {
                             var listeners = EntityArgument.getPlayers(ctx, "listeners");
-                            PlayArgs args = new PlayArgs(listeners, null);
-
-                            return playSongAuto(ctx, args);
+                            return playSongAuto(ctx, new PlayArgs(listeners, null));
                         })
-                        .then(playOptionsArguments(ctx -> {
-                            var listeners = EntityArgument.getPlayers(ctx, "listeners");
-
-                            return new PlayArgs(listeners, null);
-                        })));
+                        .then(nonSpeakerOptions(ctx -> new PlayArgs(
+                                EntityArgument.getPlayers(ctx, "listeners"), null))));
     }
 
     private record PlayArgs(
             @Nullable Collection<ServerPlayer> listeners,
-            @Nullable Speaker speaker
+            @Nullable Speaker speaker,
+            ChannelMode channelMode,
+            boolean doppler
     ) {
-        public Collection<ServerPlayer> affectedPlayers(ServerLevel level) {
-            if (listeners != null) {
-                return listeners;
-            }
+        PlayArgs(@Nullable Collection<ServerPlayer> listeners, @Nullable Speaker speaker) {
+            this(listeners, speaker, ChannelMode.STEREO, false);
+        }
 
-            if (speaker == null) {
-                return List.of();
-            }
+        Collection<ServerPlayer> affectedPlayers(ServerLevel level) {
+            if (listeners != null) return listeners;
 
-            return PlayerLookup.world(level)
-                    .stream()
+            if (speaker == null) return PlayerLookup.world(level);
+
+            return PlayerLookup.world(level).stream()
                     .filter(p -> speaker.isWithinListeningRange(p.getEyePosition()))
                     .toList();
         }
     }
 
+    private enum ChannelMode { MONO, STEREO }
+
     private interface PlayArgsFactory {
         PlayArgs create(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
     }
 
-    private RequiredArgumentBuilder<CommandSourceStack, Float> playOptionsArguments(PlayArgsFactory argsFactory) {
-        return argument("volume", FloatArgumentType.floatArg(0.f, 1.f))
-                .executes(ctx -> {
-                    PlayArgs args = argsFactory.create(ctx);
+    private interface SpeakerArgsFactory {
+        PlayArgs create(CommandContext<CommandSourceStack> ctx, ChannelMode channelMode, boolean doppler, double radius) throws CommandSyntaxException;
+    }
 
-                    return playSongVolume(ctx, args);
-                })
+    private RequiredArgumentBuilder<CommandSourceStack, Float> nonSpeakerOptions(PlayArgsFactory factory) {
+        return argument("volume", FloatArgumentType.floatArg(0f, 1f))
+                .executes(ctx -> playSongVolume(ctx, factory.create(ctx)))
                 .then(literal("individual")
-                        .executes(ctx -> {
-                            PlayArgs args = argsFactory.create(ctx);
-
-                            return playSongVariant(ctx, PlaybackVariant.INDIVIDUAL, args);
-                        })
+                        .executes(ctx -> playSongVariant(ctx, PlaybackVariant.INDIVIDUAL, factory.create(ctx)))
                         .then(argument("id", IdentifierArgument.id())
-                                .executes(ctx -> {
-                                    PlayArgs args = argsFactory.create(ctx);
-
-                                    return playSongId(ctx, PlaybackVariant.INDIVIDUAL, StereoMode.SPATIAL, args);
-                                })))
+                                .executes(ctx -> playSongId(ctx, PlaybackVariant.INDIVIDUAL, StereoMode.SPATIAL, factory.create(ctx)))))
                 .then(literal("streamed")
-                        .executes(ctx -> {
-                            PlayArgs args = argsFactory.create(ctx);
-
-                            return playSongVariant(ctx, PlaybackVariant.STREAMED, args);
-                        })
+                        .executes(ctx -> playSongVariant(ctx, PlaybackVariant.STREAMED, factory.create(ctx)))
                         .then(literal("spatial")
-                                .executes(ctx -> {
-                                    PlayArgs args = argsFactory.create(ctx);
-
-                                    return playSongStereo(ctx, StereoMode.SPATIAL, args);
-                                })
+                                .executes(ctx -> playSongStereo(ctx, StereoMode.SPATIAL, factory.create(ctx)))
                                 .then(argument("id", IdentifierArgument.id())
-                                        .executes(ctx -> {
-                                            PlayArgs args = argsFactory.create(ctx);
-
-                                            return playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.SPATIAL, args);
-                                        })))
+                                        .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.SPATIAL, factory.create(ctx)))))
                         .then(literal("equal_power")
-                                .executes(ctx -> {
-                                    PlayArgs args = argsFactory.create(ctx);
-
-                                    return playSongStereo(ctx, StereoMode.EQUAL_POWER, args);
-                                })
+                                .executes(ctx -> playSongStereo(ctx, StereoMode.EQUAL_POWER, factory.create(ctx)))
                                 .then(argument("id", IdentifierArgument.id())
-                                        .executes(ctx -> {
-                                            PlayArgs args = argsFactory.create(ctx);
-
-                                            return playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.EQUAL_POWER, args);
-                                        }))));
+                                        .executes(ctx -> playSongId(ctx, PlaybackVariant.STREAMED, StereoMode.EQUAL_POWER, factory.create(ctx))))));
     }
 
-    private LiteralArgumentBuilder<CommandSourceStack> stopCommand() {
-        return literal("stop")
-                .requires(NoticaPermissions.COMMAND_MUSIC_STOP.ofAtLeast(PermissionLevel.GAMEMASTERS))
-                .executes(this::stopAllSelf)
-                .then(argument("listeners", EntityArgument.players())
-                        .executes(this::stopAll)
-                        .then(argument("id", IdentifierArgument.id())
-                                .suggests(this::commonPlayingSongIds)
-                                .executes(this::stopSong)));
+    private RequiredArgumentBuilder<CommandSourceStack, Float> speakerOptions(SpeakerArgsFactory factory, boolean entitySpeaker) {
+        var builder = argument("volume", FloatArgumentType.floatArg(0f, 1f));
+
+        addSpeakerTerminals(builder, factory, PlaybackVariant.STREAMED, ChannelMode.STEREO, StereoMode.SPATIAL, false, entitySpeaker);
+
+        builder.then(speakerVariant("individual", PlaybackVariant.INDIVIDUAL, factory, entitySpeaker));
+        builder.then(speakerVariant("streamed", PlaybackVariant.STREAMED, factory, entitySpeaker));
+
+        return builder;
     }
 
-    private LiteralArgumentBuilder<CommandSourceStack> setCommand() {
-        return literal("set")
-                .then(literal("extended_range")
-                        .requires(this::extendedRangePredicate)
-                        .then(argument("enabled", BoolArgumentType.bool())
-                                .executes(this::changeExtendedRange)))
-                .then(literal("volume")
-                        .then(argument("percent", FloatArgumentType.floatArg(0f, 100f))
-                                .executes(this::changeVolume)));
+    private LiteralArgumentBuilder<CommandSourceStack> speakerVariant(String name, PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
+        var branch = literal(name);
+
+        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, entitySpeaker);
+
+        branch.then(addSpeakerTerminals(literal("mono"), factory, variant, ChannelMode.MONO, StereoMode.SPATIAL, false, entitySpeaker));
+        branch.then(speakerStereoChannel(variant, factory, entitySpeaker));
+
+        return branch;
     }
 
-    private LiteralArgumentBuilder<CommandSourceStack> seekCommand() {
-        return literal("seek")
-                .requires(NoticaPermissions.COMMAND_MUSIC_SEEK.ofAtLeast(PermissionLevel.GAMEMASTERS))
-                .then(argument("time", StringArgumentType.string())
-                        .suggests(this::suggestTimes)
-                        .executes(this::seekAutoSelf)
-                        .then(argument("listeners", EntityArgument.players())
-                                .executes(this::seekAuto)
-                                .then(argument("id", IdentifierArgument.id())
-                                        .suggests(this::commonPlayingSongIds)
-                                        .executes(this::seekId))));
+    private LiteralArgumentBuilder<CommandSourceStack> speakerStereoChannel(PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
+        var branch = literal("stereo");
+
+        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, entitySpeaker);
+
+        branch.then(speakerStereoMode("spatial", StereoMode.SPATIAL, variant, factory, entitySpeaker));
+        branch.then(speakerStereoMode("equal_power", StereoMode.EQUAL_POWER, variant, factory, entitySpeaker));
+
+        return branch;
     }
 
-    private int playSongAutoSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private LiteralArgumentBuilder<CommandSourceStack> speakerStereoMode(String name, StereoMode stereoMode, PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
+        var branch = literal(name);
+
+        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, stereoMode, false, entitySpeaker);
+
+        branch.then(addSpeakerTerminals(
+                argument("radius", FloatArgumentType.floatArg(0f)),
+                factory, variant, ChannelMode.STEREO, stereoMode, true, entitySpeaker));
+
+        return branch;
+    }
+
+    private <T extends ArgumentBuilder<CommandSourceStack, T>> T addSpeakerTerminals(
+            T builder, SpeakerArgsFactory factory, PlaybackVariant variant,
+            ChannelMode channelMode, StereoMode stereoMode, boolean hasRadius, boolean entitySpeaker
+    ) {
+        builder.executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, false, false));
+
+        builder.then(argument("id", IdentifierArgument.id())
+                .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, false, true)));
+
+        if (entitySpeaker) {
+            builder.then(literal("doppler")
+                    .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, true, false))
+                    .then(argument("id", IdentifierArgument.id())
+                            .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, true, true))));
+        }
+
+        return builder;
+    }
+
+    private Command<CommandSourceStack> speakerLeaf(
+            SpeakerArgsFactory factory, PlaybackVariant variant,
+            ChannelMode channelMode, StereoMode stereoMode, boolean hasRadius, boolean doppler, boolean hasExplicitId
+    ) {
+        return ctx -> {
+            String songFile = StringArgumentType.getString(ctx, "song");
+            float volume = FloatArgumentType.getFloat(ctx, "volume");
+            double radius = hasRadius ? FloatArgumentType.getFloat(ctx, "radius") : 1.0;
+
+            Path path = songDirectory.resolve(songFile);
+            Identifier id = hasExplicitId ? IdentifierArgument.getId(ctx, "id") : SongUtils.createSongId(path);
+
+            PlayArgs args = factory.create(ctx, channelMode, doppler, radius);
+
+            if (!hasExplicitId) {
+                stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+            }
+
+            return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode));
+        };
+    }
+
+    private int playSongGlobal(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
-        ServerPlayer player = source.getPlayerOrException();
         String songFile = StringArgumentType.getString(ctx, "song");
-
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
+        PlayArgs args = new PlayArgs(null, null);
 
-        PlayArgs args = new PlayArgs(List.of(player), null);
-
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
-        stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        // TODO global songs
+        stopAllSongs(source, args.affectedPlayers(source.getLevel()));
 
         return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
     private int playSongAuto(CommandContext<CommandSourceStack> ctx, PlayArgs args) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
         String songFile = StringArgumentType.getString(ctx, "song");
-
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
-        stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        stopAllSongs(source, args.affectedPlayers(source.getLevel()));
 
-        return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
+        return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
 
     private int playSongVolume(CommandContext<CommandSourceStack> ctx, PlayArgs args) throws CommandSyntaxException {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume));
@@ -308,109 +359,43 @@ public class MusicCommand {
     private int playSongVariant(CommandContext<CommandSourceStack> ctx, PlaybackVariant variant, PlayArgs args) throws CommandSyntaxException {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, StereoMode.SPATIAL));
     }
 
-    @SuppressWarnings("DuplicatedCode")
     private int playSongStereo(CommandContext<CommandSourceStack> ctx, StereoMode stereoMode, PlayArgs args) throws CommandSyntaxException {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
-
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        // for auto, stop all other songs. Explicitly specify an id to prevent this.
         stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, PlaybackVariant.STREAMED, stereoMode));
     }
 
-    @SuppressWarnings("DuplicatedCode")
-    private int playSongId(
-            CommandContext<CommandSourceStack> ctx,
-            PlaybackVariant variant,
-            StereoMode stereoMode,
-            PlayArgs args
-    ) throws CommandSyntaxException {
-
+    private int playSongId(CommandContext<CommandSourceStack> ctx, PlaybackVariant variant, StereoMode stereoMode, PlayArgs args) throws CommandSyntaxException {
         String songFile = StringArgumentType.getString(ctx, "song");
         float volume = FloatArgumentType.getFloat(ctx, "volume");
         Identifier id = IdentifierArgument.getId(ctx, "id");
-
         Path path = songDirectory.resolve(songFile);
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode));
     }
 
-    private int changeExtendedRange(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
-
-        if (enabled && !serverPackManager.hasServerPackInstalled(player)) {
-            var msg = translations.translateText(player, "notica.music.server_pack_requesting").formatted(GRAY);
-            player.sendSystemMessage(msg);
-
-            serverPackManager.sendServerPack(player);
-            return 1;
-        }
-
-        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
-
-        PlayerConfigContainer configs = instance.getPlayerConfigs();
-        configs.get(player).setExtendedRangeSupported(enabled);
-
-        String key = enabled ? "notica.music.extended_octaves.enabled" : "notica.music.extended_octaves.disabled";
-        ChatFormatting color = enabled ? GREEN : RED;
-
-        var msg = translations.translateText(player, key).formatted(color);
-
-        player.sendSystemMessage(msg);
-
-        return 2;
-    }
-
-    private int changeVolume(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        float percent = FloatArgumentType.getFloat(ctx, "percent");
-
-        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
-
-        PlayerConfigContainer configs = instance.getPlayerConfigs();
-        configs.get(player).setVolume(percent / 100);
-        configs.saveConfig(player);
-        instance.syncPlayerConfig(player);
-
-        var msg = translations.translateText(player, "notica.music.volume.changed",
-                styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN);
-
-        player.sendSystemMessage(msg);
-
-        return 1;
-    }
-
-    private boolean involvesOther(CommandSourceStack source, Collection<? extends ServerPlayer> players) {
-        ServerPlayer executor = source.getPlayer();
-
-        if (executor == null) {
-            return !players.isEmpty();
-        }
-
-        return players.stream().anyMatch(player -> !executor.equals(player));
-    }
-
     private int playSong(CommandSourceStack source, PlayArgs args, Path path, Identifier id, PlaybackOptions options) throws CommandSyntaxException {
-        if (args.listeners() != null
-                && involvesOther(source, args.listeners())
+        Collection<ServerPlayer> listeners = args.affectedPlayers(source.getLevel());
+
+        if (involvesOther(source, listeners)
                 && !NoticaPermissions.COMMAND_MUSIC_PLAY_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
             throw errorNoPermissionPlayOther.create();
         }
+
+        logger.debug("Playing song {} as {} with arguments {} and {}", path.getFileName(), id, args, options);
 
         Path relativePath = songDirectory.relativize(path);
 
@@ -430,25 +415,21 @@ public class MusicCommand {
             }
 
             msg.formatted(RED);
-
             source.sendSystemMessage(msg);
-
             logger.error("Failed to load song file", error);
             return null;
         }).thenAccept(song -> {
             if (song == null) return;
 
-            Component msg = getPlayingMessage(source, relativePath, song);
-
-            source.sendSystemMessage(msg);
+            source.sendSystemMessage(getPlayingMessage(source, relativePath, song));
 
             Notica api = Notica.getInstance(source.getServer());
 
-            if (args.listeners() != null) {
-                api.playSong(song, options, 0, args.listeners());
-            } else if (args.speaker() != null) {
-                // TODO remove listeners argument
-                api.playSongWithSpeaker(song, options, 0, args.speaker(), PlayerLookup.world(source.getLevel()));
+            if (args.speaker() != null) {
+                // TODO: pass args.channelMode() and args.doppler() to API when supported
+                api.playSongWithSpeaker(song, options, 0, args.speaker(), listeners);
+            } else {
+                api.playSong(song, options, 0, listeners);
             }
         });
 
@@ -463,7 +444,6 @@ public class MusicCommand {
 
         if (!meta.description().isBlank()) {
             var hoverText = Component.literal(meta.description()).withStyle(GREEN);
-
             nameText.withStyle(style -> style.withHoverEvent(new HoverEvent.ShowText(hoverText)));
         }
 
@@ -482,9 +462,20 @@ public class MusicCommand {
         }
 
         String author = meta.author().isBlank() ? meta.originalAuthor() : meta.author();
+        return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA)).formatted(GREEN);
+    }
 
-        return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA))
-                .formatted(GREEN);
+    // ---- stop command ----
+
+    private LiteralArgumentBuilder<CommandSourceStack> stopCommand() {
+        return literal("stop")
+                .requires(NoticaPermissions.COMMAND_MUSIC_STOP.ofAtLeast(PermissionLevel.GAMEMASTERS))
+                .executes(this::stopAllSelf)
+                .then(argument("listeners", EntityArgument.players())
+                        .executes(this::stopAll)
+                        .then(argument("id", IdentifierArgument.id())
+                                .suggests(this::commonPlayingSongIds)
+                                .executes(this::stopSong)));
     }
 
     private int stopAllSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -506,7 +497,6 @@ public class MusicCommand {
 
     private int stopAll(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
-
         CommandSourceStack source = ctx.getSource();
 
         if (involvesOther(source, listeners) && !NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
@@ -516,9 +506,7 @@ public class MusicCommand {
         int stopped = stopAllSongs(source, listeners);
 
         RootText msg;
-
-        boolean empty = stopped == 0;
-        if (empty) {
+        if (stopped == 0) {
             msg = translations.translateText(source, "notica.music.none_playing").formatted(RED);
         } else {
             msg = translations.translateText(source, "notica.music.stopped.all").formatted(GREEN);
@@ -526,18 +514,16 @@ public class MusicCommand {
 
         source.sendSystemMessage(msg);
 
-        return empty ? 0 : 1;
+        return stopped == 0 ? 0 : 1;
     }
 
     private int stopAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
         Notica api = Notica.getInstance(source.getServer());
-
         int stopped = 0;
 
         for (ServerPlayer listener : listeners) {
             for (SongHandle handle : api.getPlayingSongs(listener)) {
                 stopped++;
-
                 handle.remove(listener);
             }
         }
@@ -548,7 +534,6 @@ public class MusicCommand {
     private int stopSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
         Identifier id = IdentifierArgument.getId(ctx, "id");
-
         CommandSourceStack source = ctx.getSource();
 
         if (involvesOther(source, listeners) && !NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
@@ -556,65 +541,108 @@ public class MusicCommand {
         }
 
         Notica api = Notica.getInstance(source.getServer());
-
         int stopped = 0;
 
         for (ServerPlayer listener : listeners) {
             var optHandle = api.getPlayingSong(listener, id);
-
             if (optHandle.isEmpty()) continue;
-
             stopped++;
             optHandle.get().remove(listener);
         }
 
         if (stopped == 0) {
-            var msg = translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW))
-                    .formatted(RED);
-
-            source.sendSystemMessage(msg);
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
             return 0;
         }
 
-        var msg = translations.translateText(source, "notica.music.stopped", styled(id, YELLOW))
-                .formatted(GREEN);
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
+        return 1;
+    }
 
-        source.sendSystemMessage(msg);
+    private LiteralArgumentBuilder<CommandSourceStack> setCommand() {
+        return literal("set")
+                .then(literal("extended_range")
+                        .requires(this::extendedRangePredicate)
+                        .then(argument("enabled", BoolArgumentType.bool())
+                                .executes(this::changeExtendedRange)))
+                .then(literal("volume")
+                        .then(argument("percent", FloatArgumentType.floatArg(0f, 100f))
+                                .executes(this::changeVolume)));
+    }
+
+    private int changeExtendedRange(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
+
+        if (enabled && !serverPackManager.hasServerPackInstalled(player)) {
+            var msg = translations.translateText(player, "notica.music.server_pack_requesting").formatted(GRAY);
+            player.sendSystemMessage(msg);
+            serverPackManager.sendServerPack(player);
+            return 1;
+        }
+
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
+        PlayerConfigContainer configs = instance.getPlayerConfigs();
+        configs.get(player).setExtendedRangeSupported(enabled);
+
+        String key = enabled ? "notica.music.extended_octaves.enabled" : "notica.music.extended_octaves.disabled";
+        ChatFormatting color = enabled ? GREEN : RED;
+
+        player.sendSystemMessage(translations.translateText(player, key).formatted(color));
+
+        return 2;
+    }
+
+    private int changeVolume(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        ServerPlayer player = ctx.getSource().getPlayerOrException();
+        float percent = FloatArgumentType.getFloat(ctx, "percent");
+
+        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
+        PlayerConfigContainer configs = instance.getPlayerConfigs();
+        configs.get(player).setVolume(percent / 100);
+        configs.saveConfig(player);
+        instance.syncPlayerConfig(player);
+
+        player.sendSystemMessage(translations.translateText(player, "notica.music.volume.changed",
+                styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN));
 
         return 1;
+    }
+
+    private LiteralArgumentBuilder<CommandSourceStack> seekCommand() {
+        return literal("seek")
+                .requires(NoticaPermissions.COMMAND_MUSIC_SEEK.ofAtLeast(PermissionLevel.GAMEMASTERS))
+                .then(argument("time", StringArgumentType.string())
+                        .suggests(this::suggestTimes)
+                        .executes(this::seekAutoSelf)
+                        .then(argument("listeners", EntityArgument.players())
+                                .executes(this::seekAuto)
+                                .then(argument("id", IdentifierArgument.id())
+                                        .suggests(this::commonPlayingSongIds)
+                                        .executes(this::seekId))));
     }
 
     private int seekAutoSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         String time = StringArgumentType.getString(ctx, "time");
-        
         CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
+        if (timeOffsets == null) return 0;
 
-        if (timeOffsets == null) {
-            return 0;
-        }
-        
         Set<SongHandle> songHandles = Notica.getInstance(player.level().getServer()).getPlayingSongs(player);
-
         return seekAllWithOffsets(source, songHandles, timeOffsets);
     }
 
     private int seekAuto(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         String time = StringArgumentType.getString(ctx, "time");
         var players = EntityArgument.getPlayers(ctx, "listeners");
-
         CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
-
-        if (timeOffsets == null) {
-            return 0;
-        }
+        if (timeOffsets == null) return 0;
 
         Notica api = Notica.getInstance(source.getServer());
-
         Set<SongHandle> songHandles = players.stream()
                 .flatMap(player -> api.getPlayingSongs(player).stream())
                 .collect(toSet());
@@ -626,17 +654,12 @@ public class MusicCommand {
         String time = StringArgumentType.getString(ctx, "time");
         var players = EntityArgument.getPlayers(ctx, "listeners");
         Identifier songId = IdentifierArgument.getId(ctx, "id");
-
         CommandSourceStack source = ctx.getSource();
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
-
-        if (timeOffsets == null) {
-            return 0;
-        }
+        if (timeOffsets == null) return 0;
 
         Notica api = Notica.getInstance(source.getServer());
-
         Set<SongHandle> songHandles = players.stream()
                 .flatMap(player -> api.getPlayingSong(player, songId).stream())
                 .collect(toSet());
@@ -665,6 +688,16 @@ public class MusicCommand {
         return 1;
     }
 
+    private boolean involvesOther(CommandSourceStack source, Collection<? extends ServerPlayer> players) {
+        ServerPlayer executor = source.getPlayer();
+
+        if (executor == null) {
+            return !players.isEmpty();
+        }
+
+        return players.stream().anyMatch(player -> !executor.equals(player));
+    }
+
     private @Nullable TimeOffsets parseOffsets(String time, CommandSourceStack source) {
         if (!TIME_PATTERN.matcher(time).matches()) {
             source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).formatted(RED));
@@ -683,14 +716,12 @@ public class MusicCommand {
 
             if (firstMatch) {
                 firstMatch = false;
-
                 if (!amountStr.isEmpty() && (amountStr.charAt(0) == '+' || amountStr.charAt(0) == '-')) {
                     absolute = false;
                 }
             }
 
             int amount;
-
             try {
                 amount = parseInt(amountStr);
             } catch (NumberFormatException e) {
@@ -728,7 +759,6 @@ public class MusicCommand {
 
     private void seekWithOffsets(SongHandle handle, TimeOffsets timeOffsets) {
         Song song = handle.getSong();
-
         int ticks = 0;
 
         for (IntObjectPair<TimeUnit> offset : timeOffsets.offsets()) {
@@ -757,14 +787,12 @@ public class MusicCommand {
             } catch (IOException e) {
                 logger.error("Failed to walk files in songs directory", e);
             }
-
             return builder.build();
         });
     }
 
     private CompletableFuture<Suggestions> commonPlayingSongIds(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
-
         Notica api = Notica.getInstance(ctx.getSource().getServer());
 
         api.getPlayingSongs().stream()
@@ -778,37 +806,25 @@ public class MusicCommand {
 
     private static String transformString(String s) {
         s = s.replace('\\', '/');
-
         boolean needsQuoting = false;
 
         for (int i = 0, len = s.length(); i < len; i++) {
-            char c = s.charAt(i);
-
-            if (!StringReader.isAllowedInUnquotedString(c)) {
+            if (!StringReader.isAllowedInUnquotedString(s.charAt(i))) {
                 needsQuoting = true;
                 break;
             }
         }
 
-        if (needsQuoting) {
-            s = '"' + s + '"';
-        }
-
-        return s;
+        return needsQuoting ? '"' + s + '"' : s;
     }
 
     private boolean extendedRangePredicate(CommandSourceStack source) {
         if (!serverPackManager.isEnabled()) return false;
 
         ServerPlayer player = source.getPlayer();
+        if (player == null) return false;
 
-        if (player == null) {
-            return false;
-        }
-
-        NoticaImpl instance = NoticaImpl.getInstance(player.level().getServer());
-
-        return !instance.hasModInstalled(player);
+        return !NoticaImpl.getInstance(player.level().getServer()).hasModInstalled(player);
     }
 
     private CompletableFuture<Suggestions> suggestTimes(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
@@ -818,10 +834,9 @@ public class MusicCommand {
         builder.suggest("1m5s");
         builder.suggest("50sec+3ticks");
         builder.suggest("1min-50ticks");
-
         return builder.buildFuture();
     }
-    
+
     private record TimeOffsets(List<IntObjectPair<TimeUnit>> offsets, boolean absolute) {
 
         public TextTranslatable translatedText(Translations translations) {
@@ -844,7 +859,6 @@ public class MusicCommand {
                     msg += translations.translateText(lang, translationKey, abs(num)).getString();
 
                     acc = acc.append(msg);
-
                     first = false;
                 }
 

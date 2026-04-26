@@ -62,4 +62,12 @@ public interface SongHandle {
      * @return True if this is a global song handle is global.
      */
     boolean isGlobal();
+
+    /**
+     * Whether this song can be tracked by a given player.
+     * Useful for non-global positional songs which should still be tracked by previously added players.
+     * @param player The player to check.
+     * @return Whether the given player may track this song handle.
+     */
+    boolean canBeTrackedBy(ServerPlayer player);
 }

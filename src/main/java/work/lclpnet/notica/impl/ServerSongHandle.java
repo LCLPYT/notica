@@ -27,6 +27,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final SongPlayerRefFactory refFactory;
     private final boolean global;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
+    private final Set<UUID> allowedTrackingPlayers = new HashSet<>();
     private volatile boolean started = false;
     @Nullable
     private IndividualSongPlayback serverPlayback = null;
@@ -56,6 +57,10 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         Set<SongPlayerRef> moddedPlayers = new HashSet<>();
 
         for (ServerPlayer player : players) {
+            if (!global) {
+                allowedTrackingPlayers.add(player.getUUID());
+            }
+
             SongPlayerRef ref = refFactory.createRef(player);
 
             if (NoticaImpl.hasModInstalled(player)) {
@@ -225,6 +230,10 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
 
         if (moddedRefs.containsKey(uuid) || vanillaRefs.containsKey(uuid)) return;
 
+        if (!global) {
+            allowedTrackingPlayers.add(player.getUUID());
+        }
+
         SongPlayerRef ref = refFactory.createRef(player);
 
         IndividualSongPlayback serverPlayback = this.serverPlayback;
@@ -321,6 +330,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     @Override
     public boolean isGlobal() {
         return global;
+    }
+
+    @Override
+    public boolean canBeTrackedBy(ServerPlayer player) {
+        return global || allowedTrackingPlayers.contains(player.getUUID());
     }
 
     public interface SongPlayerRefFactory {

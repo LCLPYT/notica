@@ -46,6 +46,8 @@ public class SongPlaybackListener {
         Set<SongHandle> handles = activeSongManager.getSongBySpeakerEntityUuid(entity.getUUID());
 
         for (SongHandle handle : handles) {
+            if (!handle.canBeTrackedBy(player)) continue;
+
             handle.add(player);
         }
     }
@@ -68,6 +70,8 @@ public class SongPlaybackListener {
             if (speaker == null) continue;
 
             for (ServerPlayer player : players) {
+                if (!handle.canBeTrackedBy(player)) continue;
+
                 if (speaker.isWithinRange(player.position(), POSITIONAL_SOUND_TRACKING_PROXIMITY)) {
                     handle.add(player);
                 } else {

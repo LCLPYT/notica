@@ -454,8 +454,6 @@ public class MusicCommand {
         return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA)).formatted(GREEN);
     }
 
-    // ---- stop command ----
-
     private LiteralArgumentBuilder<CommandSourceStack> stopCommand() {
         return literal("stop")
                 .requires(NoticaPermissions.COMMAND_MUSIC_STOP.ofAtLeast(PermissionLevel.GAMEMASTERS))

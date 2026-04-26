@@ -1,7 +1,5 @@
 package work.lclpnet.notica.util;
 
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
@@ -12,12 +10,16 @@ import work.lclpnet.notica.impl.ServerSongHandle;
 
 import java.util.*;
 
+/**
+ * Tracks and manages active song handles.
+ */
 public class ActiveSongManager {
 
     /**
-     * Speaker source entity uuid -> SongHandle
+     * Speaker source entity uuid -> [SongHandle]
      */
-    private final BiMap<UUID, SongHandle> entityHandles = HashBiMap.create();
+    private final Map<UUID, Set<SongHandle>> handlesByEntity = new HashMap<>();
+    private final Map<SongHandle, UUID> entityHandles = new HashMap<>();
     /**
      * Speaker source chunk pos -> [SongHandle]
      */
@@ -29,9 +31,9 @@ public class ActiveSongManager {
     public synchronized void removeHandle(SongHandle handle) {
         allHandles.remove(handle);
         globalHandles.remove(handle);
-        entityHandles.inverse().remove(handle);
 
-        removePositionedHandle(handle);
+        removeLookup(entityHandles, handlesByEntity, handle);
+        removeLookup(positionedHandles, handlesByChunk, handle);
     }
 
     public synchronized void addGlobal(ServerSongHandle handle) {
@@ -62,26 +64,36 @@ public class ActiveSongManager {
     }
 
     private void addEntity(ServerSongHandle handle, UUID uuid) {
-        entityHandles.put(uuid, handle);
+        entityHandles.put(handle, uuid);
+
+        handlesByEntity.computeIfAbsent(uuid, u -> new HashSet<>()).add(handle);
     }
 
-    private void removePositionedHandle(SongHandle handle) {
-        @Nullable ChunkPos chunkPos = positionedHandles.remove(handle);
+    private <T> void removeLookup(Map<SongHandle, T> lookup, Map<T, Set<SongHandle>> inverseLookup, SongHandle handle) {
+        @Nullable T value = lookup.remove(handle);
 
-        if (chunkPos == null) return;
+        if (value == null) return;
 
-        Set<SongHandle> handles = handlesByChunk.get(chunkPos);
+        Set<SongHandle> handles = inverseLookup.get(value);
 
         if (handles == null) return;
 
         handles.remove(handle);
 
         if (handles.isEmpty()) {
-            handlesByChunk.remove(chunkPos);
+            inverseLookup.remove(value);
         }
     }
 
-    public Set<SongHandle> getAllHandles() {
+    public synchronized Set<SongHandle> getAllHandles() {
         return Collections.unmodifiableSet(allHandles);
+    }
+
+    public synchronized Set<SongHandle> getGlobalHandles() {
+        return Collections.unmodifiableSet(globalHandles);
+    }
+
+    public synchronized Set<SongHandle> getSongBySpeakerEntityUuid(UUID uuid) {
+        return handlesByEntity.getOrDefault(uuid, Set.of());
     }
 }

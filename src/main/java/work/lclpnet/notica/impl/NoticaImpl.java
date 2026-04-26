@@ -18,6 +18,7 @@ import work.lclpnet.notica.network.packet.MusicOptionsS2CPacket;
 import work.lclpnet.notica.util.ActiveSongManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
 import work.lclpnet.notica.util.PlayerConfigEntry;
+import work.lclpnet.notica.util.SongPlaybackListener;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -55,6 +56,8 @@ public class NoticaImpl implements Notica {
         this.server = server;
         this.soundProvider = new FabricInstrumentSoundProvider(server);
         this.playerConfigs = new PlayerConfigContainer(playerConfigDir, logger);
+
+        new SongPlaybackListener(activeSongManager).init();
     }
 
     @Override
@@ -86,7 +89,9 @@ public class NoticaImpl implements Notica {
 
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker, this::createRef);
+        boolean global = players.isEmpty();
+
+        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker, this::createRef, global);
 
         handle.onDestroy(() -> {
             activeSongManager.removeHandle(handle);
@@ -98,7 +103,7 @@ public class NoticaImpl implements Notica {
             }
         });
 
-        if (players.isEmpty()) {
+        if (global) {
             activeSongManager.addGlobal(handle);
 
             players = PlayerLookup.all(server);

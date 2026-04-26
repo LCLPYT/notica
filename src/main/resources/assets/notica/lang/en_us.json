@@ -21,6 +21,7 @@
   "notica.music.server_pack_prompt": "The extra notes resource pack is required for extended octave range support",
   "notica.music.server_pack_failed": "Failed to install the extra notes resource pack. Make sure to enable server resource packs for this server in the server list. Disabling extended octave range support...",
   "notica.music.server_pack_success": "Successfully installed the extra notes resource pack. Enabling extended octave range support.",
+  "notica.music.seek.no_permission_other": "You don't have permission to seek music for other players",
   "notica.music.seek.error_time": "Cannot parse time '%s'",
   "notica.music.seek.absolute": "Playback time modified to %s",
   "notica.music.seek.relative": "Playback time modified by %s",

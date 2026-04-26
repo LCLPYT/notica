@@ -76,7 +76,7 @@ public class MusicCommand {
     private final Translations translations;
     private final NoticaServerPackManager serverPackManager;
     private final Logger logger;
-    private final SimpleCommandExceptionType errorNoPermissionPlayOther, errorNoPermissionStopOther;
+    private final SimpleCommandExceptionType errorNoPermissionPlayOther, errorNoPermissionStopOther, errorNoPermissionSeekOther;
 
     public MusicCommand(Path songDirectory, Translations translations, NoticaServerPackManager serverPackManager, Logger logger) {
         this.songDirectory = songDirectory;
@@ -86,6 +86,7 @@ public class MusicCommand {
 
         errorNoPermissionPlayOther = new SimpleCommandExceptionType(Component.translatableWithFallback("notica.music.play.no_permission_other", "You don't have permission to play music to other players"));
         errorNoPermissionStopOther = new SimpleCommandExceptionType(Component.translatableWithFallback("notica.music.stop.no_permission_other", "You don't have permission to stop music for other players"));
+        errorNoPermissionSeekOther = new SimpleCommandExceptionType(Component.translatableWithFallback("notica.music.seek.no_permission_other", "You don't have permission to seek music for other players"));
     }
 
     public void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -114,6 +115,7 @@ public class MusicCommand {
 
     private LiteralArgumentBuilder<CommandSourceStack> playGlobalCommand() {
         return literal("global")
+                .requires(NoticaPermissions.COMMAND_MUSIC_PLAY_OTHER.ofAtLeast(PermissionLevel.GAMEMASTERS))
                 .executes(ctx -> playSongAuto(ctx, new PlayArgs(Set.of(), null)))
                 .then(nonSpeakerOptions(ctx -> new PlayArgs(Set.of(), null)));
     }
@@ -469,6 +471,7 @@ public class MusicCommand {
                                 .suggests(this::allPlayingSongIds)
                                 .executes(this::stopById)))
                 .then(literal("all")
+                        .requires(NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.ofAtLeast(PermissionLevel.GAMEMASTERS))
                         .executes(this::stopAll))
                 .then(literal("for")
                         .then(argument("listeners", EntityArgument.players())
@@ -496,9 +499,8 @@ public class MusicCommand {
         return stopAllHandles(source, handles);
     }
 
-    private int stopAll(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private int stopAll(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack source = ctx.getSource();
-        ServerPlayer player = source.getPlayerOrException();
         Notica api = Notica.getInstance(source.getServer());
         Set<SongHandle> handles = api.getPlayingSongs();
 
@@ -707,6 +709,10 @@ public class MusicCommand {
         var players = EntityArgument.getPlayers(ctx, "listeners");
         CommandSourceStack source = ctx.getSource();
 
+        if (involvesOther(source, players) && !NoticaPermissions.COMMAND_MUSIC_SEEK_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
+            throw errorNoPermissionSeekOther.create();
+        }
+
         TimeOffsets timeOffsets = parseOffsets(time, source);
         if (timeOffsets == null) return 0;
 
@@ -723,6 +729,10 @@ public class MusicCommand {
         var players = EntityArgument.getPlayers(ctx, "listeners");
         Identifier songId = IdentifierArgument.getId(ctx, "id");
         CommandSourceStack source = ctx.getSource();
+
+        if (involvesOther(source, players) && !NoticaPermissions.COMMAND_MUSIC_SEEK_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
+            throw errorNoPermissionSeekOther.create();
+        }
 
         TimeOffsets timeOffsets = parseOffsets(time, source);
         if (timeOffsets == null) return 0;

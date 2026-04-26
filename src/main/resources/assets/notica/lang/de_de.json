@@ -21,6 +21,7 @@
   "notica.music.server_pack_prompt": "Das Extra-Noten Ressourcenpaket wird für die erweiterte Oktav-bereich-Unterstützung benötigt.",
   "notica.music.server_pack_failed": "Das Extra-Noten Ressourcenpaket konnte nicht installiert werden. Stelle sicher, dass in der Server-Liste die Option \"Server-Ressourcenpakete\" für diesen Server aktiviert ist. Erweiterter Oktavbereich wird deaktiviert...",
   "notica.music.server_pack_success": "Das Extra-Noten Ressourcenpaket wurde erfolgreich installiert. Erweiterter Oktav-bereich wird aktiviert.",
+  "notica.music.seek.no_permission_other": "Du hast keine Berechtigung, für andere Spieler in Liedern zu springen",
   "notica.music.seek.error_time": "'%s' ist keine gültige Zeitangabe",
   "notica.music.seek.absolute": "Wiedergabezeit auf %s gesetzt",
   "notica.music.seek.relative": "Wiedergabezeit um %s geändert",

@@ -250,8 +250,10 @@ public class MusicCommand {
 
         addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, entitySpeaker);
 
-        branch.then(speakerStereoMode("spatial", StereoMode.SPATIAL, variant, factory, entitySpeaker));
-        branch.then(speakerStereoMode("equal_power", StereoMode.EQUAL_POWER, variant, factory, entitySpeaker));
+        if (variant == PlaybackVariant.STREAMED) {
+            branch.then(speakerStereoMode("spatial", StereoMode.SPATIAL, variant, factory, entitySpeaker));
+            branch.then(speakerStereoMode("equal_power", StereoMode.EQUAL_POWER, variant, factory, entitySpeaker));
+        }
 
         return branch;
     }
@@ -259,7 +261,7 @@ public class MusicCommand {
     private LiteralArgumentBuilder<CommandSourceStack> speakerStereoMode(String name, StereoMode stereoMode, PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
         var branch = literal(name);
 
-        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, stereoMode, false, entitySpeaker);
+        branch.executes(speakerLeaf(factory, variant, ChannelMode.STEREO, stereoMode, false, false, false));
 
         branch.then(addSpeakerTerminals(
                 argument("radius", FloatArgumentType.floatArg(0f, 15)),

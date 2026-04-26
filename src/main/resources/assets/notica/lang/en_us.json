@@ -12,6 +12,8 @@
   "notica.music.play.no_permission_other": "You don't have permission to play music to other players",
   "notica.music.stopped": "Stopped song %s",
   "notica.music.stopped.all": "Stopped all songs",
+  "notica.music.added": "Added %s player(s) to song %s",
+  "notica.music.add.already_listener": "All specified players are already listening to %s",
   "notica.music.stop.no_permission_other": "You don't have permission to stop music for other players",
   "notica.music.not_playing": "Song %s is currently not playing",
   "notica.music.none_playing": "No songs are currently being played",

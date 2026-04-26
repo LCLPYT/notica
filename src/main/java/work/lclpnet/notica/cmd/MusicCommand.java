@@ -96,6 +96,7 @@ public class MusicCommand {
         return literal("music")
                 .then(playCommand())
                 .then(stopCommand())
+                .then(addCommand())
                 .then(setCommand())
                 .then(seekCommand());
     }
@@ -105,11 +106,16 @@ public class MusicCommand {
                 .requires(NoticaPermissions.COMMAND_MUSIC_PLAY.ofAtLeast(PermissionLevel.GAMEMASTERS))
                 .then(argument("song", StringArgumentType.string())
                         .suggests(this::availableSongFiles)
-                        .executes(this::playSongGlobal)
+                        .executes(this::playSongSelf)
                         .then(playAtCommand())
                         .then(playForCommand())
-                        // global non-speaker
-                        .then(nonSpeakerOptions(ctx -> new PlayArgs(Set.of(), null))));
+                        .then(playGlobalCommand()));
+    }
+
+    private LiteralArgumentBuilder<CommandSourceStack> playGlobalCommand() {
+        return literal("global")
+                .executes(ctx -> playSongAuto(ctx, new PlayArgs(Set.of(), null)))
+                .then(nonSpeakerOptions(ctx -> new PlayArgs(Set.of(), null)));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> playAtCommand() {
@@ -303,22 +309,22 @@ public class MusicCommand {
             PlayArgs args = factory.create(ctx, doppler, radius);
 
             if (!hasExplicitId) {
-                stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+                removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
             }
 
             return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode, channelMode));
         };
     }
 
-    private int playSongGlobal(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private int playSongSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         CommandSourceStack source = ctx.getSource();
+        ServerPlayer player = source.getPlayerOrException();
         String songFile = StringArgumentType.getString(ctx, "song");
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
-        PlayArgs args = new PlayArgs(Set.of(), null);
+        PlayArgs args = new PlayArgs(List.of(player), null);
 
-        // TODO global songs
-        stopAllSongs(source, args.affectedPlayers(source.getLevel()));
+        removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
 
         return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
@@ -329,7 +335,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        stopAllSongs(source, args.affectedPlayers(source.getLevel()));
+        removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
 
         return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
@@ -340,7 +346,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume));
     }
@@ -351,7 +357,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, StereoMode.SPATIAL));
     }
@@ -362,7 +368,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = SongUtils.createSongId(path);
 
-        stopAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, PlaybackVariant.STREAMED, stereoMode));
     }
@@ -457,32 +463,83 @@ public class MusicCommand {
     private LiteralArgumentBuilder<CommandSourceStack> stopCommand() {
         return literal("stop")
                 .requires(NoticaPermissions.COMMAND_MUSIC_STOP.ofAtLeast(PermissionLevel.GAMEMASTERS))
-                .executes(this::stopAllSelf)
-                .then(argument("listeners", EntityArgument.players())
-                        .executes(this::stopAll)
+                .executes(this::stopAllOwn)
+                .then(literal("id")
                         .then(argument("id", IdentifierArgument.id())
-                                .suggests(this::commonPlayingSongIds)
-                                .executes(this::stopSong)));
+                                .suggests(this::allPlayingSongIds)
+                                .executes(this::stopById)))
+                .then(literal("all")
+                        .executes(this::stopAll))
+                .then(literal("for")
+                        .then(argument("listeners", EntityArgument.players())
+                                .executes(this::stopAllForPlayers)
+                                .then(argument("id", IdentifierArgument.id())
+                                        .suggests(this::commonPlayingSongIds)
+                                        .executes(this::removeByIdForPlayers))));
     }
 
-    private int stopAllSelf(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-        ServerPlayer player = ctx.getSource().getPlayerOrException();
-        int stopped = stopAllSongs(ctx.getSource(), List.of(player));
+    private LiteralArgumentBuilder<CommandSourceStack> addCommand() {
+        return literal("add")
+                .requires(NoticaPermissions.COMMAND_MUSIC_PLAY_OTHER.ofAtLeast(PermissionLevel.GAMEMASTERS))
+                .then(argument("id", IdentifierArgument.id())
+                        .suggests(this::allPlayingSongIds)
+                        .then(argument("listeners", EntityArgument.players())
+                                .executes(this::addPlayersToSong)));
+    }
 
-        RootText msg;
+    private int stopAllOwn(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        Notica api = Notica.getInstance(source.getServer());
+        Set<SongHandle> handles = api.getPlayingSongs(player);
 
-        if (stopped == 0) {
-            msg = translations.translateText(player, "notica.music.none_playing").formatted(RED);
-        } else {
-            msg = translations.translateText(player, "notica.music.stopped.all").formatted(GREEN);
-        }
-
-        player.sendSystemMessage(msg);
-
-        return stopped;
+        return stopAllHandles(source, handles);
     }
 
     private int stopAll(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer player = source.getPlayerOrException();
+        Notica api = Notica.getInstance(source.getServer());
+        Set<SongHandle> handles = api.getPlayingSongs();
+
+        return stopAllHandles(source, handles);
+    }
+
+    private int stopAllHandles(CommandSourceStack source, Set<SongHandle> handles) {
+        if (handles.isEmpty()) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            return 0;
+        }
+
+        handles.forEach(SongHandle::stop);
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").formatted(GREEN));
+        return 1;
+    }
+
+    private int stopById(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Identifier id = IdentifierArgument.getId(ctx, "id");
+        CommandSourceStack source = ctx.getSource();
+        Notica api = Notica.getInstance(source.getServer());
+        Set<SongHandle> handles = api.getPlayingSongs(id);
+
+        Set<ServerPlayer> allListeners = handles.stream()
+                .flatMap(h -> h.getListeners().stream())
+                .collect(toSet());
+        if (involvesOther(source, allListeners) && !NoticaPermissions.COMMAND_MUSIC_STOP_OTHER.checkAtLeast(source, PermissionLevel.GAMEMASTERS)) {
+            throw errorNoPermissionStopOther.create();
+        }
+
+        if (handles.isEmpty()) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            return 0;
+        }
+
+        handles.forEach(SongHandle::stop);
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
+        return 1;
+    }
+
+    private int stopAllForPlayers(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
         CommandSourceStack source = ctx.getSource();
 
@@ -490,21 +547,15 @@ public class MusicCommand {
             throw errorNoPermissionStopOther.create();
         }
 
-        int stopped = stopAllSongs(source, listeners);
-
-        RootText msg;
-        if (stopped == 0) {
-            msg = translations.translateText(source, "notica.music.none_playing").formatted(RED);
-        } else {
-            msg = translations.translateText(source, "notica.music.stopped.all").formatted(GREEN);
-        }
-
+        int stopped = removeFromAllSongs(source, listeners);
+        RootText msg = stopped == 0
+                ? translations.translateText(source, "notica.music.none_playing").formatted(RED)
+                : translations.translateText(source, "notica.music.stopped.all").formatted(GREEN);
         source.sendSystemMessage(msg);
-
         return stopped == 0 ? 0 : 1;
     }
 
-    private int stopAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
+    private int removeFromAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
         Notica api = Notica.getInstance(source.getServer());
         int stopped = 0;
 
@@ -518,7 +569,7 @@ public class MusicCommand {
         return stopped;
     }
 
-    private int stopSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+    private int removeByIdForPlayers(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         var listeners = EntityArgument.getPlayers(ctx, "listeners");
         Identifier id = IdentifierArgument.getId(ctx, "id");
         CommandSourceStack source = ctx.getSource();
@@ -544,6 +595,39 @@ public class MusicCommand {
 
         source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
         return 1;
+    }
+
+    private int addPlayersToSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+        Identifier id = IdentifierArgument.getId(ctx, "id");
+        var listeners = EntityArgument.getPlayers(ctx, "listeners");
+        CommandSourceStack source = ctx.getSource();
+        Notica api = Notica.getInstance(source.getServer());
+        Set<SongHandle> handles = api.getPlayingSongs(id);
+
+        if (handles.isEmpty()) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            return 0;
+        }
+
+        int added = 0;
+
+        for (SongHandle handle : handles) {
+            for (ServerPlayer player : listeners) {
+                if (handle.isListener(player)) continue;
+
+                handle.add(player);
+
+                added++;
+            }
+        }
+
+        if (added == 0) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.add.already_listener", styled(id, YELLOW)).formatted(RED));
+            return 0;
+        }
+
+        source.sendSystemMessage(translations.translateText(source, "notica.music.added", styled(added, YELLOW), styled(id, YELLOW)).formatted(GREEN));
+        return added;
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> setCommand() {
@@ -776,6 +860,16 @@ public class MusicCommand {
             }
             return builder.build();
         });
+    }
+
+    private CompletableFuture<Suggestions> allPlayingSongIds(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
+        Notica api = Notica.getInstance(ctx.getSource().getServer());
+        api.getPlayingSongs().stream()
+                .map(SongHandle::getSongId)
+                .map(Identifier::toString)
+                .distinct()
+                .forEach(builder::suggest);
+        return builder.buildFuture();
     }
 
     private CompletableFuture<Suggestions> commonPlayingSongIds(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) throws CommandSyntaxException {

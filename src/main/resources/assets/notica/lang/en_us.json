@@ -44,5 +44,7 @@
   "notica.config.enum.stereoModeOverride.spatial": "Spatial",
   "notica.config.enum_desc.stereoModeOverride.spatial": "Plays stereo sounds only on the channel where they are panned to. Tries to mimic vanilla result.",
   "notica.config.enum.stereoModeOverride.equal_power": "Equal power",
-  "notica.config.enum_desc.stereoModeOverride.equal_power": "Smoothly shift stereo sounds between both channels. Sounds will always have the perceived volume."
+  "notica.config.enum_desc.stereoModeOverride.equal_power": "Smoothly shift stereo sounds between both channels. Sounds will always have the perceived volume.",
+  "notica.config.title.dopplerIntensity": "Doppler effect intensity",
+  "notica.config.desc.dopplerIntensity": "Multiplier for the doppler effect on supported songs. 0 disables it, 1 is default, 2 doubles the effect."
 }

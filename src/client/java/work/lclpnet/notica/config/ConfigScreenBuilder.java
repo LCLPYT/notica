@@ -73,7 +73,14 @@ public class ConfigScreenBuilder implements ConfigScreenFactory<Screen> {
                     ? translatableWithFallback(optionDescKey(name), comment)
                     : null;
 
-            var entry = entry(new EntryData(builder, type, value, defaultValue, v -> option.set(src, v), label, name, tooltip));
+            ConfigSlider sliderAnnotation = field.getAnnotation(ConfigSlider.class);
+            AbstractConfigListEntry<?> entry;
+
+            if (sliderAnnotation != null && type == double.class) {
+                entry = sliderEntry(builder, label, tooltip, value, defaultValue, v -> option.set(src, v), sliderAnnotation);
+            } else {
+                entry = entry(new EntryData(builder, type, value, defaultValue, v -> option.set(src, v), label, name, tooltip));
+            }
 
             if (entry != null) {
                 category.addEntry(entry);
@@ -118,6 +125,24 @@ public class ConfigScreenBuilder implements ConfigScreenFactory<Screen> {
         }
 
         return null;
+    }
+
+    private AbstractConfigListEntry<?> sliderEntry(
+            ConfigBuilder builder, Component label, @Nullable Component tooltip,
+            Object value, Object defaultValue,
+            Consumer<Object> saveConsumer, ConfigSlider slider) {
+
+        long factor = slider.factor();
+        long current = value instanceof Number n ? (long) (n.doubleValue() * factor) : slider.min();
+        long def = defaultValue instanceof Number n ? (long) (n.doubleValue() * factor) : slider.min();
+
+        return builder.entryBuilder()
+                .startLongSlider(label, current, slider.min(), slider.max())
+                .setDefaultValue(def)
+                .setTooltip(tooltip)
+                .setTextGetter(v -> Component.literal(String.format("%.2f", (double) v / factor)))
+                .setSaveConsumer(v -> saveConsumer.accept((double) v / factor))
+                .build();
     }
 
     // convince the compiler that some class is an enum and that the value is an enum constant of it 💀💀💀

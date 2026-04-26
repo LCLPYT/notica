@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.openal.AL10;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.hook.Hook;
+import work.lclpnet.notica.NoticaClientInit;
 import work.lclpnet.notica.api.IndividualSongPlayback;
 import work.lclpnet.notica.api.SongPlayback;
 import work.lclpnet.notica.api.Speaker;
@@ -172,15 +173,19 @@ public class StreamSongPlayback implements SongPlayback {
 
         if (entity == null) return;
 
+        double intensity = NoticaClientInit.configManager()
+                .map(m -> m.config().getDopplerIntensity())
+                .orElse(1.0);
+
         int source = ((ChannelAccessor) channel).getSource();
 
         Vec3 velocity = entity.getDeltaMovement();
 
         // getDeltaMovement() is in blocks/tick; OpenAL expects units/second (20 ticks/s)
         AL10.alSource3f(source, AL10.AL_VELOCITY,
-                (float) (velocity.x * 20),
-                (float) (velocity.y * 20),
-                (float) (velocity.z * 20));
+                (float) (velocity.x * 20 * intensity),
+                (float) (velocity.y * 20 * intensity),
+                (float) (velocity.z * 20 * intensity));
     }
 
     private void updatePosition(Channel channel, float panning) {

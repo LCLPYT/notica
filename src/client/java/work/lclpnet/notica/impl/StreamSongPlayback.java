@@ -40,6 +40,7 @@ public class StreamSongPlayback implements SongPlayback {
     private final SoundSampleManager sampleManager;
     private final Song song;
     private final ChannelAccess channelAccess;
+    private final @Nullable Speaker speaker;
     private final AudioFormat audioFormat;
     private final int soundCount;
     private final Logger logger;
@@ -60,6 +61,7 @@ public class StreamSongPlayback implements SongPlayback {
         this.sampleManager = sampleManager;
         this.song = song;
         this.channelAccess = channelAccess;
+        this.speaker = speaker;
         this.audioFormat = audioFormat;
         this.soundCount = soundCount;
         this.logger = logger;
@@ -160,7 +162,7 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     private void updateVelocity(Channel channel) {
-        if (speaker == null) return;
+        if (speaker == null || !speaker.dopplerEffect()) return;
 
         ClientLevel level = Minecraft.getInstance().level;
 

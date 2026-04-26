@@ -31,7 +31,7 @@ public interface SongHandle {
      * The song is not exactly synchronized between all the listeners, especially if a listener was added later.
      * Some listeners may also have doppler-effects active which further desynchronizes playback positions.
      * Therefore, implementations cannot perfectly synchronize songs between all listeners.
-     * @param player
+     * @param player The player to add.
      */
     void add(ServerPlayer player);
 
@@ -56,4 +56,10 @@ public interface SongHandle {
      */
     @Nullable
     Speaker getSpeaker();
+
+    /**
+     * Checks whether this song handle is global.
+     * @return True if this is a global song handle is global.
+     */
+    boolean isGlobal();
 }

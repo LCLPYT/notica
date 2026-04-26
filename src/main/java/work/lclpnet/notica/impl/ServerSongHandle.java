@@ -25,7 +25,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final int startTick;
     private final @Nullable Speaker speaker;
     private final SongPlayerRefFactory refFactory;
-    private final boolean keepWithoutListeners;
+    private final boolean global;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
     private volatile boolean started = false;
     @Nullable
@@ -39,13 +39,13 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     });
     private boolean destroyed = false;
 
-    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker, SongPlayerRefFactory refFactory, boolean keepWithoutListeners) {
+    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker, SongPlayerRefFactory refFactory, boolean global) {
         this.checkedSong = checkedSong;
         this.playbackOptions = playbackOptions;
         this.startTick = startTick;
         this.speaker = speaker;
         this.refFactory = refFactory;
-        this.keepWithoutListeners = keepWithoutListeners;
+        this.global = global;
     }
 
     public synchronized void start(Collection<? extends ServerPlayer> players, InstrumentSoundProvider soundProvider) {
@@ -281,7 +281,7 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     private void checkDestroyed() {
-        if (keepWithoutListeners || !moddedRefs.isEmpty() || !vanillaRefs.isEmpty()) return;
+        if (global || !moddedRefs.isEmpty() || !vanillaRefs.isEmpty()) return;
 
         if (serverPlayback != null) {
             serverPlayback.stop();
@@ -316,6 +316,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     @Override
     public @Nullable Speaker getSpeaker() {
         return speaker;
+    }
+
+    @Override
+    public boolean isGlobal() {
+        return global;
     }
 
     public interface SongPlayerRefFactory {

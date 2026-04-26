@@ -15,6 +15,8 @@
   "notica.music.added": "Added %s player(s) to song %s",
   "notica.music.add.already_listener": "All specified players are already listening to %s",
   "notica.music.stop.no_permission_other": "You don't have permission to stop music for other players",
+  "notica.music.stop.is_global": "Song %s is global and cannot be stopped for specific players",
+  "notica.music.stop.is_global.hint": "Use '/music stop id %s' to stop it for everyone",
   "notica.music.not_playing": "Song %s is currently not playing",
   "notica.music.none_playing": "No songs are currently being played",
   "notica.music.server_pack_requesting": "Extended octave range support requires the extra notes resource pack. Requesting to install it...",

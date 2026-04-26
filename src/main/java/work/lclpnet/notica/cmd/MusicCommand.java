@@ -562,12 +562,37 @@ public class MusicCommand {
             throw errorNoPermissionStopOther.create();
         }
 
-        int stopped = removeFromAllSongs(source, listeners);
-        RootText msg = stopped == 0
-                ? translations.translateText(source, "notica.music.none_playing").formatted(RED)
-                : translations.translateText(source, "notica.music.stopped.all").formatted(GREEN);
-        source.sendSystemMessage(msg);
-        return stopped == 0 ? 0 : 1;
+        Notica api = Notica.getInstance(source.getServer());
+        Set<SongHandle> handles = listeners.stream()
+                .flatMap(p -> api.getPlayingSongs(p).stream())
+                .collect(toSet());
+
+        if (handles.isEmpty()) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            return 0;
+        }
+
+        int stopped = 0;
+
+        for (SongHandle handle : handles) {
+            if (handle.isGlobal()) {
+                printGlobalStopError(source, handle.getSongId());
+                continue;
+            }
+
+            for (ServerPlayer listener : listeners) {
+                if (!handle.isListener(listener)) continue;
+                handle.remove(listener);
+                stopped++;
+            }
+        }
+
+        if (stopped > 0) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").formatted(GREEN));
+            return 1;
+        }
+
+        return 0;
     }
 
     private int removeFromAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
@@ -576,6 +601,7 @@ public class MusicCommand {
 
         for (ServerPlayer listener : listeners) {
             for (SongHandle handle : api.getPlayingSongs(listener)) {
+                if (handle.isGlobal()) continue;
                 stopped++;
                 handle.remove(listener);
             }
@@ -594,13 +620,24 @@ public class MusicCommand {
         }
 
         Notica api = Notica.getInstance(source.getServer());
+        SongHandle handle = api.getPlayingSong(id).orElse(null);
+
+        if (handle == null) {
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            return 0;
+        }
+
+        if (handle.isGlobal()) {
+            printGlobalStopError(source, id);
+            return 0;
+        }
+
         int stopped = 0;
 
         for (ServerPlayer listener : listeners) {
-            var optHandle = api.getPlayingSong(listener, id);
-            if (optHandle.isEmpty()) continue;
+            if (!handle.isListener(listener)) continue;
+            handle.remove(listener);
             stopped++;
-            optHandle.get().remove(listener);
         }
 
         if (stopped == 0) {
@@ -610,6 +647,11 @@ public class MusicCommand {
 
         source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
         return 1;
+    }
+
+    private void printGlobalStopError(CommandSourceStack source, Identifier id) {
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global", styled(id, YELLOW)).formatted(RED));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global.hint", styled(id, YELLOW)).formatted(GRAY));
     }
 
     private int addPlayersToSong(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

@@ -10,6 +10,7 @@
     "ChannelHandleMixin",
     "ChannelMixin",
     "ClientPacketListenerMixin",
+    "ListenerMixin",
     "MinecraftAccessor",
     "MinecraftMixin",
     "MusicManagerMixin",

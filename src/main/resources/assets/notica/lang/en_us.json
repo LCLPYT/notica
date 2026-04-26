@@ -46,5 +46,7 @@
   "notica.config.enum.stereoModeOverride.equal_power": "Equal power",
   "notica.config.enum_desc.stereoModeOverride.equal_power": "Smoothly shift stereo sounds between both channels. Sounds will always have the perceived volume.",
   "notica.config.title.dopplerIntensity": "Doppler effect intensity",
-  "notica.config.desc.dopplerIntensity": "Multiplier for the doppler effect on supported songs. 0 disables it, 1 is default, 2 doubles the effect."
+  "notica.config.desc.dopplerIntensity": "Multiplier for the doppler effect. 0 disables it, 1 is default, 2 doubles the effect.",
+  "notica.config.title.listenerVelocity": "Listener velocity",
+  "notica.config.desc.listenerVelocity": "Whether to apply the player's movement velocity to the OpenAL listener, enabling doppler effect from player motion. Warning: This will affect all game sounds and may be incompatible with other mods that implement the same."
 }

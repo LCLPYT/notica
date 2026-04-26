@@ -46,5 +46,7 @@
   "notica.config.enum.stereoModeOverride.equal_power": "Gleichmäßig",
   "notica.config.enum_desc.stereoModeOverride.equal_power": "Stereo Töne werden weich zwischen den Kanälen verschoben. Die wahrgenommene Lautstärke bleibt dabei gleich.",
   "notica.config.title.dopplerIntensity": "Doppler-Effekt Intensität",
-  "notica.config.desc.dopplerIntensity": "Kontrolliert wie stark der Doppler-Effekt bei unterstützen Songs ist. 0 = kein Effekt, 1 = Standard, 2 = doppelt so stark."
+  "notica.config.desc.dopplerIntensity": "Kontrolliert wie stark der Doppler-Effekt ist. 0 = kein Effekt, 1 = Standard, 2 = doppelt so stark.",
+  "notica.config.title.listenerVelocity": "Spielerbewegung berücksichtigen",
+  "notica.config.desc.listenerVelocity": "Berücksichtigt die eigene Bewegung beim Doppler-Effekt. Achtung: Beim Aktivieren betrifft dies alle Geräusche im Spiel. Außerdem könnte es mit anderen Mods inkompatibel sein, die etwas Ähnliches umsetzen."
 }

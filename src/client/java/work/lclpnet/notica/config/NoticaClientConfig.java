@@ -18,4 +18,7 @@ public class NoticaClientConfig {
     @SerdeComment("Multiplier for the doppler effect intensity on speaker sounds.")
     @ConfigSlider(min = 0, max = 200, factor = 100)
     private double dopplerIntensity = 1.0;
+
+    @SerdeComment("Whether to apply the listener's movement velocity to the OpenAL listener, enabling doppler effect from player motion.")
+    private boolean listenerVelocity = false;
 }

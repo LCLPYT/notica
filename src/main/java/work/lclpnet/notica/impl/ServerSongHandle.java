@@ -98,7 +98,8 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
                 vanillaPlayers,
                 soundProvider,
                 playbackOptions.volume(),
-                soundPositionProvider
+                soundPositionProvider,
+                speaker != null ? speaker.range() : 16f
         );
 
         final IndividualSongPlayback playback = createServerPlayback();

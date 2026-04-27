@@ -25,13 +25,15 @@ public class ServerBasicNotePlayer implements NotePlayer {
     private final float volume;
     private final Set<SongPlayerRef> players;
     private final SoundPositionProvider soundPositionProvider;
+    private final float range;
 
     public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume,
-                                 SoundPositionProvider soundPositionProvider) {
+                                 SoundPositionProvider soundPositionProvider, float range) {
         this.soundProvider = soundProvider;
         this.volume = clamp(volume, 0f, 1f);
         this.players = players;
         this.soundPositionProvider = soundPositionProvider;
+        this.range = range;
     }
 
     @Override
@@ -87,11 +89,39 @@ public class ServerBasicNotePlayer implements NotePlayer {
 
         Vec3 pos = soundPositionProvider.getPosition(player, panning);
 
-        var packet = new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS,
-                pos.x(), pos.y(), pos.z(),
-                volume, vanillaPitch, player.getRandom().nextLong());
+        Vec3 vPos = emulateAttenuationSoundPos(player, pos, volume, range);
 
-        player.connection.send(packet);
+        player.connection.send(new ClientboundSoundPacket(
+                BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS,
+                vPos.x(), vPos.y(), vPos.z(),
+                volume, vanillaPitch, player.getRandom().nextLong()
+        ));
+    }
+
+    public static Vec3 emulateAttenuationSoundPos(ServerPlayer player, Vec3 soundPos, float volume, double range) {
+        if (volume <= 0) return soundPos;
+
+        Vec3 playerPos = player.getEyePosition();
+
+        double dx = soundPos.x() - playerPos.x();
+        double dy = soundPos.y() - playerPos.y();
+        double dz = soundPos.z() - playerPos.z();
+        double distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq > range * range) return soundPos;
+
+        // Offset the virtual sound position towards the player so that the client's linear
+        // attenuation over travelDist exactly reproduces the desired linear fade over 'range':
+        //   client gain = volume * (1 - virtualDist / travelDist)
+        //               = volume * (1 - dist / range)
+        double travelDist = volume > 1 ? volume * 16.0 : 16.0;
+        double factor = travelDist / range;
+
+        return new Vec3(
+                playerPos.x() + dx * factor,
+                playerPos.y() + dy * factor,
+                playerPos.z() + dz * factor
+        );
     }
 
     public synchronized void addPlayer(SongPlayerRef player) {

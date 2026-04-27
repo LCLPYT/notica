@@ -361,7 +361,7 @@ public class MusicCommand {
             PlayArgs args = factory.create(ctx, doppler, radius, range);
 
             if (!hasExplicitId) {
-                removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+                stopAllInvolvedSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
             }
 
             return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, stereoMode, channelMode));
@@ -377,7 +377,7 @@ public class MusicCommand {
         Identifier id = generateSongId(ctx, path);
         PlayArgs args = new PlayArgs(List.of(player), null);
 
-        removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
+        stopAllInvolvedSongs(source, args.affectedPlayers(source.getLevel()));
 
         return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
@@ -389,7 +389,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = generateSongId(ctx, path);
 
-        removeFromAllSongs(source, args.affectedPlayers(source.getLevel()));
+        stopAllInvolvedSongs(source, args.affectedPlayers(source.getLevel()));
 
         return playSong(source, args, path, id, new PlaybackOptions(DEFAULT_VOLUME));
     }
@@ -401,7 +401,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = generateSongId(ctx, path);
 
-        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        stopAllInvolvedSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume));
     }
@@ -420,7 +420,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = generateSongId(ctx, path);
 
-        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        stopAllInvolvedSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, variant, StereoMode.SPATIAL));
     }
@@ -432,7 +432,7 @@ public class MusicCommand {
         Path path = songDirectory.resolve(songFile);
         Identifier id = generateSongId(ctx, path);
 
-        removeFromAllSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
+        stopAllInvolvedSongs(ctx.getSource(), args.affectedPlayers(ctx.getSource().getLevel()));
 
         return playSong(ctx.getSource(), args, path, id, new PlaybackOptions(volume, PlaybackVariant.STREAMED, stereoMode));
     }
@@ -653,20 +653,19 @@ public class MusicCommand {
         return 0;
     }
 
-    /** Silently removes each listener from every non-global song they are part of; returns the removal count. */
-    private int removeFromAllSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
+    /**
+     * Stops all songs of the listeners. In order not to trigger this, pass an explicit id.
+     */
+    private void stopAllInvolvedSongs(CommandSourceStack source, Collection<ServerPlayer> listeners) {
         Notica api = Notica.getInstance(source.getServer());
-        int stopped = 0;
 
-        for (ServerPlayer listener : listeners) {
-            for (SongHandle handle : api.getPlayingSongs(listener)) {
-                if (handle.isGlobal()) continue;
-                stopped++;
-                handle.remove(listener);
-            }
+        var handles = listeners.stream()
+                .flatMap(player -> api.getPlayingSongs(player).stream())
+                .collect(toSet());
+
+        for (SongHandle handle : handles) {
+            handle.stop();
         }
-
-        return stopped;
     }
 
     /** Removes the given players from the handle matching a specific song ID. */

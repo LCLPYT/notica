@@ -31,6 +31,9 @@ public record Speaker(
         @NotNull Optional<UUID> sourceEntityUuid,
         boolean dopplerEffect
 ) {
+    public static final double DEFAULT_SPEAKER_RADIUS = 1.0;
+    public static final float DEFAULT_SPEAKER_RANGE = 48f;
+
     public Speaker {
         if (radius < 0) {
             throw new IllegalArgumentException("Radius might not be negative");
@@ -66,11 +69,11 @@ public record Speaker(
     }
 
     public static Speaker fixed(Vec3 position, Level level) {
-        return fixed(position, level, 1d);
+        return fixed(position, level, DEFAULT_SPEAKER_RADIUS);
     }
 
     public static Speaker fixed(Vec3 position, Level level, double radius) {
-        return fixed(position, level, radius, 16f);
+        return fixed(position, level, radius, DEFAULT_SPEAKER_RANGE);
     }
 
     public static Speaker fixed(Vec3 position, Level level, double radius, float range) {
@@ -78,7 +81,7 @@ public record Speaker(
     }
 
     public static Speaker ofEntity(Entity entity) {
-        return ofEntity(entity, 1d);
+        return ofEntity(entity, DEFAULT_SPEAKER_RADIUS);
     }
 
     public static Speaker ofEntity(Entity entity, double radius) {
@@ -86,7 +89,7 @@ public record Speaker(
     }
 
     public static Speaker ofEntity(Entity entity, double radius, boolean dopplerEffect) {
-        return ofEntity(entity, radius, 16f, dopplerEffect);
+        return ofEntity(entity, radius, DEFAULT_SPEAKER_RANGE, dopplerEffect);
     }
 
     public static Speaker ofEntity(Entity entity, double radius, float range, boolean dopplerEffect) {

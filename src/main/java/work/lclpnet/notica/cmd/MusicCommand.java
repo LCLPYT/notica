@@ -352,8 +352,8 @@ public class MusicCommand {
         return ctx -> {
             String songFile = StringArgumentType.getString(ctx, "song");
             float volume = FloatArgumentType.getFloat(ctx, "volume");
-            double radius = hasRadius ? FloatArgumentType.getFloat(ctx, "radius") : 1.0;
-            float range = hasRange ? FloatArgumentType.getFloat(ctx, "range") : 16.0f;
+            double radius = hasRadius ? FloatArgumentType.getFloat(ctx, "radius") : Speaker.DEFAULT_SPEAKER_RADIUS;
+            float range = hasRange ? FloatArgumentType.getFloat(ctx, "range") : Speaker.DEFAULT_SPEAKER_RANGE;
 
             Path path = songDirectory.resolve(songFile);
             Identifier id = hasExplicitId ? IdentifierArgument.getId(ctx, "id") : generateSongId(ctx, path);

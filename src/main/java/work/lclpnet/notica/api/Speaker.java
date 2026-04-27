@@ -36,7 +36,7 @@ public record Speaker(
             throw new IllegalArgumentException("Radius might not be negative");
         }
 
-        if (radius <= 0) {
+        if (range <= 0) {
             throw new IllegalArgumentException("Range must be positive");
         }
     }

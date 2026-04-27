@@ -18,7 +18,7 @@ import java.util.Set;
  */
 public class SongPlaybackListener {
 
-    public static final double POSITIONAL_SOUND_TRACKING_PROXIMITY = 48;
+    public static final double TRACKING_MARGIN = 32;
 
     private final ActiveSongManager activeSongManager;
 
@@ -69,10 +69,12 @@ public class SongPlaybackListener {
 
             if (speaker == null) continue;
 
+            double trackingRange = speaker.range() + TRACKING_MARGIN;
+
             for (ServerPlayer player : players) {
                 if (!handle.canBeTrackedBy(player)) continue;
 
-                if (speaker.isWithinRange(player.position(), POSITIONAL_SOUND_TRACKING_PROXIMITY)) {
+                if (speaker.isWithinRange(player.position(), trackingRange)) {
                     handle.add(player);
                 } else {
                     handle.remove(player);

@@ -6,6 +6,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -91,6 +92,8 @@ public class ServerBasicNotePlayer implements NotePlayer {
 
         Vec3 vPos = emulateAttenuationSoundPos(player, pos, volume, range);
 
+        if (vPos == null) return;
+
         player.connection.send(new ClientboundSoundPacket(
                 BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS,
                 vPos.x(), vPos.y(), vPos.z(),
@@ -98,7 +101,7 @@ public class ServerBasicNotePlayer implements NotePlayer {
         ));
     }
 
-    public static Vec3 emulateAttenuationSoundPos(ServerPlayer player, Vec3 soundPos, float volume, double range) {
+    public static @Nullable Vec3 emulateAttenuationSoundPos(ServerPlayer player, Vec3 soundPos, float volume, double range) {
         if (volume <= 0) return soundPos;
 
         Vec3 playerPos = player.getEyePosition();
@@ -108,19 +111,21 @@ public class ServerBasicNotePlayer implements NotePlayer {
         double dz = soundPos.z() - playerPos.z();
         double distSq = dx * dx + dy * dy + dz * dz;
 
-        if (distSq > range * range) return soundPos;
-
-        // Offset the virtual sound position towards the player so that the client's linear
-        // attenuation over travelDist exactly reproduces the desired linear fade over 'range':
+        // Offset the virtual sound position so that the client's linear attenuation over travelDist
+        // exactly reproduces the desired linear fade over 'range':
         //   client gain = volume * (1 - virtualDist / travelDist)
         //               = volume * (1 - dist / range)
+        // When dist >= range, push virtualDist to travelDist so client gain = 0.
         double travelDist = volume > 1 ? volume * 16.0 : 16.0;
-        double factor = travelDist / range;
+
+        if (distSq > range * range) return null;
+
+        double scale = travelDist / range;
 
         return new Vec3(
-                playerPos.x() + dx * factor,
-                playerPos.y() + dy * factor,
-                playerPos.z() + dz * factor
+                playerPos.x() + dx * scale,
+                playerPos.y() + dy * scale,
+                playerPos.z() + dz * scale
         );
     }
 

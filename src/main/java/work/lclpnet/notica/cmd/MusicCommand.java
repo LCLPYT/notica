@@ -301,7 +301,7 @@ public class MusicCommand {
 
         // range → [terminals | radius → terminals]
         var rangeArg = addSpeakerTerminals(
-                argument("range", FloatArgumentType.floatArg(16f, 64f)),
+                argument("range", FloatArgumentType.floatArg(16f, 128f)),
                 factory, variant, ChannelMode.STEREO, stereoMode, false, true, entitySpeaker, false);
 
         rangeArg.then(addSpeakerTerminals(

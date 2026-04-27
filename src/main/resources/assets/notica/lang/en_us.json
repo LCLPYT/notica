@@ -10,6 +10,8 @@
   "notica.music.play.not_found": "Song %s wasn't found",
   "notica.music.play.error": "An unexpected error occurred while trying to play this song, see logs for more details",
   "notica.music.play.no_permission_other": "You don't have permission to play music to other players",
+  "notica.music.play.doppler_mod_required": "Note: The Doppler effect is only available for players with the Notica mod installed.",
+  "notica.music.play.streamed_mod_required": "Note: High quality audio mixing is only available for players with the Notica mod installed.",
   "notica.music.stopped": "Stopped song %s",
   "notica.music.stopped.all": "Stopped all songs",
   "notica.music.added": "Added %s player(s) to song %s",

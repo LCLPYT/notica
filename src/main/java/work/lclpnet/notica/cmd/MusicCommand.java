@@ -492,6 +492,16 @@ public class MusicCommand {
             }
 
             api.playSongWithSpeaker(song, options, 0, speaker, args.listeners());
+
+            ServerPlayer executor = source.getPlayer();
+            if (executor != null && !NoticaImpl.hasModInstalled(executor)) {
+                if (speaker != null && speaker.dopplerEffect()) {
+                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.doppler_mod_required").formatted(YELLOW));
+                }
+                if (options.playbackVariant() == PlaybackVariant.STREAMED) {
+                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.streamed_mod_required").formatted(YELLOW));
+                }
+            }
         });
 
         return 1;

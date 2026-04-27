@@ -10,6 +10,8 @@
   "notica.music.play.not_found": "Lied %s wurde nicht gefunden",
   "notica.music.play.error": "Beim abspielen dieses Liedes ist ein unerwarteter Fehler aufgetreten. Weitere details befinden sich in den Logs",
   "notica.music.play.no_permission_other": "Du hast keine Berechtigung Musik für andere Leute abzuspielen",
+  "notica.music.play.doppler_mod_required": "Hinweis: Der Doppler-Effekt ist nur für Spieler mit installiertem Notica-Mod verfügbar.",
+  "notica.music.play.streamed_mod_required": "Hinweis: Hochqualitatives Audio-Mixing ist nur für Spieler mit installiertem Notica-Mod verfügbar.",
   "notica.music.stopped": "Lied %s wurde gestoppt",
   "notica.music.stopped.all": "Alle Lieder wurden gestoppt",
   "notica.music.added": "%s Spieler zu Lied %s hinzugefügt",

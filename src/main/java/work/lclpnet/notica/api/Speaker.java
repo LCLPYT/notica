@@ -27,13 +27,17 @@ public record Speaker(
         Vec3 position,
         ResourceKey<Level> dimension,
         double radius,
-        double range,
+        float range,
         @NotNull Optional<UUID> sourceEntityUuid,
         boolean dopplerEffect
 ) {
     public Speaker {
         if (radius < 0) {
             throw new IllegalArgumentException("Radius might not be negative");
+        }
+
+        if (radius <= 0) {
+            throw new IllegalArgumentException("Range must be positive");
         }
     }
 
@@ -66,10 +70,10 @@ public record Speaker(
     }
 
     public static Speaker fixed(Vec3 position, Level level, double radius) {
-        return fixed(position, level, radius, 16d);
+        return fixed(position, level, radius, 16f);
     }
 
-    public static Speaker fixed(Vec3 position, Level level, double radius, double range) {
+    public static Speaker fixed(Vec3 position, Level level, double radius, float range) {
         return new Speaker(position, level.dimension(), radius, range, Optional.empty(), false);
     }
 
@@ -82,10 +86,10 @@ public record Speaker(
     }
 
     public static Speaker ofEntity(Entity entity, double radius, boolean dopplerEffect) {
-        return ofEntity(entity, radius, 16d, dopplerEffect);
+        return ofEntity(entity, radius, 16f, dopplerEffect);
     }
 
-    public static Speaker ofEntity(Entity entity, double radius, double range, boolean dopplerEffect) {
+    public static Speaker ofEntity(Entity entity, double radius, float range, boolean dopplerEffect) {
         return new Speaker(entity.position(), entity.level().dimension(), radius, range, Optional.of(entity.getUUID()), dopplerEffect);
     }
 

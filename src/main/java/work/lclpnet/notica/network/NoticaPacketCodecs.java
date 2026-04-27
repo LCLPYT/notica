@@ -154,7 +154,7 @@ public class NoticaPacketCodecs {
             Vec3.STREAM_CODEC, Speaker::position,
             ResourceKey.streamCodec(Registries.DIMENSION), Speaker::dimension,
             ByteBufCodecs.DOUBLE, Speaker::radius,
-            ByteBufCodecs.DOUBLE, Speaker::range,
+            ByteBufCodecs.FLOAT, Speaker::range,
             ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Speaker::sourceEntityUuid,
             ByteBufCodecs.BOOL, Speaker::dopplerEffect,
             Speaker::new);

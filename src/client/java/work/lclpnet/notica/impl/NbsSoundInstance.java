@@ -1,5 +1,6 @@
 package work.lclpnet.notica.impl;
 
+import lombok.Getter;
 import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
@@ -12,11 +13,15 @@ import org.jspecify.annotations.NonNull;
 public class NbsSoundInstance extends AbstractSoundInstance {
 
     private final DirectSoundManager directSoundManager;
+    @Getter
+    private final float range;
 
     public NbsSoundInstance(Identifier id, SoundSource category, float volume, float pitch, RandomSource random,
                             boolean repeat, int repeatDelay, SoundInstance.Attenuation attenuationType,
-                            double x, double y, double z, boolean relative, DirectSoundManager directSoundManager) {
+                            double x, double y, double z, boolean relative, DirectSoundManager directSoundManager,
+                            float range) {
         super(id, category, random);
+        this.range = range;
         this.volume = volume;
         this.pitch = pitch;
         this.x = x;

@@ -114,7 +114,8 @@ public class ClientMusicBackend {
                 playerConfig,
                 directSoundManager,
                 positionProvider,
-                relativePosition
+                relativePosition,
+                playOptions.speaker().map(Speaker::range).orElse(16f)
         );
 
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());

@@ -139,7 +139,7 @@ public class StreamSongPlayback implements SongPlayback {
 
                 if (soundPositionProvider != null) {
                     channel.setRelative(false);
-                    channel.linearAttenuation(16);
+                    channel.linearAttenuation(speaker != null ? (float) speaker.range() : 16f);
 
                     updatePosition(channel, panning);
                     updateVelocity(channel);

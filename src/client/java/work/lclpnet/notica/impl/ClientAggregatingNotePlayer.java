@@ -33,18 +33,20 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
     private final DirectSoundManager directSoundManager;
     private final SoundPositionProvider positionProvider;
     private final boolean relativePosition;
+    private final float range;
     private final List<NbsSoundInstance> notes = new ArrayList<>(16);
     private int deSyncedNotes = 0;
 
     public ClientAggregatingNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig,
                                        DirectSoundManager directSoundManager, SoundPositionProvider positionProvider,
-                                       boolean relativePosition) {
+                                       boolean relativePosition, float range) {
         this.soundProvider = soundProvider;
         this.volume = volume;
         this.playerConfig = playerConfig;
         this.directSoundManager = directSoundManager;
         this.positionProvider = positionProvider;
         this.relativePosition = relativePosition;
+        this.range = range;
     }
 
     @Override
@@ -96,7 +98,8 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
                 soundPos.y,
                 soundPos.z,
                 relativePosition,
-                directSoundManager
+                directSoundManager,
+                range
         );
 
         synchronized (this) {

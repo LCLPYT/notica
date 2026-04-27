@@ -45,6 +45,7 @@ public class StreamSongPlayback implements SongPlayback {
     private final AudioFormat audioFormat;
     private final int soundCount;
     private final Logger logger;
+    private final boolean forceDopplerEffect;
     private final @Nullable SoundPositionProvider soundPositionProvider;
     private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
 
@@ -57,7 +58,7 @@ public class StreamSongPlayback implements SongPlayback {
 
     public StreamSongPlayback(Supplier<SongStream> streamSupplier, SoundSampleManager sampleManager,
                               Song song, ChannelAccess channelAccess, @Nullable Speaker speaker,
-                              AudioFormat audioFormat, int soundCount, Logger logger) {
+                              AudioFormat audioFormat, int soundCount, Logger logger, boolean forceDopplerEffect) {
         this.streamSupplier = streamSupplier;
         this.sampleManager = sampleManager;
         this.song = song;
@@ -68,6 +69,7 @@ public class StreamSongPlayback implements SongPlayback {
         this.logger = logger;
 
         this.soundPositionProvider = speaker != null ? SoundPositionProvider.ofSpeaker(speaker) : null;
+        this.forceDopplerEffect = forceDopplerEffect;
 
         if (soundCount <= 0) throw new IllegalArgumentException("Need at least one sound");
     }
@@ -139,7 +141,7 @@ public class StreamSongPlayback implements SongPlayback {
 
                 if (soundPositionProvider != null) {
                     channel.setRelative(false);
-                    channel.linearAttenuation(speaker != null ? (float) speaker.range() : 16f);
+                    channel.linearAttenuation(speaker != null ? speaker.range() : 16f);
 
                     updatePosition(channel, panning);
                     updateVelocity(channel);
@@ -163,7 +165,7 @@ public class StreamSongPlayback implements SongPlayback {
     }
 
     private void updateVelocity(Channel channel) {
-        if (speaker == null || !speaker.dopplerEffect()) return;
+        if (speaker == null || !speaker.dopplerEffect() && !forceDopplerEffect) return;
 
         ClientLevel level = Minecraft.getInstance().level;
 

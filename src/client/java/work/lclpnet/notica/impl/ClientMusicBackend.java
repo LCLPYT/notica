@@ -145,7 +145,11 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
-        boolean mixToMono = options.channelMode() == ChannelMode.MONO || (speaker != null && speaker.isMono());
+        boolean listenerDopplerEffect = configManager.config().isListenerVelocity();
+        boolean mixToMono =  options.channelMode() == ChannelMode.MONO
+                || (speaker != null && speaker.isMono())
+                || (speaker != null && listenerDopplerEffect);
+
         AudioFormat audioFormat = mixToMono || speaker != null ? getMonoFormat(unifiedAudioFormat) : unifiedAudioFormat;
 
         // positional audio needs to be played as mono audio
@@ -171,7 +175,7 @@ public class ClientMusicBackend {
 
             return songStream;
 
-        }, sampleManager, song, channelAccess, speaker, audioFormat, soundCount, logger);
+        }, sampleManager, song, channelAccess, speaker, audioFormat, soundCount, logger, listenerDopplerEffect);
     }
 
     public void stopSong(Identifier songId) {

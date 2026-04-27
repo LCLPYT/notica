@@ -258,7 +258,7 @@ public class MusicCommand {
     private RequiredArgumentBuilder<CommandSourceStack, Float> speakerOptions(SpeakerArgsFactory factory, boolean entitySpeaker) {
         var builder = argument("volume", FloatArgumentType.floatArg(0f, 1f));
 
-        addSpeakerTerminals(builder, factory, PlaybackVariant.STREAMED, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker);
+        addSpeakerTerminals(builder, factory, PlaybackVariant.STREAMED, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker, false);
 
         builder.then(speakerVariant("individual", PlaybackVariant.INDIVIDUAL, factory, entitySpeaker));
         builder.then(speakerVariant("streamed", PlaybackVariant.STREAMED, factory, entitySpeaker));
@@ -270,9 +270,9 @@ public class MusicCommand {
     private LiteralArgumentBuilder<CommandSourceStack> speakerVariant(String name, PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
         var branch = literal(name);
 
-        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker);
+        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker, false);
 
-        branch.then(addSpeakerTerminals(literal("mono"), factory, variant, ChannelMode.MONO, StereoMode.SPATIAL, false, false, entitySpeaker));
+        branch.then(addSpeakerTerminals(literal("mono"), factory, variant, ChannelMode.MONO, StereoMode.SPATIAL, false, false, entitySpeaker, false));
         branch.then(speakerStereoChannel(variant, factory, entitySpeaker));
 
         return branch;
@@ -282,7 +282,7 @@ public class MusicCommand {
     private LiteralArgumentBuilder<CommandSourceStack> speakerStereoChannel(PlaybackVariant variant, SpeakerArgsFactory factory, boolean entitySpeaker) {
         var branch = literal("stereo");
 
-        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker);
+        addSpeakerTerminals(branch, factory, variant, ChannelMode.STEREO, StereoMode.SPATIAL, false, false, entitySpeaker, false);
 
         if (variant == PlaybackVariant.STREAMED) {
             branch.then(speakerStereoMode("spatial", StereoMode.SPATIAL, variant, factory, entitySpeaker));
@@ -301,27 +301,32 @@ public class MusicCommand {
 
         // range → [terminals | radius → terminals]
         var rangeArg = addSpeakerTerminals(
-                argument("range", FloatArgumentType.floatArg(0f, 64f)),
-                factory, variant, ChannelMode.STEREO, stereoMode, false, true, entitySpeaker);
+                argument("range", FloatArgumentType.floatArg(16f, 64f)),
+                factory, variant, ChannelMode.STEREO, stereoMode, false, true, entitySpeaker, false);
 
         rangeArg.then(addSpeakerTerminals(
                 argument("radius", FloatArgumentType.floatArg(0f, 15)),
-                factory, variant, ChannelMode.STEREO, stereoMode, true, true, entitySpeaker));
+                factory, variant, ChannelMode.STEREO, stereoMode, true, true, entitySpeaker, true));
 
         branch.then(rangeArg);
 
         return branch;
     }
 
-    /** Attaches execution leaves and optional range/doppler sub-arguments to {@code builder}. */
+    /** Attaches execution leaves and optional range/doppler sub-arguments to {@code builder}.
+     * {@code idAllowed} must be {@code false} whenever a float argument (range or radius) could still
+     * appear as a sibling, to prevent the parser from ambiguously matching floats as identifiers. */
     private <T extends ArgumentBuilder<CommandSourceStack, T>> T addSpeakerTerminals(
             T builder, SpeakerArgsFactory factory, PlaybackVariant variant,
-            ChannelMode channelMode, StereoMode stereoMode, boolean hasRadius, boolean hasRange, boolean entitySpeaker
+            ChannelMode channelMode, StereoMode stereoMode, boolean hasRadius, boolean hasRange,
+            boolean entitySpeaker, boolean idAllowed
     ) {
         builder.executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, hasRange, false, false));
 
-        builder.then(argument("id", IdentifierArgument.id())
-                .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, hasRange, false, true)));
+        if (idAllowed) {
+            builder.then(argument("id", IdentifierArgument.id())
+                    .executes(speakerLeaf(factory, variant, channelMode, stereoMode, hasRadius, hasRange, false, true)));
+        }
 
         if (entitySpeaker && channelMode == ChannelMode.MONO && variant == PlaybackVariant.STREAMED) {
             builder.then(literal("doppler")
@@ -333,7 +338,7 @@ public class MusicCommand {
         if (!hasRange) {
             builder.then(addSpeakerTerminals(
                     argument("range", FloatArgumentType.floatArg(0f, 64f)),
-                    factory, variant, channelMode, stereoMode, hasRadius, true, entitySpeaker));
+                    factory, variant, channelMode, stereoMode, hasRadius, true, entitySpeaker, true));
         }
 
         return builder;

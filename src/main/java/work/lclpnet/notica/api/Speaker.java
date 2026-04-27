@@ -27,6 +27,7 @@ public record Speaker(
         Vec3 position,
         ResourceKey<Level> dimension,
         double radius,
+        double range,
         @NotNull Optional<UUID> sourceEntityUuid,
         boolean dopplerEffect
 ) {
@@ -53,11 +54,11 @@ public record Speaker(
     }
 
     public Speaker withRadius(double radius) {
-        return new Speaker(position, dimension, radius, sourceEntityUuid, dopplerEffect);
+        return new Speaker(position, dimension, radius, range, sourceEntityUuid, dopplerEffect);
     }
 
     public Speaker withDopplerEffect(boolean dopplerEffect) {
-        return new Speaker(position, dimension, radius, sourceEntityUuid, dopplerEffect);
+        return new Speaker(position, dimension, radius, range, sourceEntityUuid, dopplerEffect);
     }
 
     public static Speaker fixed(Vec3 position, Level level) {
@@ -65,7 +66,11 @@ public record Speaker(
     }
 
     public static Speaker fixed(Vec3 position, Level level, double radius) {
-        return new Speaker(position, level.dimension(), radius, Optional.empty(), false);
+        return fixed(position, level, radius, 16d);
+    }
+
+    public static Speaker fixed(Vec3 position, Level level, double radius, double range) {
+        return new Speaker(position, level.dimension(), radius, range, Optional.empty(), false);
     }
 
     public static Speaker ofEntity(Entity entity) {
@@ -77,7 +82,11 @@ public record Speaker(
     }
 
     public static Speaker ofEntity(Entity entity, double radius, boolean dopplerEffect) {
-        return new Speaker(entity.position(), entity.level().dimension(), radius, Optional.of(entity.getUUID()), dopplerEffect);
+        return ofEntity(entity, radius, 16d, dopplerEffect);
+    }
+
+    public static Speaker ofEntity(Entity entity, double radius, double range, boolean dopplerEffect) {
+        return new Speaker(entity.position(), entity.level().dimension(), radius, range, Optional.of(entity.getUUID()), dopplerEffect);
     }
 
     public Vec3 resolvePosition(Level level) {

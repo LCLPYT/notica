@@ -11,6 +11,8 @@ Use the `/music play <song> [players]` command to play a song.
 
 ![Play a song with Notica](https://i.imgur.com/ihCc1gY.gif)
 
+You can find many NBS songs at [Noteblock World](https://noteblock.world/).
+
 ### Clientside song playback
 On a vanilla client connection, each note is sent to the player with a separate packet.
 This creates huge amounts of packets being sent, which causes lag and reduced playback quality.
@@ -51,15 +53,28 @@ Notes outside the vanilla range will be transposed for vanilla players by defaul
 Vanilla clients are still able to play notes outside the vanilla range, by installing the extended notes resource pack.
 The extra notes resource pack can be installed by using `/music set extended_range true` to enable the extended range playback (**vanilla players only**).
 
+### Positional music playing
+Songs can be played through "speakers" at positions in the world.
+A speaker may either have a fixed position or may be attached to an entity.
+If the entity of a speaker moves, the song moves as well.
+
+#### Doppler effect
+Songs attached to entities may enable the doppler effect which distorts the audio pitch depending on the entity motion relative to the player.
+In the mod settings this may be extended to use the player's motion as well.
+This will enable a complete doppler effect simulation using OpenAL.
+
 ## Permissions
 In order to play or stop music, you need to be a server operator (have OP) or you need to have the corresponding permissions:
 
 | Action                | Required permission             |
 |-----------------------|---------------------------------|
 | Play music            | notica.command.music.play       |
+| Play positional songs | notica.command.music.play.positional   |
 | Play music to others  | notica.command.music.play.other |
 | Stop music            | notica.command.music.stop       |
 | Stop music for others | notica.command.music.stop.other |
+| Seek music            | notica.command.music.seek |
+| Seek music for others | notica.command.music.seek.other |
 
 Please note that setting the music volume and toggling extended octave range support is always possible.
 
@@ -133,12 +148,9 @@ You can get the SongHandle with a song id that the player is listening to using:
 Optional<SongHandle> handle = api.getPlayingSong(player, id);
 ```
 
-Please note that a player can only listen to one instance of a song identified by a certain id at once.
-
-### Getting all song handles by id
-In case multiple SongHandles were created for the same song id, you can get all using:
+### Getting a song handle by id
 ```java
-Set<SongHandle> handles = api.getPlayingSongs(id);
+Optional<SongHandle> handle = api.getPlayingSong(id);
 ```
 
 ### Getting all song handle instances

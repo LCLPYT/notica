@@ -7,7 +7,7 @@ Players with the mod installed benefit from reduced network-usage, as well as be
 ### NBS file playback
 Play any song created with [Open Note Block Studio](https://opennbs.org/) on a server or in single player.
 Place the .nbs files in the `config/notica/songs` directory.
-Use the `/music play <song> [players]` command to play a song.
+Use the `/music play <song> for [players]` command to play a song.
 
 ![Play a song with Notica](https://i.imgur.com/ihCc1gY.gif)
 

@@ -1,0 +1,100 @@
+package work.lclpnet.notica.impl;
+
+import net.minecraft.core.Position;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import work.lclpnet.notica.api.Speaker;
+
+import static java.lang.Math.*;
+
+public interface SoundPositionProvider {
+
+    Vec3 getPosition(Player player, float panning);
+
+    /**
+     * @return Position provider for absolute world-coordinate position relative to the target player world position.
+     */
+    static SoundPositionProvider worldPlayerRelative() {
+        return (player, panning) -> {
+            double x = player.getX();
+            double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
+            double z = player.getZ();
+
+            if (Math.abs(panning) >= 1e-3) {
+                double yaw = toRadians(player.getYRot() - 90f);  // rotate 90 degrees ccw
+
+                x += sin(yaw) * panning * 2;
+                z -= cos(yaw) * panning * 2;
+            }
+
+            return new Vec3(x, y, z);
+        };
+    }
+
+    /**
+     * @return Position provider for absolute world-coordinate position at the target player world position. Ignores panning.
+     */
+    static SoundPositionProvider worldPlayerMono() {
+        return (player, panning) -> {
+            double x = player.getX();
+            double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
+            double z = player.getZ();
+
+            return new Vec3(x, y, z);
+        };
+    }
+
+    /**
+     * @return Position provider for player camera local-coordinate position.
+     * For use on the client directly with OpenAL.
+     */
+    static SoundPositionProvider clientPlayerRelative() {
+        return (player, panning) -> new Vec3(2 * panning, 0, 0);
+    }
+
+    /**
+     * @return Position provider for player camera local-coordinate position.
+     * For use on the client directly with OpenAL.
+     * Ignores panning.
+     */
+    static SoundPositionProvider clientPlayerMono() {
+        return (player, panning) -> new Vec3(0, 0, 0);
+    }
+
+    /**
+     * @param speaker The speaker.
+     * @return Position provider for absolute world-coordinate position relative to the given speaker world position.
+     */
+    static SoundPositionProvider ofSpeaker(Speaker speaker) {
+        return (player, panning) -> {
+            Position sourcePos = speaker.resolvePosition(player.level());
+
+            // construct right vector from relative position of the player toward the speaker
+            double dx = player.getX() - sourcePos.x();
+            double dz = player.getZ() - sourcePos.z();
+
+            double length = sqrt(dx * dx + dz * dz);
+
+            double rightX;
+            double rightZ;
+
+            if (length > 0) {
+                rightX = dz / length;
+                rightZ = -dx / length;
+            } else {
+                // in case the sourcePos is exactly at the player, use player look angle to determine right vector
+                Vec3 right = player.getLookAngle().cross(Vec3.Y_AXIS);
+                rightX = right.x();
+                rightZ = right.z();
+            }
+
+            double radius = speaker.radius();
+
+            double finalX = sourcePos.x() + (rightX * panning * radius);
+            double finalY = sourcePos.y();
+            double finalZ = sourcePos.z() + (rightZ * panning * radius);
+
+            return new Vec3(finalX, finalY, finalZ);
+        };
+    }
+}

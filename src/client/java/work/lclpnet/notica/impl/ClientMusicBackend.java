@@ -11,6 +11,7 @@ import net.minecraft.server.packs.resources.ResourceProvider;
 import net.minecraft.sounds.SoundSource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import work.lclpnet.kibu.config.ConfigManager;
 import work.lclpnet.notica.api.*;
@@ -21,14 +22,14 @@ import work.lclpnet.notica.impl.mix.*;
 import work.lclpnet.notica.mixin.client.SoundBufferLibraryAccessor;
 import work.lclpnet.notica.mixin.client.SoundEngineAccessor;
 import work.lclpnet.notica.mixin.client.SoundManagerAccessor;
+import work.lclpnet.notica.network.SongPlayOptions;
 import work.lclpnet.notica.network.packet.StopSongBidiPacket;
 import work.lclpnet.notica.util.PlayerConfigEntry;
 
 import javax.sound.sampled.AudioFormat;
 import java.util.*;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static java.lang.Math.clamp;
 
 public class ClientMusicBackend {
 
@@ -54,7 +55,10 @@ public class ClientMusicBackend {
         this.unifiedSoundLoader = new UnifiedSoundLoader(unifiedAudioFormat, logger);
     }
 
-    public void playSong(PendingSong song, Identifier songId, PlaybackOptions options, int startTick) {
+    public void playSong(PendingSong song, SongPlayOptions playOptions) {
+        Identifier songId = playOptions.songId();
+        PlaybackOptions options = playOptions.playbackOptions();
+
         songRepository.bind(song, songId);
 
         stopSong(songId);
@@ -68,9 +72,9 @@ public class ClientMusicBackend {
         SongPlayback playback;
 
         if (variant == PlaybackVariant.STREAMED) {
-            playback = createStreamPlayback(song, options);
+            playback = createStreamPlayback(song, playOptions);
         } else {
-            playback = createIndividualPlayback(song, options);
+            playback = createIndividualPlayback(song, playOptions);
         }
 
         playback.whenDone(() -> {
@@ -86,16 +90,40 @@ public class ClientMusicBackend {
             playing.put(songId, playback);
         }
 
-        playback.start(startTick);
+        playback.start(playOptions.startTick());
     }
 
-    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, PlaybackOptions options) {
-        NotePlayer notePlayer = new ClientAggregatingNotePlayer(soundProvider, options.volume(), playerConfig, directSoundManager);
+    private @NotNull IndividualSongPlayback createIndividualPlayback(PendingSong song, SongPlayOptions playOptions) {
+        PlaybackOptions options = playOptions.playbackOptions();
+
+        SoundPositionProvider positionProvider = switch (options.channelMode()) {
+            case MONO -> playOptions.speaker()
+                    .map(Speaker::asMonoSpeaker)
+                    .map(SoundPositionProvider::ofSpeaker)
+                    .orElseGet(SoundPositionProvider::clientPlayerMono);
+            case STEREO -> playOptions.speaker()
+                .map(SoundPositionProvider::ofSpeaker)
+                .orElseGet(SoundPositionProvider::clientPlayerRelative);
+        };
+
+        boolean relativePosition = playOptions.speaker().isEmpty();
+
+        NotePlayer notePlayer = new ClientAggregatingNotePlayer(
+                soundProvider,
+                options.volume(),
+                playerConfig,
+                directSoundManager,
+                positionProvider,
+                relativePosition,
+                playOptions.speaker().map(Speaker::range).orElse(16f)
+        );
 
         return new IndividualSongPlayback(song, notePlayer, options.loopOverride());
     }
 
-    private StreamSongPlayback createStreamPlayback(PendingSong song, PlaybackOptions options) {
+    private StreamSongPlayback createStreamPlayback(PendingSong song, SongPlayOptions playOptions) {
+        PlaybackOptions options = playOptions.playbackOptions();
+
         StereoMode stereoMode = Optional.ofNullable(configManager.config().getStereoModeOverride())
                 .map(StereoModeOverride::stereoMode)
                 .orElseGet(options::stereoMode);
@@ -105,9 +133,11 @@ public class ClientMusicBackend {
         SoundEngine soundSystem = ((SoundManagerAccessor) soundManager).getSoundEngine();
         var soundSystemAccess = (SoundEngineAccessor) soundSystem;
 
-        ChannelAccess channel = soundSystemAccess.getChannelAccess();
+        ChannelAccess channelAccess = soundSystemAccess.getChannelAccess();
         SoundBufferLibrary soundLoader = soundSystemAccess.getSoundBuffers();
         ResourceProvider resourceFactory = ((SoundBufferLibraryAccessor) soundLoader).getResourceManager();
+
+        Speaker speaker = playOptions.speaker().orElse(null);
 
         var sampleProvider = new FabricSoundSampleProvider(song.instruments(), soundProvider, soundManager,
                 directSoundManager, resourceFactory, logger);
@@ -115,25 +145,37 @@ public class ClientMusicBackend {
         var sampleManager = new SoundSampleManager(song.instruments(), sampleProvider, unifiedSoundLoader, CatmullRomNoteSampler::paddedSample);
         var noteSampler = new CatmullRomNoteSampler(sampleManager, unifiedAudioFormat, stereoMode, song.instruments());
 
+        boolean listenerDopplerEffect = configManager.config().isListenerVelocity();
+        boolean mixToMono =  options.channelMode() == ChannelMode.MONO
+                || (speaker != null && speaker.isMono())
+                || (speaker != null && listenerDopplerEffect);
+
+        AudioFormat audioFormat = mixToMono || speaker != null ? getMonoFormat(unifiedAudioFormat) : unifiedAudioFormat;
+
+        // positional audio needs to be played as mono audio
+        // either mix down to mono audio or play two audio for stereo simulation, in which case we need two output buffers
+        int soundCount = speaker != null && !mixToMono ? 2 : 1;
+
         return new StreamSongPlayback(() -> {
-            int bufferBytes = SongAudioStream.getByteSize(unifiedAudioFormat, 1.f);
+            int bufferBytes = SongStream.getByteSize(unifiedAudioFormat, 1.f);
             int workerCount = Runtime.getRuntime().availableProcessors();
 
-            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount);
+            var soundMixer = new SoundMixer(unifiedAudioFormat, noteSampler, bufferBytes, workerCount, soundCount);
             var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
-            var audioStream = new SongAudioStream(unifiedAudioFormat, soundMixer, songMixer, song,
-                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false);
+            var songStream = new SongStream(unifiedAudioFormat, soundMixer, songMixer, song,
+                    soundMixer::applyCompressor, logger, bufferBytes, options.loopOverride(), false, soundCount, mixToMono);
 
-            audioStream.setOnUpdate(() -> {
+            songStream.setOnUpdate(() -> {
                 float categoryVolume = client.options.getFinalSoundSourceVolume(SoundSource.RECORDS);
-                float totalVolume = max(0.f, min(1.f, options.volume() * categoryVolume * playerConfig.getVolume()));
+                float totalVolume = clamp(options.volume() * categoryVolume * playerConfig.getVolume(), 0.f, 1.f);
 
                 songMixer.setSongVolume(totalVolume);
             });
 
-            return audioStream;
-        }, sampleManager, song, channel, logger);
+            return songStream;
+
+        }, sampleManager, song, channelAccess, speaker, audioFormat, soundCount, logger, listenerDopplerEffect);
     }
 
     public void stopSong(Identifier songId) {
@@ -184,5 +226,17 @@ public class ClientMusicBackend {
 
     public boolean isSongPlaying() {
         return !playing.isEmpty();
+    }
+
+    public static @NonNull AudioFormat getMonoFormat(AudioFormat format) {
+        return new AudioFormat(
+                format.getEncoding(),
+                format.getSampleRate(),
+                format.getSampleSizeInBits(),
+                1,
+                format.getSampleSizeInBits() / 8,
+                format.getFrameRate(),
+                format.isBigEndian()
+        );
     }
 }

@@ -1,10 +1,14 @@
 package work.lclpnet.notica.network;
 
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.VarInt;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ByIdMap;
+import net.minecraft.world.phys.Vec3;
 import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.*;
 import work.lclpnet.notica.impl.FixedIndex;
@@ -140,7 +144,20 @@ public class NoticaPacketCodecs {
                     StereoMode::ordinal
             ), PlaybackOptions::stereoMode,
             LOOP_OVERRIDE, PlaybackOptions::loopOverride,
+            indexed(
+                    ByIdMap.continuous(ChannelMode::ordinal, ChannelMode.values(), ByIdMap.OutOfBoundsStrategy.ZERO),
+                    ChannelMode::ordinal
+            ), PlaybackOptions::channelMode,
             PlaybackOptions::new);
+
+    public static final StreamCodec<FriendlyByteBuf, Speaker> SPEAKER = StreamCodec.composite(
+            Vec3.STREAM_CODEC, Speaker::position,
+            ResourceKey.streamCodec(Registries.DIMENSION), Speaker::dimension,
+            ByteBufCodecs.DOUBLE, Speaker::radius,
+            ByteBufCodecs.FLOAT, Speaker::range,
+            ByteBufCodecs.optional(UUIDUtil.STREAM_CODEC), Speaker::sourceEntityUuid,
+            ByteBufCodecs.BOOL, Speaker::dopplerEffect,
+            Speaker::new);
 
     private static <T> StreamCodec<FriendlyByteBuf, T> indexed(IntFunction<T> idx2Val, ToIntFunction<T> val2Idx) {
         return StreamCodec.ofMember((val, buf) -> {

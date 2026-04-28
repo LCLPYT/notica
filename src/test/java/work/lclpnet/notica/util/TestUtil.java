@@ -77,11 +77,15 @@ public class TestUtil {
     }
 
     public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, int workerCount) throws IOException {
+        return createSoundMixer(song, bufferBytes, sampleManager, factory, workerCount, 1);
+    }
+
+    public static @NotNull SoundMixer createSoundMixer(Song song, int bufferBytes, SoundSampleManager sampleManager, NoteSamplerFactory factory, int workerCount, int outputBuffers) throws IOException {
         initSoundRegistry();
 
         var noteSampler = factory.create(sampleManager, AUDIO_FORMAT, StereoMode.SPATIAL, song.instruments());
 
-        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount);
+        return new SoundMixer(AUDIO_FORMAT, noteSampler, bufferBytes, workerCount, outputBuffers);
     }
 
     public static Path exportSound(ByteBuffer buffer) throws IOException {
@@ -93,8 +97,12 @@ public class TestUtil {
     }
 
     public static void exportSound(ByteBuffer buffer, Path path) throws IOException {
+        exportSound(buffer, path, AUDIO_FORMAT);
+    }
+
+    public static void exportSound(ByteBuffer buffer, Path path, AudioFormat format) throws IOException {
         try (var out = Files.newOutputStream(path)) {
-            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buffer), AUDIO_FORMAT, buffer.limit());
+            AudioInputStream in = new AudioInputStream(new ByteBufferInputStream(buffer), format, buffer.limit());
             AudioSystem.write(in, AudioFileFormat.Type.WAVE, out);
         }
     }

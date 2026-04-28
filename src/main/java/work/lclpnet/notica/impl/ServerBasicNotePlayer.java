@@ -5,6 +5,8 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
 import work.lclpnet.notica.api.PlayerConfig;
@@ -16,18 +18,23 @@ import work.lclpnet.notica.util.NoteHelper;
 
 import java.util.Set;
 
-import static java.lang.Math.abs;
+import static java.lang.Math.clamp;
 
 public class ServerBasicNotePlayer implements NotePlayer {
 
     private final InstrumentSoundProvider soundProvider;
     private final float volume;
     private final Set<SongPlayerRef> players;
+    private final SoundPositionProvider soundPositionProvider;
+    private final float range;
 
-    public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume) {
+    public ServerBasicNotePlayer(Set<SongPlayerRef> players, InstrumentSoundProvider soundProvider, float volume,
+                                 SoundPositionProvider soundPositionProvider, float range) {
         this.soundProvider = soundProvider;
-        this.volume = Math.max(0f, Math.min(1f, volume));
+        this.volume = clamp(volume, 0f, 1f);
         this.players = players;
+        this.soundPositionProvider = soundPositionProvider;
+        this.range = range;
     }
 
     @Override
@@ -81,24 +88,52 @@ public class ServerBasicNotePlayer implements NotePlayer {
 
         if (volume <= 0) return;
 
-        double x = player.getX();
-        double y = player.getY();  // eyeY sounds awfully, as sound positions are only sent as integers
-        double z = player.getZ();
+        Vec3 pos = soundPositionProvider.getPosition(player, panning);
 
-        if (abs(panning) >= 1e-3) {
-            double yaw = Math.toRadians(player.getYRot() - 90f);  // rotate 90 degrees ccw
+        Vec3 vPos = emulateAttenuationSoundPos(player, pos, volume, range);
 
-            x += Math.sin(yaw) * panning * 2;
-            z -= Math.cos(yaw) * panning * 2;
-        }
+        if (vPos == null) return;
 
-        var packet = new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS, x, y, z,
-                volume, vanillaPitch, player.getRandom().nextLong());
-
-        player.connection.send(packet);
+        player.connection.send(new ClientboundSoundPacket(
+                BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound), SoundSource.RECORDS,
+                vPos.x(), vPos.y(), vPos.z(),
+                volume, vanillaPitch, player.getRandom().nextLong()
+        ));
     }
 
-    public void removePlayer(SongPlayerRef player) {
+    public static @Nullable Vec3 emulateAttenuationSoundPos(ServerPlayer player, Vec3 soundPos, float volume, double range) {
+        if (volume <= 0) return soundPos;
+
+        Vec3 playerPos = player.getEyePosition();
+
+        double dx = soundPos.x() - playerPos.x();
+        double dy = soundPos.y() - playerPos.y();
+        double dz = soundPos.z() - playerPos.z();
+        double distSq = dx * dx + dy * dy + dz * dz;
+
+        // Offset the virtual sound position so that the client's linear attenuation over travelDist
+        // exactly reproduces the desired linear fade over 'range':
+        //   client gain = volume * (1 - virtualDist / travelDist)
+        //               = volume * (1 - dist / range)
+        // When dist >= range, push virtualDist to travelDist so client gain = 0.
+        double travelDist = volume > 1 ? volume * 16.0 : 16.0;
+
+        if (distSq > range * range) return null;
+
+        double scale = travelDist / range;
+
+        return new Vec3(
+                playerPos.x() + dx * scale,
+                playerPos.y() + dy * scale,
+                playerPos.z() + dz * scale
+        );
+    }
+
+    public synchronized void addPlayer(SongPlayerRef player) {
+        players.add(player);
+    }
+
+    public synchronized void removePlayer(SongPlayerRef player) {
         players.remove(player);
     }
 }

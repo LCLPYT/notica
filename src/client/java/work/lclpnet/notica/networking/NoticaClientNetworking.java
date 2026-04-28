@@ -14,6 +14,7 @@ import work.lclpnet.notica.impl.ClientMusicBackend;
 import work.lclpnet.notica.impl.ClientSongRepository;
 import work.lclpnet.notica.impl.PendingSong;
 import work.lclpnet.notica.network.NoticaNetworking;
+import work.lclpnet.notica.network.SongPlayOptions;
 import work.lclpnet.notica.network.packet.*;
 import work.lclpnet.notica.util.ByteHelper;
 import work.lclpnet.notica.util.PlayerConfigEntry;
@@ -50,11 +51,12 @@ public class NoticaClientNetworking {
     }
 
     private void playSong(PlaySongS2CPacket payload) {
-        Identifier songId = payload.getSongId();
+        SongPlayOptions options = payload.playOptions();
+        Identifier songId = options.songId();
         byte[] checksum = payload.checksum();
-        int startTick = payload.getStartTick();
+        int startTick = options.startTick();
 
-        PlaybackOptions playbackOptions = payload.getPlaybackOptions();
+        PlaybackOptions playbackOptions = options.playbackOptions();
         PendingSong song = songRepository.get(checksum);
 
         if (song == null) {
@@ -64,7 +66,7 @@ public class NoticaClientNetworking {
             acceptUnknownRegion(payload, song, songId);
         }
 
-        controller.playSong(song, songId, playbackOptions, startTick);
+        controller.playSong(song, options);
     }
 
     private @NotNull PendingSong acceptUnknownSong(PlaySongS2CPacket packet, Identifier songId, byte[] checksum,

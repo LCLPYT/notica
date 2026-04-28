@@ -114,8 +114,4 @@ public class NoticaInit implements ModInitializer {
 	public static Identifier identifier(String path) {
 		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
-
-	public static String permission(String suffix) {
-		return suffix + "." + suffix;
-	}
 }

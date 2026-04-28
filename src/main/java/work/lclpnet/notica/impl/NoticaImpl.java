@@ -1,21 +1,24 @@
 package work.lclpnet.notica.impl;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import lombok.Getter;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import work.lclpnet.notica.Notica;
 import work.lclpnet.notica.api.*;
 import work.lclpnet.notica.api.data.Song;
 import work.lclpnet.notica.network.NoticaNetworking;
 import work.lclpnet.notica.network.packet.MusicOptionsS2CPacket;
+import work.lclpnet.notica.util.ActiveSongManager;
 import work.lclpnet.notica.util.PlayerConfigContainer;
 import work.lclpnet.notica.util.PlayerConfigEntry;
+import work.lclpnet.notica.util.SongPlaybackListener;
 
 import java.nio.file.Path;
 import java.util.*;
@@ -35,8 +38,8 @@ public class NoticaImpl implements Notica {
     private final PlayerConfigContainer playerConfigs;
     private final Map<UUID, SongPlayerRef> playerRefs = new HashMap<>();
     private final Map<Identifier, Song> songsById = new HashMap<>();
-    private final Set<SongHandle> handles = new HashSet<>();
-    private final Multimap<Identifier, SongHandle> handlesById = ArrayListMultimap.create();
+    private final ActiveSongManager activeSongManager = new ActiveSongManager();
+    private final Map<Identifier, SongHandle> handlesById = new HashMap<>();
     private final Set<PlayerStoppedPlaybackListener> playbackListeners = new HashSet<>();
 
     public static void configure(Path songsDir, Path playerConfigDir, Logger logger) {
@@ -53,86 +56,102 @@ public class NoticaImpl implements Notica {
         this.server = server;
         this.soundProvider = new FabricInstrumentSoundProvider(server);
         this.playerConfigs = new PlayerConfigContainer(playerConfigDir, logger);
+
+        new SongPlaybackListener(activeSongManager).init();
     }
 
     @Override
-    public synchronized SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
-        if (players.isEmpty()) {
-            throw new IllegalArgumentException("Listeners are empty");
-        }
+    public @NonNull SongHandle playSong(CheckedSong song, PlaybackOptions options, int startTick, Collection<? extends ServerPlayer> players) {
+        return createSongHandle(song, options, startTick, null, players);
+    }
 
+    @Override
+    public @NonNull SongHandle playSongWithSpeaker(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            Speaker speaker,
+            Collection<? extends ServerPlayer> players
+    ) {
+        return createSongHandle(song, options, startTick, speaker, players);
+    }
+
+    private synchronized @NonNull ServerSongHandle createSongHandle(
+            CheckedSong song,
+            PlaybackOptions options,
+            int startTick,
+            @Nullable Speaker speaker,
+            Collection<? extends ServerPlayer> players
+    ) {
         Identifier id = song.id();
+
+        cleanSong(id);
+
         songsById.put(id, song.song());
 
-        ServerSongHandle handle = new ServerSongHandle(song, options, startTick);
+        boolean global = players.isEmpty();
 
-        Set<SongPlayerRef> moddedPlayers = new HashSet<>();
-        Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
-
-        for (ServerPlayer player : players) {
-            // check if the playing is already listening to this song
-            getPlayingSong(player, id).ifPresent(other -> other.remove(player));
-
-            SongPlayerRef ref = createRef(player);
-
-            if (hasModInstalled(player)) {
-                moddedPlayers.add(ref);
-            } else {
-                vanillaPlayers.add(ref);
-            }
-        }
+        ServerSongHandle handle = new ServerSongHandle(song, options, startTick, speaker, this::createRef, global);
 
         handle.onDestroy(() -> {
-            synchronized (this) {
-                handles.remove(handle);
-                playbackListeners.remove(handle);
+            activeSongManager.removeHandle(handle);
 
-                handlesById.remove(id, handle);
+            synchronized (this) {
+                playbackListeners.remove(handle);
 
                 cleanSong(id);
             }
         });
 
-        handles.add(handle);
+        if (global) {
+            activeSongManager.addGlobal(handle);
+
+            players = PlayerLookup.all(server);
+        } else {
+            activeSongManager.add(handle);
+        }
+
         playbackListeners.add(handle);
 
         handlesById.put(id, handle);
 
-        handle.start(vanillaPlayers, moddedPlayers, soundProvider);
+        handle.start(players, soundProvider);
 
         return handle;
     }
 
-    private synchronized void cleanSong(Identifier id) {
+    private void cleanSong(Identifier id) {
+        SongHandle handle = handlesById.remove(id);
+
+        if (handle != null) {
+            handle.stop();
+        }
+
         if (!handlesById.containsKey(id)) {
             songsById.remove(id);
         }
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs() {
-        return Collections.unmodifiableSet(handles);
+    public @NonNull Set<SongHandle> getPlayingSongs() {
+        return Collections.unmodifiableSet(activeSongManager.getAllHandles());
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(ServerPlayer player) {
+    public synchronized @NonNull Set<SongHandle> getPlayingSongs(ServerPlayer player) {
         return getPlayingSongs().stream()
                 .filter(handle -> handle.isListener(player))
                 .collect(Collectors.toUnmodifiableSet());
     }
 
     @Override
-    public synchronized Set<SongHandle> getPlayingSongs(Identifier songId) {
-        return getPlayingSongs().stream()
-                .filter(handle -> handle.getSongId().equals(songId))
-                .collect(Collectors.toUnmodifiableSet());
+    public synchronized @NonNull Optional<SongHandle> getPlayingSong(Identifier songId) {
+        return Optional.ofNullable(handlesById.get(songId));
     }
 
     @Override
-    public synchronized Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId) {
-        return getPlayingSongs().stream()
-                .filter(handle -> handle.isListener(player) && handle.getSongId().equals(songId))
-                .findAny();
+    public synchronized @NonNull Optional<SongHandle> getPlayingSong(ServerPlayer player, Identifier songId) {
+        return getPlayingSong(songId).filter(handle -> handle.isListener(player));
     }
 
     public void onPlayerJoin(ServerPlayer player) {
@@ -147,7 +166,7 @@ public class NoticaImpl implements Notica {
         playerConfigs.onPlayerQuit(player);
         playerRefs.remove(player.getUUID());
 
-        for (SongHandle handle : handles) {
+        for (SongHandle handle : activeSongManager.getAllHandles()) {
             handle.remove(player);
         }
     }
@@ -161,7 +180,7 @@ public class NoticaImpl implements Notica {
         }
     }
 
-    public boolean hasModInstalled(ServerPlayer player) {
+    public static boolean hasModInstalled(ServerPlayer player) {
         return NoticaNetworking.getInstance().understandsProtocol(player);
     }
 

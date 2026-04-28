@@ -6,6 +6,7 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.phys.Vec3;
 import work.lclpnet.notica.api.AggregatingPlayer;
 import work.lclpnet.notica.api.InstrumentSoundProvider;
 import work.lclpnet.notica.api.NotePlayer;
@@ -30,15 +31,22 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
     private final float volume;
     private final PlayerConfig playerConfig;
     private final DirectSoundManager directSoundManager;
+    private final SoundPositionProvider positionProvider;
+    private final boolean relativePosition;
+    private final float range;
     private final List<NbsSoundInstance> notes = new ArrayList<>(16);
     private int deSyncedNotes = 0;
 
     public ClientAggregatingNotePlayer(InstrumentSoundProvider soundProvider, float volume, PlayerConfig playerConfig,
-                                       DirectSoundManager directSoundManager) {
+                                       DirectSoundManager directSoundManager, SoundPositionProvider positionProvider,
+                                       boolean relativePosition, float range) {
         this.soundProvider = soundProvider;
         this.volume = volume;
         this.playerConfig = playerConfig;
         this.directSoundManager = directSoundManager;
+        this.positionProvider = positionProvider;
+        this.relativePosition = relativePosition;
+        this.range = range;
     }
 
     @Override
@@ -69,11 +77,30 @@ public class ClientAggregatingNotePlayer implements NotePlayer, AggregatingPlaye
 
         if (volume <= 0) return;
 
+        Vec3 soundPos = positionProvider.getPosition(player, panning);
+
+        SoundInstance.Attenuation attenuation = relativePosition
+                ? SoundInstance.Attenuation.NONE
+                : SoundInstance.Attenuation.LINEAR;
+
         // for custom sounds, find out if there is a Sound for the id (only if there is none)
         // then mixin into SoundSystem.play and allow it through
-        var instance = new NbsSoundInstance(sound.location(), SoundSource.RECORDS, volume, openAlPitch,
-                player.getRandom(), false, 0, SoundInstance.Attenuation.NONE, 2 * panning, 0, 0, true,
-                directSoundManager);
+        var instance = new NbsSoundInstance(
+                sound.location(),
+                SoundSource.RECORDS,
+                volume,
+                openAlPitch,
+                player.getRandom(),
+                false,
+                0,
+                attenuation,
+                soundPos.x,
+                soundPos.y,
+                soundPos.z,
+                relativePosition,
+                directSoundManager,
+                range
+        );
 
         synchronized (this) {
             if (notes.size() < MAX_QUEUED_NOTES) {

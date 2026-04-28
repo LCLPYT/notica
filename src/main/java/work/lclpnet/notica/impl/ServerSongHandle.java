@@ -23,7 +23,11 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     private final CheckedSong checkedSong;
     private final PlaybackOptions playbackOptions;
     private final int startTick;
+    private final @Nullable Speaker speaker;
+    private final SongPlayerRefFactory refFactory;
+    private final boolean global;
     private final Map<UUID, SongPlayerRef> vanillaRefs = new HashMap<>(), moddedRefs = new HashMap<>();
+    private final Set<UUID> allowedTrackingPlayers = new HashSet<>();
     private volatile boolean started = false;
     @Nullable
     private IndividualSongPlayback serverPlayback = null;
@@ -36,21 +40,41 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     });
     private boolean destroyed = false;
 
-    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick) {
+    public ServerSongHandle(CheckedSong checkedSong, PlaybackOptions playbackOptions, int startTick, @Nullable Speaker speaker, SongPlayerRefFactory refFactory, boolean global) {
         this.checkedSong = checkedSong;
         this.playbackOptions = playbackOptions;
         this.startTick = startTick;
+        this.speaker = speaker;
+        this.refFactory = refFactory;
+        this.global = global;
     }
 
-    public synchronized void start(Set<SongPlayerRef> vanillaPlayers, Set<SongPlayerRef> moddedPlayers, InstrumentSoundProvider soundProvider) {
+    public synchronized void start(Collection<? extends ServerPlayer> players, InstrumentSoundProvider soundProvider) {
         if (started) return;
         started = true;
+
+        Set<SongPlayerRef> vanillaPlayers = new HashSet<>();
+        Set<SongPlayerRef> moddedPlayers = new HashSet<>();
+
+        for (ServerPlayer player : players) {
+            if (!global) {
+                allowedTrackingPlayers.add(player.getUUID());
+            }
+
+            SongPlayerRef ref = refFactory.createRef(player);
+
+            if (NoticaImpl.hasModInstalled(player)) {
+                moddedPlayers.add(ref);
+            } else {
+                vanillaPlayers.add(ref);
+            }
+        }
 
         this.moddedRefs.clear();
 
         for (SongPlayerRef playerRef : moddedPlayers) {
             ServerPlayer player = playerRef.getPlayer();
-            sendPlayPacket(player);
+            sendPlayPacket(player, startTick);
             this.moddedRefs.put(player.getUUID(), playerRef);
         }
 
@@ -61,7 +85,22 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             this.vanillaRefs.put(uuid, playerRef);
         }
 
-        serverNotePlayer = new ServerBasicNotePlayer(vanillaPlayers, soundProvider, playbackOptions.volume());
+        SoundPositionProvider soundPositionProvider = switch (playbackOptions.channelMode()) {
+            case MONO -> speaker != null
+                    ? SoundPositionProvider.ofSpeaker(speaker.asMonoSpeaker())
+                    : SoundPositionProvider.worldPlayerMono();
+            case STEREO -> speaker != null
+                    ? SoundPositionProvider.ofSpeaker(speaker)
+                    : SoundPositionProvider.worldPlayerRelative();
+        };
+
+        serverNotePlayer = new ServerBasicNotePlayer(
+                vanillaPlayers,
+                soundProvider,
+                playbackOptions.volume(),
+                soundPositionProvider,
+                speaker != null ? speaker.range() : 16f
+        );
 
         final IndividualSongPlayback playback = createServerPlayback();
 
@@ -97,15 +136,15 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         return playback;
     }
 
-    private void sendPlayPacket(ServerPlayer player) {
+    private void sendPlayPacket(ServerPlayer player, int tick) {
         Song song = checkedSong.song();
         SongHeader header = new SongHeader(song);
 
         // send the first 5 seconds along with the play packet, so that the client can start playing instantly
-        SongSlice slice = SongSlicer.sliceSeconds(song, startTick, 5);
+        SongSlice slice = SongSlicer.sliceSeconds(song, tick, 5);
         boolean finished = SongSlicer.isFinished(song, slice);
 
-        var options = new SongPlayOptions(checkedSong.id(), playbackOptions, startTick);
+        var options = new SongPlayOptions(checkedSong.id(), playbackOptions, tick, Optional.ofNullable(speaker));
         var packet = new PlaySongS2CPacket(options, header, slice, finished, checkedSong.checksum());
         ServerPlayNetworking.send(player, packet);
     }
@@ -185,6 +224,38 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     @Override
+    public synchronized void add(ServerPlayer player) {
+        if (!started || destroyed) return;
+
+        UUID uuid = player.getUUID();
+
+        if (moddedRefs.containsKey(uuid) || vanillaRefs.containsKey(uuid)) return;
+
+        if (!global) {
+            allowedTrackingPlayers.add(player.getUUID());
+        }
+
+        SongPlayerRef ref = refFactory.createRef(player);
+
+        IndividualSongPlayback serverPlayback = this.serverPlayback;
+        int currentTick = serverPlayback != null ? serverPlayback.getCurrentTick() : startTick;
+
+        if (NoticaImpl.hasModInstalled(player)) {
+            sendPlayPacket(player, currentTick);
+
+            moddedRefs.put(uuid, ref);
+        } else {
+            vanillaRefs.put(uuid, ref);
+
+            ServerBasicNotePlayer serverNotePlayer = this.serverNotePlayer;
+
+            if (serverNotePlayer != null) {
+                serverNotePlayer.addPlayer(ref);
+            }
+        }
+    }
+
+    @Override
     public synchronized void remove(ServerPlayer player) {
         UUID uuid = player.getUUID();
 
@@ -204,15 +275,6 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
             serverNotePlayer.removePlayer(playerRef);
         }
 
-        if (vanillaRefs.isEmpty() && serverPlayback != null) {
-            // no server players remaining, stop server playback
-
-            serverPlayback.stop();
-            serverPlayback = null;
-
-            serverNotePlayer = null;
-        }
-
         checkDestroyed();
     }
 
@@ -229,7 +291,13 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
     }
 
     private void checkDestroyed() {
-        if (!moddedRefs.isEmpty() || !vanillaRefs.isEmpty()) return;
+        if (global || !moddedRefs.isEmpty() || !vanillaRefs.isEmpty()) return;
+
+        if (serverPlayback != null) {
+            serverPlayback.stop();
+            serverPlayback = null;
+            serverNotePlayer = null;
+        }
 
         destroy();
     }
@@ -253,5 +321,24 @@ public class ServerSongHandle implements SongHandle, PlayerStoppedPlaybackListen
         for (SongPlayerRef ref : moddedRefs.values()) {
             sendSeekPacket(ref.getPlayer(), ticks, absolute);
         }
+    }
+
+    @Override
+    public @Nullable Speaker getSpeaker() {
+        return speaker;
+    }
+
+    @Override
+    public boolean isGlobal() {
+        return global;
+    }
+
+    @Override
+    public boolean canBeTrackedBy(ServerPlayer player) {
+        return global || allowedTrackingPlayers.contains(player.getUUID());
+    }
+
+    public interface SongPlayerRefFactory {
+        SongPlayerRef createRef(ServerPlayer player);
     }
 }

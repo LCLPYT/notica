@@ -25,6 +25,13 @@ public class CatmullRomNoteSampler implements NoteSampler {
         this.instruments = instruments;
     }
 
+    /**
+     * Takes a float array in de-interleaved format (assuming stereo) and pads each channel with two floats at the beginning and two float at the end.
+     * The newly inserted floats are the same floats as the first / last sample.
+     * This eliminates the need of an out-of-bounds check when applying the catmull-rom spline sampler to the array.
+     * @param sample The input sample in de-interleaved format.
+     * @return The same sample, but with each channel padded at the boundaries as described.
+     */
     public static float[] paddedSample(float[] sample) {
         if (sample.length % 2 == 1) {
             throw new IllegalArgumentException("Non stereo sample");
@@ -139,6 +146,7 @@ public class CatmullRomNoteSampler implements NoteSampler {
                 rightPanning = (float) sin(PI / 4);
             }
         } else {
+            // equal-power panning
             leftPanning = (float) cos((panning + 1) * PI / 4);
             rightPanning = (float) sin((panning + 1) * PI / 4);
         }
@@ -151,7 +159,7 @@ public class CatmullRomNoteSampler implements NoteSampler {
     }
 
     private static void resample(final int len, final float[] xs, final float[] y_in, final float[] y_out, final int in_offset, final int out_offset) {
-        // TODO hosting
+        // TODO hoisting
         for (int i = 0; i < len; i++) {
             final float x = xs[i];
 

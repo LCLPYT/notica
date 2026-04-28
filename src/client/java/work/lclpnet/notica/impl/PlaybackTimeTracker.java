@@ -2,28 +2,21 @@ package work.lclpnet.notica.impl;
 
 import com.mojang.blaze3d.audio.Channel;
 import lombok.Getter;
-import net.minecraft.client.sounds.ChannelAccess;
 import work.lclpnet.notica.type.NoticaChannel;
 
 public class PlaybackTimeTracker {
 
-    private final ChannelAccess.ChannelHandle sourceManager;
     private final float bufferSeconds;
 
     private int totalCompletedBuffers = 0;
     @Getter
     private float playbackSeconds = 0;
 
-    public PlaybackTimeTracker(ChannelAccess.ChannelHandle sourceManager, float bufferSeconds) {
-        this.sourceManager = sourceManager;
+    public PlaybackTimeTracker(float bufferSeconds) {
         this.bufferSeconds = bufferSeconds;
     }
 
-    public void init() {
-        sourceManager.execute(src -> ((NoticaChannel) src).notica$onTick(this::tick));
-    }
-
-    private void tick(Channel src) {
+    public void tick(Channel src) {
         NoticaChannel noticaSrc = (NoticaChannel) src;
 
         int completedBuffers = noticaSrc.notica$getCompletedBuffers();

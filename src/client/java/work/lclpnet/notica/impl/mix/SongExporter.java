@@ -43,17 +43,18 @@ public class SongExporter {
     }
 
     public void export(Song song, float volume, StereoMode stereoMode, Path path) throws IOException {
-        final int bufferBytes = SongAudioStream.getByteSize(inputFormat, chunkSeconds);
+        final int bufferBytes = SongStream.getByteSize(inputFormat, chunkSeconds);
+        final int outputBuffers = 1;
 
         NoteSampler noteSampler = noteSamplerFactory.create(sampleManager, inputFormat, stereoMode, song.instruments());
-        var soundMixer = new SoundMixer(inputFormat, noteSampler, bufferBytes, workerCount);
+        var soundMixer = new SoundMixer(inputFormat, noteSampler, bufferBytes, workerCount, outputBuffers);
         var songMixer = new ParallelBatchSongMixer(soundMixer, song, workerCount);
 
         songMixer.setSongVolume(volume);
 
         @SuppressWarnings("resource")
-        var stream = new SongAudioStream(inputFormat, soundMixer, songMixer, song,
-                soundMixer::applyCompressor, logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true);
+        var stream = new SongStream(inputFormat, soundMixer, songMixer, song,
+                soundMixer::applyCompressor, logger, bufferBytes, LoopOverride.DEFAULT.withEnabled(false), true, outputBuffers, false);
 
         stream.startProducer(1).join();
 
@@ -66,9 +67,11 @@ public class SongExporter {
             byte[] array = new byte[bufferBytes];
 
             for (int i = 0; i < maxIterations; i++) {
-                ByteBuffer buf = stream.read(bufferBytes);
+                ByteBuffer[] bufs = stream.nextBuffers();
 
-                if (buf == null) break;
+                if (bufs == null) break;
+
+                ByteBuffer buf = bufs[0];
 
                 int len = buf.remaining();
 

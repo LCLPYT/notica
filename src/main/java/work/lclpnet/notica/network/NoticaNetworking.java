@@ -45,16 +45,16 @@ public class NoticaNetworking {
         protocolHandler = new ServerProtocolHandler(PROTOCOL, logger);
         protocolHandler.register();
 
-        var playS2C = PayloadTypeRegistry.playS2C();
-        playS2C.register(MusicOptionsS2CPacket.ID, MusicOptionsS2CPacket.CODEC);
-        playS2C.register(PlaySongS2CPacket.ID, PlaySongS2CPacket.CODEC);
-        playS2C.register(RespondSongS2CPacket.ID, RespondSongS2CPacket.CODEC);
-        playS2C.register(StopSongBidiPacket.ID, StopSongBidiPacket.CODEC);
-        playS2C.register(SongSeekS2CPacket.ID, SongSeekS2CPacket.CODEC);
+        var clientBound = PayloadTypeRegistry.clientboundPlay();
+        clientBound.register(MusicOptionsS2CPacket.ID, MusicOptionsS2CPacket.CODEC);
+        clientBound.register(PlaySongS2CPacket.ID, PlaySongS2CPacket.CODEC);
+        clientBound.register(RespondSongS2CPacket.ID, RespondSongS2CPacket.CODEC);
+        clientBound.register(StopSongBidiPacket.ID, StopSongBidiPacket.CODEC);
+        clientBound.register(SongSeekS2CPacket.ID, SongSeekS2CPacket.CODEC);
 
-        var playC2S = PayloadTypeRegistry.playC2S();
-        playC2S.register(RequestSongC2SPacket.ID, RequestSongC2SPacket.CODEC);
-        playC2S.register(StopSongBidiPacket.ID, StopSongBidiPacket.CODEC);
+        var serverBound = PayloadTypeRegistry.serverboundPlay();
+        serverBound.register(RequestSongC2SPacket.ID, RequestSongC2SPacket.CODEC);
+        serverBound.register(StopSongBidiPacket.ID, StopSongBidiPacket.CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(RequestSongC2SPacket.ID, this::onRequestSong);
         ServerPlayNetworking.registerGlobalReceiver(StopSongBidiPacket.ID, this::onSongStopped);

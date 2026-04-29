@@ -1,0 +1,66 @@
+[versions]
+minecraft = "26.1.2"
+fabric-api = "0.147.0+26.1.2"
+fabric-loader = "0.19.2"
+fabric-loom = "1.16-SNAPSHOT"
+gradle-build-tools = "1.7.0"
+java = "25"
+modrinth-minotaur = "2.4.3"
+jmh-plugin = "0.7.3"
+jmh-report = "0.9.0"
+lombok = "9.4.0"
+kibu-hooks = "0.64.1+26.1"
+kibu-hook-api = "1.4.0"
+kibu-assets-api = "0.1.0"
+kibu-translation-api = "0.26.0+26.1"
+kibu-access-lib = "0.17.0+26.1"
+kibu-networking-api = "0.1.0+26.1"
+kibu-config-api = "0.1.1"
+permission-api = "0.7.0"
+cloth-config = "26.1.154"
+modmenu = "18.0.0-alpha.8"
+json = "20231013"
+json-config4j = "1.0.0"
+night-config = "3.8.1"
+annotations = "24.0.0"
+jorbis = "0.0.17"
+junit-jupiter-params = "5.8.1"
+mockito = "5.6.0"
+jmh = "1.37"
+
+[plugins]
+fabric-loom = { id = "net.fabricmc.fabric-loom", version.ref = "fabric-loom" }
+maven-publish = { id = "maven-publish" }
+gradle-build-utils = { id = "gradle-build-utils", version.ref = "gradle-build-tools" }
+modrinth-minotaur = { id = "com.modrinth.minotaur", version.ref = "modrinth-minotaur" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
+jmh-report = { id = "io.morethan.jmhreport", version.ref = "jmh-report" }
+lombok = { id = "io.freefair.lombok", version.ref = "lombok" }
+
+[libraries]
+minecraft = { module = "com.mojang:minecraft", version.ref = "minecraft" }
+fabric-api = { module = "net.fabricmc.fabric-api:fabric-api", version.ref = "fabric-api" }
+fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
+fabric-loader-junit = { module = "net.fabricmc:fabric-loader-junit", version.ref = "fabric-loader" }
+
+kibu-hooks = { module = "work.lclpnet.mods.kibu:kibu-hooks", version.ref = "kibu-hooks" }
+kibu-translation-api = { module = "work.lclpnet.mods.kibu:kibu-translation-api", version.ref = "kibu-translation-api" }
+kibu-hook-api = { module = "work.lclpnet.mods.kibu:kibu-hook-api", version.ref = "kibu-hook-api" }
+kibu-access-lib = { module = "work.lclpnet.mods.kibu:kibu-access-lib", version.ref = "kibu-access-lib" }
+kibu-networking-api = { module = "work.lclpnet.mods.kibu:kibu-networking-api", version.ref = "kibu-networking-api" }
+kibu-config-api = { module = "work.lclpnet.mods.kibu:kibu-config-api", version.ref = "kibu-config-api" }
+kibu-assets-api = { module = "work.lclpnet.mods.kibu:kibu-assets-api", version.ref = "kibu-assets-api" }
+permission-api = { module = "me.lucko:fabric-permissions-api", version.ref = "permission-api" }
+cloth-config = { module = "me.shedaniel.cloth:cloth-config-fabric", version.ref = "cloth-config" }
+modmenu = { module = "com.terraformersmc:modmenu", version.ref = "modmenu" }
+json = { module = "org.json:json", version.ref = "json" }
+json-config4j = { module = "work.lclpnet:json-config4j", version.ref = "json-config4j" }
+night-config-core = { module = "com.electronwill.night-config:core", version.ref = "night-config" }
+night-config-toml = { module = "com.electronwill.night-config:toml", version.ref = "night-config" }
+annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
+jorbis = { module = "org.jcraft:jorbis", version.ref = "jorbis" }
+junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit-jupiter-params" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-generator-bytecode = { module = "org.openjdk.jmh:jmh-generator-bytecode", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }

@@ -1,6 +1,6 @@
 package work.lclpnet.notica.network;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.FriendlyByteBufs;
 import net.minecraft.network.FriendlyByteBuf;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,7 +25,7 @@ class SongSlicerTest {
     }
 
     private static void assertSliceByteSizeMatches(SongSlice slice) {
-        FriendlyByteBuf buf = PacketByteBufs.create();
+        FriendlyByteBuf buf = FriendlyByteBufs.create();
         long realSize;
 
         try {
@@ -45,7 +45,7 @@ class SongSlicerTest {
     void readSlice_writeSlice_working() {
         SongSlice slice = new ConcreteSongSlice(TestSongHelper.createSong(), 0, 25, 0, 2);
 
-        FriendlyByteBuf buf = PacketByteBufs.create();
+        FriendlyByteBuf buf = FriendlyByteBufs.create();
         SongSlice read;
 
         try {

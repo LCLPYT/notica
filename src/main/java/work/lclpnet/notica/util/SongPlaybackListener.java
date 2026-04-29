@@ -1,6 +1,6 @@
 package work.lclpnet.notica.util;
 
-import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
@@ -32,8 +32,8 @@ public class SongPlaybackListener {
         EntityTrackingEvents.START_TRACKING.register(this::onStartTrackingEntity);
         EntityTrackingEvents.STOP_TRACKING.register(this::onStopTrackingEntity);
 
-        ServerTickEvents.END_WORLD_TICK.register(this::onLevelTick);
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register(this::onLevelChange);
+        ServerTickEvents.END_LEVEL_TICK.register(this::onLevelTick);
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(this::onLevelChange);
     }
 
     private void onPlayerJoin(ServerPlayer player) {
@@ -61,7 +61,7 @@ public class SongPlaybackListener {
     }
 
     private void onLevelTick(ServerLevel level) {
-        var players = PlayerLookup.world(level);
+        var players = PlayerLookup.level(level);
         var handles = activeSongManager.getPositionedHandles(level);
 
         for (SongHandle handle : handles) {

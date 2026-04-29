@@ -121,7 +121,9 @@ dependencies {
         exclude(group: libs.fabric.api.get().group)
     }
 
-    if (project.hasProperty("runtime_cloth_config")) localRuntime(libs.cloth.config)
+    if (project.hasProperty("runtime_cloth_config")) localRuntime(libs.cloth.config) {
+        exclude(group: libs.fabric.api.get().group)
+    }
 
     compileOnly(libs.modmenu)
 

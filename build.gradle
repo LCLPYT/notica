@@ -242,7 +242,7 @@ tasks.register("github", GithubDeploymentTask) {
     }
 
     release {
-        title = "[${libs.versions.minecraft.get()}] Notica $project.version"
+        title = "[${libs.versions.minecraft.get()}] Notica ${project.mod_version}"
         tag = project.version
     }
 

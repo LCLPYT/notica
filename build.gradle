@@ -157,7 +157,7 @@ afterEvaluate {
     }
 }
 
-[processResources, processTestmodResources].each {
+[processResources, processClientResources, processTestmodResources].each {
     def tokens = [
             "version": project.version.toString(),
             "loader_version": libs.versions.fabric.loader.get(),

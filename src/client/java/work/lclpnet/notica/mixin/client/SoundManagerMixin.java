@@ -20,8 +20,8 @@ public class SoundManagerMixin {
             method = "refreshCategoryVolume",
             at = @At("TAIL")
     )
-    public void notica$onUpdateSoundVolume(SoundSource soundCategory, CallbackInfo ci) {
-        if (soundCategory != SoundSource.RECORDS && soundCategory != SoundSource.MASTER) return;
+    public void notica$onUpdateSoundVolume(SoundSource category, CallbackInfo ci) {
+        if (category != SoundSource.RECORDS && category != SoundSource.MASTER) return;
 
         debounce.debounce(() -> SongVolumeChangedCallback.EVENT.invoker().onVolumeChanged());
     }

@@ -36,3 +36,4 @@ run/
 logs/
 fabricloader.log
 remappedSrc/
+/.fabric/

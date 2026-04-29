@@ -25,7 +25,7 @@ night-config = "3.8.1"
 annotations = "24.0.0"
 jorbis = "0.0.17"
 junit-jupiter-params = "5.8.1"
-mockito = "5.6.0"
+mockito = "5.23.0"
 jmh = "1.37"
 
 [plugins]

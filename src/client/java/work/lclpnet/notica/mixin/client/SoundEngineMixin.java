@@ -19,11 +19,11 @@ public class SoundEngineMixin {
             at = @At("HEAD"),
             cancellable = true
     )
-    public void notica$modifyAdjustedPitch(SoundInstance sound, CallbackInfoReturnable<Float> cir) {
-        if (!(sound instanceof NbsSoundInstance)) return;
+    public void notica$modifyAdjustedPitch(SoundInstance instance, CallbackInfoReturnable<Float> cir) {
+        if (!(instance instanceof NbsSoundInstance)) return;
 
         // do not clamp pitch, but make sure it is greater than 0
-        float pitch = Math.max(sound.getPitch(), 1e-6f);
+        float pitch = Math.max(instance.getPitch(), 1e-6f);
 
         cir.setReturnValue(pitch);
     }
@@ -35,14 +35,18 @@ public class SoundEngineMixin {
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/resources/sounds/SoundInstance;getSource()Lnet/minecraft/sounds/SoundSource;"
             ),
-            ordinal = 1  // may change in the future
+            name = "attenuationDistance"
     )
-    public float notica$modifyAttenuationDistance(float distance, @Local(argsOnly = true) SoundInstance soundInstance, @Local Sound sound) {
-        if (!(soundInstance instanceof NbsSoundInstance nbs)) return distance;
+    public float notica$modifyAttenuationDistance(
+            float attenuationDistance,
+            @Local(argsOnly = true, name = "instance") SoundInstance instance,
+            @Local(name = "sound") Sound sound
+    ) {
+        if (!(instance instanceof NbsSoundInstance nbs)) return attenuationDistance;
 
         float range = nbs.getRange();
 
         // replace default range
-        return distance * range / (float) sound.getAttenuationDistance();
+        return attenuationDistance * range / (float) sound.getAttenuationDistance();
     }
 }

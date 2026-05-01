@@ -16,6 +16,9 @@ public enum NoticaPermissions {
     COMMAND_MUSIC_STOP_OTHER("command.music.stop.other"),
     COMMAND_MUSIC_SEEK("command.music.seek"),
     COMMAND_MUSIC_SEEK_OTHER("command.music.seek.other"),
+    COMMAND_PLAYLIST_CREATE("command.playlist.create"),
+    COMMAND_PLAYLIST_SHARE("command.playlist.share"),
+    COMMAND_PLAYLIST_SHARE_PUBLIC("command.playlist.share.public"),
     ;
 
     private final String id;

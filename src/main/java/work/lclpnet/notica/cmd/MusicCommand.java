@@ -2,7 +2,6 @@ package work.lclpnet.notica.cmd;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -994,18 +993,7 @@ public class MusicCommand {
 
     /** Suggests {@code .nbs} file paths relative to the song directory. */
     private CompletableFuture<Suggestions> availableSongFiles(CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
-        return CompletableFuture.supplyAsync(() -> {
-            try (var files = Files.walk(songDirectory, 8)) {
-                files.filter(path -> path.getFileName().toString().endsWith(".nbs") && Files.isRegularFile(path))
-                        .map(songDirectory::relativize)
-                        .map(Path::toString)
-                        .map(MusicCommand::transformString)
-                        .forEach(builder::suggest);
-            } catch (IOException e) {
-                logger.error("Failed to walk files in songs directory", e);
-            }
-            return builder.build();
-        });
+        return SongUtils.suggestSongFiles(songDirectory, builder, logger);
     }
 
     /** Suggests the IDs of all currently active song handles. */
@@ -1035,17 +1023,7 @@ public class MusicCommand {
 
     /** Normalises a path string for command argument use, quoting it when it contains special characters. */
     private static String transformString(String s) {
-        s = s.replace('\\', '/');
-        boolean needsQuoting = false;
-
-        for (int i = 0, len = s.length(); i < len; i++) {
-            if (!StringReader.isAllowedInUnquotedString(s.charAt(i))) {
-                needsQuoting = true;
-                break;
-            }
-        }
-
-        return needsQuoting ? '"' + s + '"' : s;
+        return SongUtils.transformSongPath(s);
     }
 
     /** Returns {@code true} only if the server pack is enabled and the executor is a non-modded player. */

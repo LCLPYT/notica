@@ -12,11 +12,13 @@ import work.lclpnet.kibu.hook.player.PlayerConnectionHooks;
 import work.lclpnet.kibu.translate.Translations;
 import work.lclpnet.kibu.translate.util.ModTranslations;
 import work.lclpnet.notica.cmd.MusicCommand;
+import work.lclpnet.notica.cmd.PlaylistCommand;
 import work.lclpnet.notica.config.ConfigManager;
 import work.lclpnet.notica.event.ResourcePackStatusCallback;
 import work.lclpnet.notica.impl.NoticaImpl;
 import work.lclpnet.notica.network.NoticaNetworking;
 import work.lclpnet.notica.util.NoticaServerPackManager;
+import work.lclpnet.notica.util.PlaylistManager;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -44,8 +46,12 @@ public class NoticaInit implements ModInitializer {
 
 		serverPackManager = new NoticaServerPackManager(configManager, translations, LOGGER);
 
-		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
-				new MusicCommand(songsDir, translations, serverPackManager, LOGGER).register(dispatcher));
+		PlaylistManager playlistManager = new PlaylistManager();
+
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+			new MusicCommand(songsDir, translations, serverPackManager, LOGGER).register(dispatcher);
+			new PlaylistCommand(songsDir, translations, playlistManager, LOGGER).register(dispatcher);
+		});
 
 		NoticaNetworking networking = new NoticaNetworking(LOGGER);
 		networking.register();

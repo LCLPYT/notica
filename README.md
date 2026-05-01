@@ -63,6 +63,142 @@ Songs attached to entities may enable the doppler effect which distorts the audi
 In the mod settings this may be extended to use the player's motion as well.
 This will enable a complete doppler effect simulation using OpenAL.
 
+## Commands
+
+All `/music` commands require OP or the corresponding permission listed in the table above.
+
+### Playing
+
+Play a song for yourself:
+```
+/music play <song>
+```
+
+Play a song for specific players or all online players:
+```
+/music play MySong.nbs for @a
+/music play MySong.nbs global
+```
+
+The `<song>` argument is the path to a `.nbs` file relative to the `config/notica/songs` directory. Tab-completion will suggest available files.
+
+Songs started with `global` are also automatically played for players who join the server while the song is running.
+
+#### Volume and playback options
+
+Specify a volume between `0.0` and `1.0` after the listener argument:
+```
+/music play MySong.nbs for @a 0.7
+```
+
+Two playback variants are available: `individual` and `streamed`. `streamed` is used by default.
+
+With `individual` playback, each note is played directly through Minecraft's sound system, which has a limit of 256 simultaneously playing sounds. This pool is shared with all other game sounds. Songs with a high simultaneous note count may have notes dropped when the pool is full, and other game sounds may also be cut off in that case.
+
+With `streamed` playback, a custom audio mixer produces a single audio stream from all notes. This handles songs with any simultaneous note count while maintaining high sound quality, and does not interfere with other game sounds. Songs with a lot of stereo panning may sound slightly different under `individual` playback compared to `streamed`.
+```
+/music play MySong.nbs for @a 0.8 individual
+/music play MySong.nbs for @a 0.8 streamed
+```
+
+Streamed playback also supports two stereo mixing modes, `spatial` (default) and `equal_power`:
+```
+/music play MySong.nbs for @a 0.8 streamed equal_power
+```
+
+#### Song IDs
+
+Every active song has an ID. When no explicit ID is given, the ID is derived from the filename and the name of the player who ran the command. Starting a song this way automatically stops any songs already playing for the affected listeners.
+
+To play multiple songs at the same time, provide an explicit ID using the `id` keyword. This also skips the auto-stop:
+```
+/music play Ambient.nbs for @a 0.5 individual id myserver:ambient
+/music play Theme.nbs for @a 0.8 id myserver:theme
+```
+
+The ID is also used with `/music stop` and `/music seek` to target a specific song.
+
+### Positional playback
+
+Songs can be played through a speaker at a fixed position in the world or attached to a moving entity:
+```
+/music play MySong.nbs at position 100 64 200
+/music play MySong.nbs at position 100 64 200 for @a
+/music play MySong.nbs at entity @e[type=armor_stand,limit=1]
+/music play MySong.nbs at entity @e[type=armor_stand,limit=1] for @a
+```
+
+After the volume you can configure the speaker range and radius. `range` (16 to 128) is the maximum distance in blocks at which the song can be heard. `radius` (0 to 15) applies to stereo songs and determines how far apart the left and right speaker channels are placed in the world:
+```
+/music play MySong.nbs at position 0 64 0 for @a 0.8 64 8
+```
+
+Using mono channel mode down-mixes the song to a single point-like source. This makes the speaker behave like a single point in space rather than a spread stereo pair. Note that down-mixing will make the sound a bit quieter. Mono is required to enable the doppler effect on entity speakers:
+```
+/music play MySong.nbs at position 0 64 0 for @a 0.8 streamed mono
+```
+
+#### Doppler effect
+
+Entity speakers with mono streamed playback support the doppler effect, which shifts the pitch based on the entity's velocity relative to each listener. This requires Notica to be installed on the client:
+```
+/music play MySong.nbs at entity @e[type=minecart,limit=1] for @a 0.8 streamed mono doppler
+```
+
+### Stopping
+
+Stop all songs currently playing for yourself:
+```
+/music stop
+```
+
+Stop songs for specific players, all songs on the server, or a specific song by ID:
+```
+/music stop for <players>
+/music stop all
+/music stop id <id>
+/music stop for <players> <id>
+```
+
+Songs started with `global` can only be stopped with `/music stop id` or `/music stop all`.
+
+### Adding listeners
+
+Add players to a song that is already playing without restarting it:
+```
+/music add <id> <players>
+```
+
+### Seeking
+
+Jump to a specific position in a song using `s`/`sec` for seconds, `m`/`min` for minutes, or `t`/`ticks` for ticks. A plain number seeks to an absolute position; a `+` or `-` prefix seeks relative to the current position:
+```
+/music seek 1m30s
+/music seek +10s
+/music seek -30t
+/music seek 50sec+3ticks
+```
+
+To seek for specific players or a specific song:
+```
+/music seek +10s <players>
+/music seek +10s <players> <id>
+```
+
+### Client settings
+
+These commands are available to all players and do not require any permissions.
+
+Set your personal playback volume (0 to 100 percent):
+```
+/music set volume 75
+```
+
+Enable the extended octave range resource pack (vanilla players only, see [Extended octave range](#extended-octave-range)):
+```
+/music set extended_range true
+```
+
 ## Permissions
 In order to play or stop music, you need to be a server operator (have OP) or you need to have the corresponding permissions:
 

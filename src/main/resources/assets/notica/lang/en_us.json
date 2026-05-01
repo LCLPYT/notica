@@ -63,6 +63,8 @@
   "notica.playlist.list.header": "Your playlists:",
   "notica.playlist.list.empty": "You have no playlists",
   "notica.playlist.list.entry": "- %s (%s songs)",
+  "notica.playlist.list.shared_header": "Playlists shared with you:",
+  "notica.playlist.list.shared_entry": "- %s by %s (%s songs)",
   "notica.playlist.show.header": "Songs in playlist %s:",
   "notica.playlist.show.empty": "Playlist %s has no songs",
   "notica.playlist.show.entry": "- %s",

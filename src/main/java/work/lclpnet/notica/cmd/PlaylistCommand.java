@@ -48,7 +48,6 @@ public class PlaylistCommand {
                 .then(createCommand())
                 .then(addCommand())
                 .then(listCommand())
-                .then(showCommand())
                 .then(removeCommand())
                 .then(shareCommand())
                 .then(unshareCommand()));
@@ -71,17 +70,13 @@ public class PlaylistCommand {
                                 .executes(this::addSong)));
     }
 
+    /** {@code /playlist list} lists all playlists; {@code /playlist list <name>} shows songs. */
     private LiteralArgumentBuilder<CommandSourceStack> listCommand() {
         return literal("list")
                 .requires(NoticaPermissions.COMMAND_PLAYLIST_CREATE.ofAtLeast(PermissionLevel.GAMEMASTERS))
-                .executes(this::listPlaylists);
-    }
-
-    private LiteralArgumentBuilder<CommandSourceStack> showCommand() {
-        return literal("show")
-                .requires(NoticaPermissions.COMMAND_PLAYLIST_CREATE.ofAtLeast(PermissionLevel.GAMEMASTERS))
+                .executes(this::listPlaylists)
                 .then(argument("playlist", StringArgumentType.string())
-                        .suggests(this::suggestOwnPlaylists)
+                        .suggests(this::suggestAccessiblePlaylists)
                         .executes(this::showPlaylist));
     }
 
@@ -96,6 +91,7 @@ public class PlaylistCommand {
                                 .executes(this::removeSong)));
     }
 
+    /** {@code /playlist share <playlist> public} or {@code /playlist share <playlist> with <players>}. */
     private LiteralArgumentBuilder<CommandSourceStack> shareCommand() {
         return literal("share")
                 .requires(NoticaPermissions.COMMAND_PLAYLIST_SHARE.ofAtLeast(PermissionLevel.GAMEMASTERS))
@@ -104,8 +100,9 @@ public class PlaylistCommand {
                         .then(literal("public")
                                 .requires(NoticaPermissions.COMMAND_PLAYLIST_SHARE_PUBLIC.ofAtLeast(PermissionLevel.GAMEMASTERS))
                                 .executes(this::sharePublic))
-                        .then(argument("players", EntityArgument.players())
-                                .executes(this::sharePlayers)));
+                        .then(literal("with")
+                                .then(argument("players", EntityArgument.players())
+                                        .executes(this::sharePlayers))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> unshareCommand() {
@@ -156,29 +153,49 @@ public class PlaylistCommand {
     private int listPlaylists(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         ServerPlayer player = ctx.getSource().getPlayerOrException();
         Map<String, PlaylistManager.PlaylistEntry> owned = playlistManager.getOwnPlaylists(player.getUUID());
+        Map<UUID, Map<String, PlaylistManager.PlaylistEntry>> shared = playlistManager.getSharedWithMe(player.getUUID());
 
-        if (owned.isEmpty()) {
+        if (owned.isEmpty() && shared.isEmpty()) {
             ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
                     "notica.playlist.list.empty").formatted(YELLOW));
             return 0;
         }
 
-        ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
-                "notica.playlist.list.header").formatted(GOLD));
+        if (!owned.isEmpty()) {
+            ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
+                    "notica.playlist.list.header").formatted(GOLD));
 
-        for (PlaylistManager.PlaylistEntry entry : owned.values()) {
-            MutableComponent line = translations.translateText(ctx.getSource(),
-                    "notica.playlist.list.entry",
-                    styled(entry.getTitle(), YELLOW),
-                    styled(entry.getSongs().size(), AQUA)).formatted(WHITE).copy();
+            for (PlaylistManager.PlaylistEntry entry : owned.values()) {
+                MutableComponent line = translations.translateText(ctx.getSource(),
+                        "notica.playlist.list.entry",
+                        styled(entry.getTitle(), YELLOW),
+                        styled(entry.getSongs().size(), AQUA)).formatted(WHITE).copy();
 
-            if (entry.isPublic()) {
-                line.append(Component.literal(" [public]").withStyle(GREEN));
-            } else if (!entry.getSharedWith().isEmpty()) {
-                line.append(Component.literal(" [shared]").withStyle(AQUA));
+                if (entry.isPublic()) {
+                    line.append(Component.literal(" [public]").withStyle(GREEN));
+                } else if (!entry.getSharedWith().isEmpty()) {
+                    line.append(Component.literal(" [shared]").withStyle(AQUA));
+                }
+
+                ctx.getSource().sendSystemMessage(line);
             }
+        }
 
-            ctx.getSource().sendSystemMessage(line);
+        if (!shared.isEmpty()) {
+            ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
+                    "notica.playlist.list.shared_header").formatted(GOLD));
+
+            for (Map.Entry<UUID, Map<String, PlaylistManager.PlaylistEntry>> ownerEntry : shared.entrySet()) {
+                String ownerName = resolvePlayerName(ctx, ownerEntry.getKey());
+
+                for (PlaylistManager.PlaylistEntry entry : ownerEntry.getValue().values()) {
+                    ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
+                            "notica.playlist.list.shared_entry",
+                            styled(entry.getTitle(), YELLOW),
+                            styled(ownerName, AQUA),
+                            styled(entry.getSongs().size(), AQUA)).formatted(WHITE));
+                }
+            }
         }
 
         return 1;
@@ -189,7 +206,7 @@ public class PlaylistCommand {
         String playlistName = StringArgumentType.getString(ctx, "playlist");
 
         Optional<PlaylistManager.PlaylistEntry> entryOpt =
-                playlistManager.getPlaylist(player.getUUID(), playlistName);
+                playlistManager.getAccessiblePlaylist(player.getUUID(), playlistName);
 
         if (entryOpt.isEmpty()) {
             ctx.getSource().sendSystemMessage(translations.translateText(ctx.getSource(),
@@ -339,6 +356,28 @@ public class PlaylistCommand {
         return builder.buildFuture();
     }
 
+    private CompletableFuture<Suggestions> suggestAccessiblePlaylists(
+            CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
+        ServerPlayer player = ctx.getSource().getPlayer();
+        if (player == null) return builder.buildFuture();
+
+        // own playlists first
+        playlistManager.getOwnPlaylists(player.getUUID()).keySet().stream()
+                .map(SongUtils::transformSongPath)
+                .forEach(builder::suggest);
+
+        // then shared playlists (deduplicate names already suggested)
+        Set<String> alreadySuggested = playlistManager.getOwnPlaylists(player.getUUID()).keySet();
+        playlistManager.getSharedWithMe(player.getUUID()).values().stream()
+                .flatMap(m -> m.keySet().stream())
+                .filter(k -> !alreadySuggested.contains(k))
+                .map(SongUtils::transformSongPath)
+                .distinct()
+                .forEach(builder::suggest);
+
+        return builder.buildFuture();
+    }
+
     private CompletableFuture<Suggestions> suggestSongsInPlaylist(
             CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
         ServerPlayer player = ctx.getSource().getPlayer();
@@ -357,5 +396,11 @@ public class PlaylistCommand {
     private CompletableFuture<Suggestions> availableSongFiles(
             CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
         return SongUtils.suggestSongFiles(songDirectory, builder, logger);
+    }
+
+    private String resolvePlayerName(CommandContext<CommandSourceStack> ctx, UUID uuid) {
+        ServerPlayer online = ctx.getSource().getServer().getPlayerList().getPlayer(uuid);
+        if (online != null) return online.getScoreboardName();
+        return uuid.toString();
     }
 }

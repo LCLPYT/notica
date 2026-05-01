@@ -1,5 +1,7 @@
 package work.lclpnet.notica.util;
 
+import lombok.Getter;
+
 import java.util.*;
 
 /**
@@ -56,6 +58,7 @@ public class PlaylistManager {
         PlaylistEntry entry = findEntry(owner, key);
         if (entry == null) return false;
 
+        entry.sharedWith.clear();
         entry.isPublic = true;
         return true;
     }
@@ -88,6 +91,57 @@ public class PlaylistManager {
         return Collections.unmodifiableMap(owned);
     }
 
+    /**
+     * Returns all playlists accessible to {@code accessor} that are owned by someone else.
+     * The outer key is the owner UUID; the inner key is the normalized playlist name.
+     */
+    public synchronized Map<UUID, Map<String, PlaylistEntry>> getSharedWithMe(UUID accessor) {
+        Map<UUID, Map<String, PlaylistEntry>> result = new LinkedHashMap<>();
+
+        for (Map.Entry<UUID, Map<String, PlaylistEntry>> ownerEntry : playlists.entrySet()) {
+            UUID owner = ownerEntry.getKey();
+            if (owner.equals(accessor)) continue;
+
+            Map<String, PlaylistEntry> accessible = new LinkedHashMap<>();
+            for (Map.Entry<String, PlaylistEntry> playlistEntry : ownerEntry.getValue().entrySet()) {
+                PlaylistEntry entry = playlistEntry.getValue();
+                if (entry.isPublic || entry.sharedWith.contains(accessor)) {
+                    accessible.put(playlistEntry.getKey(), entry);
+                }
+            }
+
+            if (!accessible.isEmpty()) {
+                result.put(owner, Collections.unmodifiableMap(accessible));
+            }
+        }
+
+        return Collections.unmodifiableMap(result);
+    }
+
+    /**
+     * Finds the first playlist named {@code name} accessible to {@code accessor}.
+     * Own playlists take priority over shared ones.
+     */
+    public synchronized Optional<PlaylistEntry> getAccessiblePlaylist(UUID accessor, String name) {
+        String key = normalize(name);
+
+        // own playlist first
+        PlaylistEntry own = findEntry(accessor, key);
+        if (own != null) return Optional.of(own);
+
+        // then search playlists from other owners
+        for (Map.Entry<UUID, Map<String, PlaylistEntry>> ownerEntry : playlists.entrySet()) {
+            if (ownerEntry.getKey().equals(accessor)) continue;
+
+            PlaylistEntry entry = ownerEntry.getValue().get(key);
+            if (entry != null && (entry.isPublic || entry.sharedWith.contains(accessor))) {
+                return Optional.of(entry);
+            }
+        }
+
+        return Optional.empty();
+    }
+
     public synchronized boolean canAccess(UUID owner, String key, UUID accessor) {
         PlaylistEntry entry = findEntry(owner, key);
         if (entry == null) return false;
@@ -107,17 +161,15 @@ public class PlaylistManager {
     }
 
     public static final class PlaylistEntry {
+        @Getter
         private final String title;
         private final List<String> songs = new ArrayList<>();
         private final Set<UUID> sharedWith = new HashSet<>();
+        @Getter
         private boolean isPublic;
 
         public PlaylistEntry(String title) {
             this.title = title;
-        }
-
-        public String getTitle() {
-            return title;
         }
 
         public List<String> getSongs() {
@@ -126,10 +178,6 @@ public class PlaylistManager {
 
         public Set<UUID> getSharedWith() {
             return Collections.unmodifiableSet(sharedWith);
-        }
-
-        public boolean isPublic() {
-            return isPublic;
         }
     }
 }

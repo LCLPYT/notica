@@ -18,7 +18,7 @@ import static work.lclpnet.notica.api.IoHelper.*;
 
 public class SongDecoder {
 
-    public static final int VANILLA_INSTRUMENT_COUNT_1_14 = 16;
+    public static final int VANILLA_INSTRUMENT_COUNT_26_1 = 20;
     public static final String TEMPO_CHANGER_NAME = "Tempo Changer";
 
     private SongDecoder() {
@@ -26,7 +26,7 @@ public class SongDecoder {
 
     /**
      * Parse a song from an {@link InputStream}.
-     * Assumes game version 1.14 or higher.
+     * Assumes game version 26.1 or higher.
      *
      * @param input Any {@link InputStream}.
      * @return The parsed song.
@@ -34,7 +34,7 @@ public class SongDecoder {
      * @see <a href="https://opennbs.org/nbs">OpenNBS Specification</a>
      */
     public static Song parse(InputStream input) throws IOException {
-        return parse(input, VANILLA_INSTRUMENT_COUNT_1_14);
+        return parse(input, VANILLA_INSTRUMENT_COUNT_26_1);
     }
 
     /**
@@ -163,7 +163,7 @@ public class SongDecoder {
 
                 if (optimize && velocity <= 0) continue;
 
-                var notes = layerNotes.computeIfAbsent(layer, i -> new HashMap<>());
+                var notes = layerNotes.computeIfAbsent(layer, _ -> new HashMap<>());
                 var note = new ImmutableNote(instrument, key, velocity, panning, pitch);
                 notes.put(tick, note);
             }

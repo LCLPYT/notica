@@ -35,7 +35,11 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
             DIDGERIDOO = 12,
             BIT = 13,
             BANJO = 14,
-            PLING = 15;
+            PLING = 15,
+            TRUMPET = 16,
+            TRUMPET_EXPOSED = 17,
+            TRUMPET_WEATHERED = 18,
+            TRUMPET_OXIDIZED = 19;
 
     private final Registry<SoundEvent> soundRegistry;
     private final Map<CustomInstrument, SoundEvent> cache = new HashMap<>();
@@ -57,23 +61,27 @@ public class FabricInstrumentSoundProvider implements InstrumentSoundProvider {
     @Nullable
     public SoundEvent getVanillaInstrumentSound(byte instrument) {
         return switch (instrument) {
-            case HARP           -> SoundEvents.NOTE_BLOCK_HARP.value();
-            case BASS           -> SoundEvents.NOTE_BLOCK_BASS.value();
-            case BASEDRUM       -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
-            case SNARE          -> SoundEvents.NOTE_BLOCK_SNARE.value();
-            case HAT            -> SoundEvents.NOTE_BLOCK_HAT.value();
-            case GUITAR         -> SoundEvents.NOTE_BLOCK_GUITAR.value();
-            case FLUTE          -> SoundEvents.NOTE_BLOCK_FLUTE.value();
-            case BELL           -> SoundEvents.NOTE_BLOCK_BELL.value();
-            case CHIME          -> SoundEvents.NOTE_BLOCK_CHIME.value();
-            case XYLOPHONE      -> SoundEvents.NOTE_BLOCK_XYLOPHONE.value();
-            case IRON_XYLOPHONE -> SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value();
-            case COW_BELL       -> SoundEvents.NOTE_BLOCK_COW_BELL.value();
-            case DIDGERIDOO     -> SoundEvents.NOTE_BLOCK_DIDGERIDOO.value();
-            case BIT            -> SoundEvents.NOTE_BLOCK_BIT.value();
-            case BANJO          -> SoundEvents.NOTE_BLOCK_BANJO.value();
-            case PLING          -> SoundEvents.NOTE_BLOCK_PLING.value();
-            default             -> null;
+            case HARP              -> SoundEvents.NOTE_BLOCK_HARP.value();
+            case BASS              -> SoundEvents.NOTE_BLOCK_BASS.value();
+            case BASEDRUM          -> SoundEvents.NOTE_BLOCK_BASEDRUM.value();
+            case SNARE             -> SoundEvents.NOTE_BLOCK_SNARE.value();
+            case HAT               -> SoundEvents.NOTE_BLOCK_HAT.value();
+            case GUITAR            -> SoundEvents.NOTE_BLOCK_GUITAR.value();
+            case FLUTE             -> SoundEvents.NOTE_BLOCK_FLUTE.value();
+            case BELL              -> SoundEvents.NOTE_BLOCK_BELL.value();
+            case CHIME             -> SoundEvents.NOTE_BLOCK_CHIME.value();
+            case XYLOPHONE         -> SoundEvents.NOTE_BLOCK_XYLOPHONE.value();
+            case IRON_XYLOPHONE    -> SoundEvents.NOTE_BLOCK_IRON_XYLOPHONE.value();
+            case COW_BELL          -> SoundEvents.NOTE_BLOCK_COW_BELL.value();
+            case DIDGERIDOO        -> SoundEvents.NOTE_BLOCK_DIDGERIDOO.value();
+            case BIT               -> SoundEvents.NOTE_BLOCK_BIT.value();
+            case BANJO             -> SoundEvents.NOTE_BLOCK_BANJO.value();
+            case PLING             -> SoundEvents.NOTE_BLOCK_PLING.value();
+            case TRUMPET           -> SoundEvents.NOTE_BLOCK_TRUMPET.value();
+            case TRUMPET_EXPOSED   -> SoundEvents.NOTE_BLOCK_TRUMPET_EXPOSED.value();
+            case TRUMPET_WEATHERED -> SoundEvents.NOTE_BLOCK_TRUMPET_WEATHERED.value();
+            case TRUMPET_OXIDIZED  -> SoundEvents.NOTE_BLOCK_TRUMPET_OXIDIZED.value();
+            default                -> null;
         };
     }
 

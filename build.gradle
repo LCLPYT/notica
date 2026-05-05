@@ -117,7 +117,7 @@ dependencies {
     includeImpl(libs.night.config.core)
     includeImpl(libs.night.config.toml)
 
-    compileOnlyApi(libs.cloth.config) {
+    clientCompileOnly(libs.cloth.config) {
         exclude(group: libs.fabric.api.get().group)
     }
 

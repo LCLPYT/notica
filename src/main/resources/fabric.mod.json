@@ -44,10 +44,10 @@
     "kibu-access-lib": ">=0.16.0",
     "kibu-networking-api": "*",
     "kibu-config-api": "*",
-    "fabric-permissions-api-v0": "*",
-    "cloth-config": "*"
+    "fabric-permissions-api-v0": "*"
   },
   "suggests": {
-    "modmenu": "*"
+    "modmenu": "*",
+    "cloth-config": "*"
   }
 }

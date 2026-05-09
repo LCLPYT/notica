@@ -47,7 +47,10 @@ public class StreamSongPlayback implements SongPlayback {
     private final Logger logger;
     private final boolean forceDopplerEffect;
     private final @Nullable SoundPositionProvider soundPositionProvider;
-    private final Executor mutexExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService mutexExecutor = Executors.newSingleThreadExecutor(Thread.ofPlatform()
+            .daemon()
+            .name("Notica Stream Playback")
+            .factory());
 
     private volatile Hook<Runnable> onComplete = null;
     private ChannelAccess.ChannelHandle[] channelHandles = null;
@@ -85,6 +88,8 @@ public class StreamSongPlayback implements SongPlayback {
 
     @Override
     public synchronized void stop() {
+        destroy();
+
         if (channelHandles == null) return;
 
         stopped = true;
@@ -132,6 +137,8 @@ public class StreamSongPlayback implements SongPlayback {
                 if (onComplete != null) {
                     onComplete.invoker().run();
                 }
+
+                destroy();
             };
 
             ((NoticaChannelHandle) channelHandle).notica$onStopped(onStopped);
@@ -314,5 +321,9 @@ public class StreamSongPlayback implements SongPlayback {
 
     public void reload() {
         seekTo(0, false);
+    }
+
+    private void destroy() {
+        mutexExecutor.shutdown();
     }
 }

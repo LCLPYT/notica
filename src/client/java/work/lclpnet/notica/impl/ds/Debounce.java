@@ -8,7 +8,10 @@ import java.util.concurrent.TimeUnit;
 public class Debounce {
 
     private final int delayMs;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform()
+            .daemon()
+            .name("Notica Debounce")
+            .factory());
     private ScheduledFuture<?> future;
 
     public Debounce(int delayMs) {

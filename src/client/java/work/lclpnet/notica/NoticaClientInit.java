@@ -49,6 +49,11 @@ public class NoticaClientInit implements ClientModInitializer {
 			((NoticaMusicManager) musicTracker).notica$setMusicInhibitor(musicBackend::isSongPlaying);
 		});
 
+		ClientLifecycleEvents.CLIENT_STOPPING.register(_ -> {
+			configManager.onChanged(null);
+            configManager.close();
+        });
+
 		SongVolumeChangedCallback.EVENT.register(musicBackend::reload);
 	}
 

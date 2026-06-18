@@ -473,7 +473,7 @@ public class MusicCommand {
                 msg = translations.translateText(source, "notica.music.play.error");
             }
 
-            msg.formatted(RED);
+            msg.withStyle(RED);
             source.sendSystemMessage(msg);
             logger.error("Failed to load song file", error);
             return null;
@@ -496,10 +496,10 @@ public class MusicCommand {
             ServerPlayer executor = source.getPlayer();
             if (executor != null && !NoticaImpl.hasModInstalled(executor)) {
                 if (speaker != null && speaker.dopplerEffect()) {
-                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.doppler_mod_required").formatted(YELLOW));
+                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.doppler_mod_required").withStyle(YELLOW));
                 }
                 if (options.playbackVariant() == PlaybackVariant.STREAMED) {
-                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.streamed_mod_required").formatted(YELLOW));
+                    source.sendSystemMessage(translations.translateText(source, "notica.music.play.streamed_mod_required").withStyle(YELLOW));
                 }
             }
         });
@@ -520,7 +520,7 @@ public class MusicCommand {
         }
 
         if (meta.author().isBlank() && meta.originalAuthor().isBlank()) {
-            return translations.translateText(source, "notica.music.play", nameText).formatted(GREEN);
+            return translations.translateText(source, "notica.music.play", nameText).withStyle(GREEN);
         }
 
         if (!meta.author().isBlank() && !meta.originalAuthor().isBlank()) {
@@ -529,12 +529,12 @@ public class MusicCommand {
                     "notica.music.play_author_original",
                     nameText,
                     styled(meta.author(), AQUA),
-                    translations.translateText(source, "notica.music.original_author", meta.originalAuthor()).formatted(GRAY)
-            ).formatted(GREEN);
+                    translations.translateText(source, "notica.music.original_author", meta.originalAuthor()).withStyle(GRAY)
+            ).withStyle(GREEN);
         }
 
         String author = meta.author().isBlank() ? meta.originalAuthor() : meta.author();
-        return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA)).formatted(GREEN);
+        return translations.translateText(source, "notica.music.play_author", nameText, styled(author, AQUA)).withStyle(GREEN);
     }
 
     /** Builds {@code /music stop} with sub-paths for stopping by ID, globally, or per player. */
@@ -589,12 +589,12 @@ public class MusicCommand {
     /** Calls {@link SongHandle#stop()} on each handle and sends the appropriate feedback message. */
     private int stopAllHandles(CommandSourceStack source, Set<SongHandle> handles) {
         if (handles.isEmpty()) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").withStyle(RED));
             return 0;
         }
 
         handles.forEach(SongHandle::stop);
-        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").withStyle(GREEN));
         return 1;
     }
 
@@ -606,7 +606,7 @@ public class MusicCommand {
         SongHandle handle = api.getPlayingSong(id).orElse(null);
 
         if (handle == null) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).withStyle(RED));
             return 0;
         }
 
@@ -617,7 +617,7 @@ public class MusicCommand {
         }
 
         handle.stop();
-        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).withStyle(GREEN));
         return 1;
     }
 
@@ -636,7 +636,7 @@ public class MusicCommand {
                 .collect(toSet());
 
         if (handles.isEmpty()) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").withStyle(RED));
             return 0;
         }
 
@@ -656,7 +656,7 @@ public class MusicCommand {
         }
 
         if (stopped > 0) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").formatted(GREEN));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.stopped.all").withStyle(GREEN));
             return 1;
         }
 
@@ -692,7 +692,7 @@ public class MusicCommand {
         SongHandle handle = api.getPlayingSong(id).orElse(null);
 
         if (handle == null) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).withStyle(RED));
             return 0;
         }
 
@@ -710,18 +710,18 @@ public class MusicCommand {
         }
 
         if (stopped == 0) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).withStyle(RED));
             return 0;
         }
 
-        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stopped", styled(id, YELLOW)).withStyle(GREEN));
         return 1;
     }
 
     /** Sends the "song is global" error and the {@code stop id} hint to the source. */
     private void printGlobalStopError(CommandSourceStack source, Identifier id) {
-        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global", styled(id, YELLOW)).formatted(RED));
-        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global.hint", styled(id, YELLOW)).formatted(GRAY));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global", styled(id, YELLOW)).withStyle(RED));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.stop.is_global.hint", styled(id, YELLOW)).withStyle(GRAY));
     }
 
     /** Adds the given players to the handle matching a specific song ID. */
@@ -733,7 +733,7 @@ public class MusicCommand {
         SongHandle handle = api.getPlayingSong(id).orElse(null);
 
         if (handle == null) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.not_playing", styled(id, YELLOW)).withStyle(RED));
             return 0;
         }
 
@@ -748,11 +748,11 @@ public class MusicCommand {
         }
 
         if (added == 0) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.add.already_listener", styled(id, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.add.already_listener", styled(id, YELLOW)).withStyle(RED));
             return 0;
         }
 
-        source.sendSystemMessage(translations.translateText(source, "notica.music.added", styled(added, YELLOW), styled(id, YELLOW)).formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, "notica.music.added", styled(added, YELLOW), styled(id, YELLOW)).withStyle(GREEN));
         return added;
     }
 
@@ -774,7 +774,7 @@ public class MusicCommand {
         boolean enabled = BoolArgumentType.getBool(ctx, "enabled");
 
         if (enabled && !serverPackManager.hasServerPackInstalled(player)) {
-            var msg = translations.translateText(player, "notica.music.server_pack_requesting").formatted(GRAY);
+            var msg = translations.translateText(player, "notica.music.server_pack_requesting").withStyle(GRAY);
             player.sendSystemMessage(msg);
             serverPackManager.sendServerPack(player);
             return 1;
@@ -787,7 +787,7 @@ public class MusicCommand {
         String key = enabled ? "notica.music.extended_octaves.enabled" : "notica.music.extended_octaves.disabled";
         ChatFormatting color = enabled ? GREEN : RED;
 
-        player.sendSystemMessage(translations.translateText(player, key).formatted(color));
+        player.sendSystemMessage(translations.translateText(player, key).withStyle(color));
 
         return 2;
     }
@@ -804,7 +804,7 @@ public class MusicCommand {
         instance.syncPlayerConfig(player);
 
         player.sendSystemMessage(translations.translateText(player, "notica.music.volume.changed",
-                styled("%.0f%%".formatted(percent), YELLOW)).formatted(GREEN));
+                styled("%.0f%%".formatted(percent), YELLOW)).withStyle(GREEN));
 
         return 1;
     }
@@ -882,7 +882,7 @@ public class MusicCommand {
     /** Applies time offsets to each handle and sends seek confirmation to the source. */
     private int seekAllWithOffsets(CommandSourceStack source, Set<SongHandle> songHandles, TimeOffsets timeOffsets) {
         if (songHandles.isEmpty()) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.none_playing").withStyle(RED));
             return 0;
         }
 
@@ -896,7 +896,7 @@ public class MusicCommand {
         FormatWrapper offsetsWrapped = styled(timeOffsets.translatedText(translations).translateTo(language), YELLOW);
         String translationKey = timeOffsets.absolute ? "notica.music.seek.absolute" : "notica.music.seek.relative";
 
-        source.sendSystemMessage(translations.translateText(source, translationKey, offsetsWrapped).formatted(GREEN));
+        source.sendSystemMessage(translations.translateText(source, translationKey, offsetsWrapped).withStyle(GREEN));
 
         return 1;
     }
@@ -915,7 +915,7 @@ public class MusicCommand {
     /** Parses a time string into a {@link TimeOffsets}; sends an error and returns {@code null} on failure. */
     private @Nullable TimeOffsets parseOffsets(String time, CommandSourceStack source) {
         if (!TIME_PATTERN.matcher(time).matches()) {
-            source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).formatted(RED));
+            source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(time, YELLOW)).withStyle(RED));
             return null;
         }
 
@@ -940,7 +940,7 @@ public class MusicCommand {
             try {
                 amount = parseInt(amountStr);
             } catch (NumberFormatException e) {
-                source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(amountStr, YELLOW)).formatted(RED));
+                source.sendSystemMessage(translations.translateText(source, "notica.music.seek.error_time", styled(amountStr, YELLOW)).withStyle(RED));
                 logger.error("Failed to parse as integer: {}", amountStr, e);
                 continue;
             }

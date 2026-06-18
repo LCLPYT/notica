@@ -47,7 +47,7 @@ public class NoticaServerPackManager {
         String urlString = url.toString();
 
         UUID packUuid = UUID.nameUUIDFromBytes(urlString.getBytes(StandardCharsets.UTF_8));
-        var prompt = translations.translateText(player, "notica.music.server_pack_prompt").formatted(GREEN);
+        var prompt = translations.translateText(player, "notica.music.server_pack_prompt").withStyle(GREEN);
         var packet = new ClientboundResourcePackPushPacket(packUuid, urlString, "", false, Optional.of(prompt));
 
         this.packUuid = packUuid;
@@ -86,7 +86,7 @@ public class NoticaServerPackManager {
         PlayerConfigContainer configs = instance.getPlayerConfigs();
         configs.get(player).setExtendedRangeSupported(true);
 
-        var msg = translations.translateText(player, "notica.music.server_pack_success").formatted(GREEN);
+        var msg = translations.translateText(player, "notica.music.server_pack_success").withStyle(GREEN);
         player.sendSystemMessage(msg);
     }
 
@@ -103,7 +103,7 @@ public class NoticaServerPackManager {
     }
 
     private void sendError(ServerPlayer player) {
-        var msg = translations.translateText(player, "notica.music.server_pack_failed").formatted(RED);
+        var msg = translations.translateText(player, "notica.music.server_pack_failed").withStyle(RED);
         player.sendSystemMessage(msg);
     }
 

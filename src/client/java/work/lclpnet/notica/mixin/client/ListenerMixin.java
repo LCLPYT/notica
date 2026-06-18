@@ -24,7 +24,7 @@ public class ListenerMixin {
             method = "setTransform",
             at = @At("TAIL")
     )
-    public void notica$setListenerVelocity(ListenerTransform listenerTransform, CallbackInfo ci) {
+    public void notica$setListenerVelocity(ListenerTransform transform, CallbackInfo ci) {
         LocalPlayer player = Minecraft.getInstance().player;
 
         if (player == null) return;
